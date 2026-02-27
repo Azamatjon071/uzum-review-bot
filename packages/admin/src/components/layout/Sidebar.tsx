@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import React, { useState } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import {
@@ -10,8 +10,20 @@ import { useAuth } from '@/hooks/useAuth'
 import { getAnalyticsOverview } from '@/api'
 import { cn } from '@/lib/utils'
 
+type NavItem = {
+  to: string
+  icon: React.ComponentType<{ size?: number; className?: string }>
+  label: string
+  badgeKey?: string
+}
+
+type NavSection = {
+  label: string
+  items: NavItem[]
+}
+
 // Nav sections with dividers
-const NAV_SECTIONS = [
+const NAV_SECTIONS: NavSection[] = [
   {
     label: 'Overview',
     items: [
