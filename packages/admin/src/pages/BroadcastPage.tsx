@@ -1,8 +1,8 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { useMutation } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { sendBroadcast } from '@/api'
-import { Megaphone, Globe, Users, Send, Clock, CheckCircle, AlertCircle } from 'lucide-react'
+import { Megaphone, Globe, Users, Send, Clock, CheckCircle, AlertCircle, ImageIcon, X } from 'lucide-react'
 
 const MAX_LEN = 4096
 
@@ -16,7 +16,7 @@ const MOCK_HISTORY = [
 const LANG_FLAGS: Record<string, string> = { uz: '🇺🇿', ru: '🇷🇺', en: '🇬🇧', '': '🌍' }
 const LANG_LABELS: Record<string, string> = { uz: 'Uzbek', ru: 'Russian', en: 'English', '': 'All Languages' }
 
-function TelegramPreview({ message, lang }: { message: string; lang: string }) {
+function TelegramPreview({ message, lang, imagePreview }: { message: string; lang: string; imagePreview: string | null }) {
   const processed = message
     .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
     .replace(/\*(.*?)\*/g, '<em>$1</em>')
@@ -34,16 +34,23 @@ function TelegramPreview({ message, lang }: { message: string; lang: string }) {
         </div>
       </div>
 
-      {message.trim() ? (
-        <div className="bg-[#182533] rounded-xl rounded-tl-sm px-3.5 py-2.5 text-sm text-white/90 leading-relaxed max-w-[80%]"
-          dangerouslySetInnerHTML={{ __html: processed }} />
+      {(message.trim() || imagePreview) ? (
+        <div className="bg-[#182533] rounded-xl rounded-tl-sm overflow-hidden max-w-[80%]">
+          {imagePreview && (
+            <img src={imagePreview} alt="preview" className="w-full max-h-48 object-cover" />
+          )}
+          {message.trim() && (
+            <div className="px-3.5 py-2.5 text-sm text-white/90 leading-relaxed"
+              dangerouslySetInnerHTML={{ __html: processed }} />
+          )}
+        </div>
       ) : (
         <div className="flex items-center justify-center h-20 text-slate-600 text-xs italic">
           Your message preview appears here…
         </div>
       )}
 
-      {message.trim() && (
+      {(message.trim() || imagePreview) && (
         <div className="flex items-center gap-1.5 mt-1.5 ml-1">
           <span className="text-[10px] text-slate-600">
             {LANG_FLAGS[lang]} {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
@@ -59,14 +66,35 @@ function TelegramPreview({ message, lang }: { message: string; lang: string }) {
 export default function BroadcastPage() {
   const [message, setMessage] = useState('')
   const [lang, setLang] = useState('')
+  const [image, setImage] = useState<File | null>(null)
+  const [imagePreview, setImagePreview] = useState<string | null>(null)
   const [history, setHistory] = useState(MOCK_HISTORY)
+  const fileRef = useRef<HTMLInputElement>(null)
 
   const remaining = MAX_LEN - message.length
   const isNearLimit = remaining < 200
   const isOverLimit = remaining < 0
 
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0] ?? null
+    setImage(file)
+    if (file) {
+      const reader = new FileReader()
+      reader.onload = (ev) => setImagePreview(ev.target?.result as string)
+      reader.readAsDataURL(file)
+    } else {
+      setImagePreview(null)
+    }
+  }
+
+  const clearImage = () => {
+    setImage(null)
+    setImagePreview(null)
+    if (fileRef.current) fileRef.current.value = ''
+  }
+
   const mut = useMutation({
-    mutationFn: () => sendBroadcast({ message, language: lang || undefined }),
+    mutationFn: () => sendBroadcast(message, lang || undefined, image),
     onSuccess: (res) => {
       const queued = res.data?.queued ?? 0
       toast.success(`Queued for ${queued} users`)
@@ -82,6 +110,7 @@ export default function BroadcastPage() {
         ...h,
       ])
       setMessage('')
+      clearImage()
     },
     onError: () => toast.error('Broadcast failed'),
   })
@@ -128,6 +157,39 @@ export default function BroadcastPage() {
             </div>
           </div>
 
+          {/* Image upload */}
+          <div>
+            <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider block mb-2">
+              Image <span className="text-slate-400 font-normal normal-case">(optional)</span>
+            </label>
+            {imagePreview ? (
+              <div className="relative rounded-xl overflow-hidden border border-slate-200">
+                <img src={imagePreview} alt="Selected" className="w-full max-h-40 object-cover" />
+                <button
+                  onClick={clearImage}
+                  className="absolute top-2 right-2 w-6 h-6 bg-black/60 hover:bg-black/80 rounded-full flex items-center justify-center transition-colors"
+                >
+                  <X size={12} className="text-white" />
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={() => fileRef.current?.click()}
+                className="w-full flex items-center justify-center gap-2 border-2 border-dashed border-slate-200 rounded-xl py-4 text-sm text-slate-400 hover:border-blue-300 hover:text-blue-500 hover:bg-blue-50/50 transition-all"
+              >
+                <ImageIcon size={16} />
+                Click to attach an image
+              </button>
+            )}
+            <input
+              ref={fileRef}
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              className="hidden"
+              onChange={handleImageChange}
+            />
+          </div>
+
           {/* Message textarea */}
           <div>
             <div className="flex items-center justify-between mb-2">
@@ -141,7 +203,7 @@ export default function BroadcastPage() {
             <textarea
               value={message}
               onChange={(e) => setMessage(e.target.value)}
-              rows={7}
+              rows={6}
               placeholder="Write your broadcast message here…&#10;&#10;You can use:&#10;<b>bold</b>, <i>italic</i>, <code>code</code>, emojis 🎉"
               className={`w-full border rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 transition-colors resize-none
                 ${isOverLimit
@@ -158,7 +220,7 @@ export default function BroadcastPage() {
           {/* Send button */}
           <button
             onClick={() => mut.mutate()}
-            disabled={!message.trim() || isOverLimit || mut.isPending}
+            disabled={(!message.trim() && !image) || isOverLimit || mut.isPending}
             className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-semibold px-6 py-3 rounded-xl text-sm disabled:opacity-60 transition-all shadow-md shadow-blue-500/20"
           >
             {mut.isPending ? (
@@ -190,14 +252,14 @@ export default function BroadcastPage() {
               <div className="w-2 h-2 rounded-full bg-green-500" />
               <span className="text-slate-400 text-xs ml-2">Telegram preview</span>
             </div>
-            <TelegramPreview message={message} lang={lang} />
+            <TelegramPreview message={message} lang={lang} imagePreview={imagePreview} />
           </div>
 
           <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4">
             <div className="grid grid-cols-2 gap-3">
               <div className="bg-blue-50 rounded-xl p-3 text-center">
                 <Users size={16} className="mx-auto text-blue-500 mb-1" />
-                <p className="text-lg font-extrabold text-blue-700">1,204</p>
+                <p className="text-lg font-extrabold text-blue-700">—</p>
                 <p className="text-[10px] text-blue-500 font-medium">Eligible recipients</p>
               </div>
               <div className="bg-slate-50 rounded-xl p-3 text-center">
