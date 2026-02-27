@@ -8,7 +8,7 @@ from aiogram.types import Message
 from app.config import get_settings
 from app.i18n import t, status_label, status_emoji
 from app.keyboards import main_menu, open_webapp_keyboard, referral_keyboard
-from app.services.api import get_my_submissions, get_user_info, auth_telegram, APIError
+from app.services.api import get_my_submissions, get_user_info, get_my_rewards, auth_telegram, APIError
 import hashlib, hmac, json, time, urllib.parse
 
 router = Router(name="status")
@@ -161,7 +161,12 @@ async def cmd_referral(message: Message, lang: str):
 
     await message.answer(
         text,
-        reply_markup=referral_keyboard(lang, settings.WEBAPP_URL),
+        reply_markup=referral_keyboard(
+            lang,
+            settings.WEBAPP_URL,
+            referral_code=code,
+            bot_username=bot_username,
+        ),
         parse_mode="HTML",
     )
 
@@ -173,9 +178,51 @@ async def cmd_referral(message: Message, lang: str):
 @router.message(Command("wallet"))
 @router.message(F.text.in_({"💼 Mukofotlarim", "💼 Мои награды", "💼 My rewards"}))
 async def cmd_wallet(message: Message, lang: str):
+    token = await _get_token(message.from_user, lang)
+    if not token:
+        await message.answer(t("submit.error", lang))
+        return
+
+    try:
+        resp = await get_my_rewards(token)
+        rewards = resp.get("rewards", resp.get("items", []))
+    except APIError:
+        # Fallback: just open the mini app if API fails
+        await message.answer(
+            t("wallet.open_app", lang),
+            reply_markup=open_webapp_keyboard(lang, settings.WEBAPP_URL),
+        )
+        return
+
+    if not rewards:
+        await message.answer(
+            t("wallet.empty", lang),
+            reply_markup=open_webapp_keyboard(lang, settings.WEBAPP_URL),
+        )
+        return
+
+    STATUS_ICONS = {"pending": "🎁", "claimed": "✅", "expired": "⏰", "donated": "🕌"}
+    lines = [t("wallet.header", lang), ""]
+    for r in rewards[:8]:
+        st = r.get("status", "pending")
+        icon = STATUS_ICONS.get(st, "🎁")
+        prize = r.get("prize", {})
+        name_key = f"name_{lang}" if f"name_{lang}" in prize else "name_uz"
+        prize_name = prize.get(name_key, prize.get("name_uz", "—"))
+        claim_code = r.get("claim_code", "")
+        expires = (r.get("expires_at") or "")[:10]
+        lines.append(f"{icon} <b>{prize_name}</b>")
+        if st == "pending" and claim_code:
+            lines.append(f"   <code>{claim_code}</code>  📅 {expires}")
+        elif st == "claimed":
+            lines.append(f"   {t('wallet.claimed', lang)}")
+        elif st == "expired":
+            lines.append(f"   {t('wallet.expired', lang)}")
+
     await message.answer(
-        t("wallet.open_app", lang),
+        "\n".join(lines),
         reply_markup=open_webapp_keyboard(lang, settings.WEBAPP_URL),
+        parse_mode="HTML",
     )
 
 

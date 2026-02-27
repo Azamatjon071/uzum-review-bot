@@ -66,10 +66,23 @@ def open_webapp_keyboard(lang: str, webapp_url: str) -> InlineKeyboardMarkup:
     return builder.as_markup()
 
 
-def referral_keyboard(lang: str, webapp_url: str) -> InlineKeyboardMarkup:
-    """Inline keyboard for referral command — opens Mini App."""
+def referral_keyboard(
+    lang: str,
+    webapp_url: str,
+    referral_code: str = "",
+    bot_username: str = "",
+) -> InlineKeyboardMarkup:
+    """Inline keyboard for referral command — share link + open Mini App."""
     builder = InlineKeyboardBuilder()
-    builder.add(
+    if referral_code and bot_username:
+        share_url = f"https://t.me/{bot_username}?start={referral_code}"
+        builder.row(
+            InlineKeyboardButton(
+                text=t("btn.share_referral", lang),
+                url=share_url,
+            )
+        )
+    builder.row(
         InlineKeyboardButton(
             text=t("btn.open_webapp", lang),
             web_app=WebAppInfo(url=webapp_url),

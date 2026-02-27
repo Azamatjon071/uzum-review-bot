@@ -8,7 +8,7 @@ from aiogram.types import Message
 from app.config import get_settings
 from app.i18n import t
 from app.keyboards import main_menu, language_keyboard
-from app.services.api import bot_register_user, APIError
+from app.services.api import bot_register_user, get_user_info, APIError
 
 router = Router(name="common")
 settings = get_settings()
@@ -57,9 +57,14 @@ async def cmd_start(message: Message, lang: str, bot: Bot):
         )
         is_new = result.get("is_new", True)
         spin_count = result.get("spin_count", 0)
-        # approved_submissions isn't in the register response directly;
-        # we get it from spin_count hint or leave as 0 for returning users
-        # (the status command shows the full history)
+        if not is_new:
+            # Fetch full user stats for the returning greeting
+            try:
+                info = await get_user_info(tg_user.id, settings.BOT_WEBHOOK_SECRET)
+                approved = info.get("approved_submissions", 0)
+                spin_count = info.get("spin_count", spin_count)
+            except APIError:
+                pass  # non-critical; spin_count from register is still shown
     except APIError:
         pass  # Fall back to "new user" greeting on error
 

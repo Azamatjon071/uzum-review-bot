@@ -193,6 +193,8 @@ class SpinService:
         user_result = await self.db.execute(select(User).where(User.id == user_id))
         user = user_result.scalar_one()
         user.total_spins += 1
+        # Deduct from available spin balance (floor at 0 to guard against negatives)
+        user.spin_count = max(0, user.spin_count - 1)
 
         await self.db.flush()
 

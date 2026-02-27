@@ -367,6 +367,16 @@ STRINGS: dict[str, dict[str, str]] = {
         "ru": "Нажмите кнопку ниже, чтобы открыть мини-приложение:",
         "en": "Press the button below to open the Mini App:",
     },
+    "wallet.claimed": {
+        "uz": "Olindi",
+        "ru": "Получено",
+        "en": "Claimed",
+    },
+    "wallet.expired": {
+        "uz": "Muddati o'tgan",
+        "ru": "Истёк срок",
+        "en": "Expired",
+    },
 
     # ── Charity ──────────────────────────────────────────────────────────────
     "charity.header": {
@@ -388,6 +398,7 @@ STRINGS: dict[str, dict[str, str]] = {
     # ── Buttons ──────────────────────────────────────────────────────────────
     "btn.submit_review": {"uz": "📝 Sharh yuborish", "ru": "📝 Отправить отзыв", "en": "📝 Submit review"},
     "btn.open_webapp": {"uz": "🎡 Mini Ilova", "ru": "🎡 Мини-приложение", "en": "🎡 Mini App"},
+    "btn.share_referral": {"uz": "🔗 Do'stlarga ulashish", "ru": "🔗 Поделиться с друзьями", "en": "🔗 Share with friends"},
     "btn.my_rewards": {"uz": "💼 Mukofotlarim", "ru": "💼 Мои награды", "en": "💼 My rewards"},
     "btn.charity": {"uz": "🕌 Xayriya", "ru": "🕌 Благотворительность", "en": "🕌 Charity"},
     "btn.help": {"uz": "❓ Yordam", "ru": "❓ Помощь", "en": "❓ Help"},

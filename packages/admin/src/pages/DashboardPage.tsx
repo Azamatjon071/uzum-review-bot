@@ -124,7 +124,6 @@ export default function DashboardPage() {
           icon={Users}
           gradient="bg-gradient-to-br from-blue-500 to-indigo-600"
           iconBg="bg-blue-400/40"
-          trend={{ value: 12, label: 'this week' }}
         />
         <KpiCard
           label="Today's Submissions"
@@ -133,7 +132,6 @@ export default function DashboardPage() {
           icon={FileText}
           gradient="bg-gradient-to-br from-violet-500 to-purple-600"
           iconBg="bg-violet-400/40"
-          trend={{ value: 8, label: 'vs yesterday' }}
         />
         <KpiCard
           label="Pending Review"
@@ -152,7 +150,6 @@ export default function DashboardPage() {
           icon={Heart}
           gradient="bg-gradient-to-br from-pink-500 to-rose-600"
           iconBg="bg-pink-400/40"
-          trend={{ value: 5, label: 'this month' }}
         />
       </div>
 

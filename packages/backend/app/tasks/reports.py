@@ -147,6 +147,12 @@ async def _generate_export(admin_user_id: int, export_type: str, filters: dict):
             rows = (await session.execute(select(PrizeSpin).limit(10000))).scalars().all()
             for r in rows:
                 writer.writerow([r.id, r.user_id, r.prize_id, r.created_at])
+        elif export_type == "donations":
+            writer.writerow(["id", "user_id", "campaign_id", "amount_uzs", "source", "created_at"])
+            from app.models import CharityDonation
+            rows = (await session.execute(select(CharityDonation).limit(10000))).scalars().all()
+            for r in rows:
+                writer.writerow([r.id, r.user_id, r.campaign_id, r.amount_uzs, r.source, r.created_at])
 
     await engine.dispose()
 
@@ -154,8 +160,32 @@ async def _generate_export(admin_user_id: int, export_type: str, filters: dict):
     timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
     object_name = f"exports/{export_type}_{timestamp}_{admin_user_id}.csv"
 
-    url = await storage.upload_bytes(
-        content, object_name, content_type="text/csv"
+    # Upload CSV to MinIO
+    await storage.upload_image(content, object_name, content_type="text/csv")
+
+    presigned_url = storage.get_presigned_url(
+        object_name, expires=60 * 60 * 24  # 24-hour download link
     )
-    logger.info("Export ready for admin %s: %s", admin_user_id, url)
-    # TODO: notify admin via bot or store URL in Redis for polling
+
+    # Notify admin via Telegram if ADMIN_CHAT_ID is set
+    admin_chat_id = getattr(settings, "ADMIN_CHAT_ID", None)
+    if admin_chat_id:
+        try:
+            import httpx as _httpx
+            BOT_API = f"https://api.telegram.org/bot{settings.BOT_TOKEN}"
+            text = (
+                f"📥 <b>Export ready!</b>\n\n"
+                f"Type: <code>{export_type}</code>\n"
+                f"Generated: {timestamp}\n\n"
+                f'<a href="{presigned_url}">Download CSV (valid 24h)</a>'
+            )
+            _httpx.post(
+                f"{BOT_API}/sendMessage",
+                json={"chat_id": admin_chat_id, "text": text,
+                      "parse_mode": "HTML", "disable_web_page_preview": True},
+                timeout=10,
+            )
+        except Exception as exc:
+            logger.error("Failed to notify admin of export: %s", exc)
+    else:
+        logger.info("Export ready for admin %s: %s", admin_user_id, presigned_url)

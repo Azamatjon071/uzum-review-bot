@@ -26,8 +26,7 @@ const EXPORTS: ExportCard[] = [
     icon: FileText,
     gradient: 'from-blue-500 to-indigo-600',
     iconBg: 'bg-blue-400/30',
-    lastExported: '2026-02-26T08:00:00Z',
-    rowEstimate: '~19 rows',
+    rowEstimate: '~10k max rows',
   },
   {
     type: 'users',
@@ -36,8 +35,7 @@ const EXPORTS: ExportCard[] = [
     icon: Users,
     gradient: 'from-violet-500 to-purple-600',
     iconBg: 'bg-violet-400/30',
-    lastExported: '2026-02-25T14:30:00Z',
-    rowEstimate: '~11 rows',
+    rowEstimate: '~10k max rows',
   },
   {
     type: 'spins',
@@ -46,8 +44,7 @@ const EXPORTS: ExportCard[] = [
     icon: RefreshCw,
     gradient: 'from-emerald-500 to-teal-600',
     iconBg: 'bg-emerald-400/30',
-    lastExported: undefined,
-    rowEstimate: '—',
+    rowEstimate: '~10k max rows',
   },
   {
     type: 'donations',
@@ -56,8 +53,7 @@ const EXPORTS: ExportCard[] = [
     icon: Heart,
     gradient: 'from-pink-500 to-rose-600',
     iconBg: 'bg-pink-400/30',
-    lastExported: '2026-02-24T10:00:00Z',
-    rowEstimate: '~5 rows',
+    rowEstimate: '~10k max rows',
   },
 ]
 

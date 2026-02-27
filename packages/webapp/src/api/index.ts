@@ -16,23 +16,23 @@ export const authWithTelegram = (initData: string) =>
   api.post('/auth/telegram', { init_data: initData })
 
 // ── Spins ─────────────────────────────────────────────────────────────────────
-export const getSpinCommitments = () => api.get('/spins/my')
-export const commitSpin = (submission_id: number) =>
-  api.post('/spins/commit', { submission_id })
+export const getSpinCommitments = () => api.get('/spins/history')
+export const commitSpin = () =>
+  api.post('/spins/commit')
 export const executeSpin = (commitment_id: string) =>
-  api.post('/spins/spin', { commitment_id })
-export const getPrizeOdds = () => api.get('/spins/odds')
+  api.post('/spins/execute', { commitment_id })
+export const getPrizeOdds = () => api.get('/spins/prizes')
 
 // ── Rewards / Wallet ──────────────────────────────────────────────────────────
-export const getMyRewards = () => api.get('/spins/rewards')
+export const getMyRewards = () => api.get('/rewards')
 
 // ── Charity ───────────────────────────────────────────────────────────────────
 export const getPublicCampaigns = () => api.get('/charity/campaigns')
 export const donateToCapmaign = (campaign_id: string, amount: number) =>
   api.post('/charity/donate', { campaign_id, amount })
 export const giveSadaqa = (amount: number) =>
-  api.post('/charity/sadaqa', { amount })
+  api.post('/charity/donate', { amount })
 export const getCharityLeaderboard = () => api.get('/charity/leaderboard')
 
 // ── User profile ──────────────────────────────────────────────────────────────
-export const getMe = () => api.get('/users/me')
+export const getMe = () => api.get('/me')
