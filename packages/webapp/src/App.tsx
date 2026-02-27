@@ -4,6 +4,7 @@ import BottomNav from '@/components/layout/BottomNav'
 import SpinPage from '@/pages/SpinPage'
 import WalletPage from '@/pages/WalletPage'
 import CharityPage from '@/pages/CharityPage'
+import ProfilePage from '@/pages/ProfilePage'
 import { t } from '@/i18n'
 
 const BG = 'linear-gradient(160deg, #0f0f1a 0%, #1a0f2e 50%, #0f1a2e 100%)'
@@ -49,6 +50,7 @@ function AppShell() {
         <Route path="/" element={<SpinPage />} />
         <Route path="/wallet" element={<WalletPage />} />
         <Route path="/charity" element={<CharityPage />} />
+        <Route path="/profile" element={<ProfilePage />} />
       </Routes>
       <BottomNav />
     </>

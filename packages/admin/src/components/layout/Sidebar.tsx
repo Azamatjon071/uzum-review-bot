@@ -1,25 +1,53 @@
 import { useState } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
+import { useQuery } from '@tanstack/react-query'
 import {
   LayoutDashboard, FileText, Users, Trophy, Heart,
   ScrollText, ShieldCheck, Settings, Megaphone,
   Package, BarChart3, LogOut, X, ChevronLeft, ChevronRight,
 } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
+import { getAnalyticsOverview } from '@/api'
 import { cn } from '@/lib/utils'
 
-const NAV = [
-  { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
-  { to: '/submissions', icon: FileText, label: 'Submissions' },
-  { to: '/users', icon: Users, label: 'Users' },
-  { to: '/prizes', icon: Trophy, label: 'Prizes' },
-  { to: '/charity', icon: Heart, label: 'Charity' },
-  { to: '/broadcast', icon: Megaphone, label: 'Broadcast' },
-  { to: '/products', icon: Package, label: 'Products' },
-  { to: '/reports', icon: BarChart3, label: 'Reports' },
-  { to: '/audit', icon: ScrollText, label: 'Audit Log' },
-  { to: '/admins', icon: ShieldCheck, label: 'Admins' },
-  { to: '/settings', icon: Settings, label: 'Settings' },
+// Nav sections with dividers
+const NAV_SECTIONS = [
+  {
+    label: 'Overview',
+    items: [
+      { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
+    ],
+  },
+  {
+    label: 'Moderation',
+    items: [
+      { to: '/submissions', icon: FileText, label: 'Submissions', badgeKey: 'pending_submissions' },
+      { to: '/users', icon: Users, label: 'Users', badgeKey: 'total_users_today' },
+    ],
+  },
+  {
+    label: 'Content',
+    items: [
+      { to: '/prizes', icon: Trophy, label: 'Prizes' },
+      { to: '/products', icon: Package, label: 'Products' },
+      { to: '/charity', icon: Heart, label: 'Charity' },
+    ],
+  },
+  {
+    label: 'Engage',
+    items: [
+      { to: '/broadcast', icon: Megaphone, label: 'Broadcast' },
+      { to: '/reports', icon: BarChart3, label: 'Reports' },
+    ],
+  },
+  {
+    label: 'System',
+    items: [
+      { to: '/audit', icon: ScrollText, label: 'Audit Log' },
+      { to: '/admins', icon: ShieldCheck, label: 'Admins' },
+      { to: '/settings', icon: Settings, label: 'Settings' },
+    ],
+  },
 ]
 
 interface SidebarProps {
@@ -40,6 +68,18 @@ function SidebarContent({
 }) {
   const navigate = useNavigate()
   const logout = useAuth((s) => s.logout)
+
+  // Fetch badge counts
+  const { data: overview } = useQuery({
+    queryKey: ['analytics-overview'],
+    queryFn: () => getAnalyticsOverview().then((r) => r.data),
+    refetchInterval: 60_000,
+    staleTime: 30_000,
+  })
+
+  const badges: Record<string, number> = {
+    pending_submissions: overview?.pending_submissions ?? 0,
+  }
 
   return (
     <aside className={cn(
@@ -99,36 +139,71 @@ function SidebarContent({
         </button>
       )}
 
-      {/* Nav */}
-      <nav className={cn('flex-1 py-3 space-y-0.5 overflow-y-auto overflow-x-hidden', collapsed ? 'px-2' : 'px-3')}>
-        {NAV.map(({ to, icon: Icon, label }) => (
-          <NavLink
-            key={to}
-            to={to}
-            end={to === '/'}
-            onClick={onClose}
-            title={collapsed ? label : undefined}
-            className={({ isActive }) =>
-              cn(
-                'flex items-center rounded-xl text-sm transition-all duration-150 group relative',
-                collapsed ? 'justify-center w-10 h-10 mx-auto' : 'gap-3 px-3 py-2.5',
-                isActive
-                  ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg shadow-blue-900/40'
-                  : 'text-slate-400 hover:bg-slate-700/50 hover:text-slate-100'
-              )
-            }
-          >
-            {({ isActive }) => (
-              <>
-                <Icon size={collapsed ? 18 : 16} className="shrink-0" />
-                {!collapsed && <span className="truncate font-medium">{label}</span>}
-                {/* Active indicator dot (collapsed mode) */}
-                {collapsed && isActive && (
-                  <span className="absolute right-0.5 top-1/2 -translate-y-1/2 w-1 h-4 bg-blue-400 rounded-full" />
-                )}
-              </>
+      {/* Nav with sections */}
+      <nav className={cn('flex-1 py-3 overflow-y-auto overflow-x-hidden', collapsed ? 'px-2' : 'px-3')}>
+        {NAV_SECTIONS.map((section, si) => (
+          <div key={section.label} className={si > 0 ? 'mt-1' : ''}>
+            {/* Section label — only when expanded */}
+            {!collapsed && (
+              <div className={cn('px-2 mb-1', si > 0 && 'mt-4 pt-3 border-t border-slate-700/50')}>
+                <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest">{section.label}</p>
+              </div>
             )}
-          </NavLink>
+            {/* Collapsed divider */}
+            {collapsed && si > 0 && (
+              <div className="my-2 mx-1 border-t border-slate-700/50" />
+            )}
+
+            <div className="space-y-0.5">
+              {section.items.map(({ to, icon: Icon, label, badgeKey }) => {
+                const badgeCount = badgeKey ? (badges[badgeKey] ?? 0) : 0
+                return (
+                  <NavLink
+                    key={to}
+                    to={to}
+                    end={to === '/'}
+                    onClick={onClose}
+                    title={collapsed ? label : undefined}
+                    className={({ isActive }) =>
+                      cn(
+                        'flex items-center rounded-xl text-sm transition-all duration-150 group relative',
+                        collapsed ? 'justify-center w-10 h-10 mx-auto' : 'gap-3 px-3 py-2.5',
+                        isActive
+                          ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg shadow-blue-900/40'
+                          : 'text-slate-400 hover:bg-slate-700/50 hover:text-slate-100'
+                      )
+                    }
+                  >
+                    {({ isActive }) => (
+                      <>
+                        <Icon size={collapsed ? 18 : 16} className="shrink-0" />
+                        {!collapsed && (
+                          <span className="truncate font-medium flex-1">{label}</span>
+                        )}
+                        {/* Badge */}
+                        {badgeCount > 0 && !collapsed && (
+                          <span className={cn(
+                            'ml-auto text-[10px] font-black px-1.5 py-0.5 rounded-full leading-none',
+                            isActive ? 'bg-white/20 text-white' : 'bg-amber-500 text-white'
+                          )}>
+                            {badgeCount > 99 ? '99+' : badgeCount}
+                          </span>
+                        )}
+                        {/* Collapsed badge dot */}
+                        {badgeCount > 0 && collapsed && (
+                          <span className="absolute top-0.5 right-0.5 w-2 h-2 bg-amber-500 rounded-full border border-slate-800" />
+                        )}
+                        {/* Active indicator dot (collapsed mode) */}
+                        {collapsed && isActive && (
+                          <span className="absolute right-0.5 top-1/2 -translate-y-1/2 w-1 h-4 bg-blue-400 rounded-full" />
+                        )}
+                      </>
+                    )}
+                  </NavLink>
+                )
+              })}
+            </div>
+          </div>
         ))}
       </nav>
 
@@ -136,14 +211,16 @@ function SidebarContent({
       <div className={cn('border-t border-slate-700/60 pt-3 pb-4 shrink-0', collapsed ? 'px-2' : 'px-3')}>
         {/* User card (expanded mode) */}
         {!collapsed && (
-          <div className="flex items-center gap-3 px-3 py-2.5 mb-1 bg-slate-800/60 rounded-xl">
-            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-400 to-blue-500 flex items-center justify-center text-white text-xs font-black shrink-0">
+          <div className="flex items-center gap-3 px-3 py-2.5 mb-1 bg-slate-800/60 rounded-xl border border-slate-700/40">
+            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-400 to-blue-500 flex items-center justify-center text-white text-xs font-black shrink-0 shadow-md">
               A
             </div>
             <div className="min-w-0 flex-1">
-              <p className="text-sm font-semibold text-white truncate leading-tight">Superadmin</p>
-              <p className="text-[10px] text-slate-400 truncate leading-tight">admin@uzumbot.local</p>
+              <p className="text-sm font-bold text-white truncate leading-tight">Superadmin</p>
+              <p className="text-[10px] text-slate-400 truncate leading-tight">admin@uzumbot.dev</p>
             </div>
+            {/* Online indicator */}
+            <div className="w-2 h-2 rounded-full bg-emerald-400 flex-shrink-0 shadow-sm shadow-emerald-400/50" />
           </div>
         )}
 

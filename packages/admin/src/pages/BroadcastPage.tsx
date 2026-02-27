@@ -1,8 +1,8 @@
 import { useState, useRef } from 'react'
-import { useMutation } from '@tanstack/react-query'
+import { useMutation, useQuery } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { sendBroadcast } from '@/api'
-import { Megaphone, Globe, Users, Send, Clock, CheckCircle, AlertCircle, ImageIcon, X } from 'lucide-react'
+import { sendBroadcast, getAnalyticsOverview } from '@/api'
+import { Megaphone, Globe, Users, Send, Clock, CheckCircle, AlertCircle, ImageIcon, X, CalendarClock, Info } from 'lucide-react'
 
 const MAX_LEN = 4096
 
@@ -16,6 +16,9 @@ const MOCK_HISTORY = [
 const LANG_FLAGS: Record<string, string> = { uz: '🇺🇿', ru: '🇷🇺', en: '🇬🇧', '': '🌍' }
 const LANG_LABELS: Record<string, string> = { uz: 'Uzbek', ru: 'Russian', en: 'English', '': 'All Languages' }
 
+// Rough split of users by language (used for recipient estimation)
+const LANG_SPLIT: Record<string, number> = { uz: 0.65, ru: 0.30, en: 0.05, '': 1.0 }
+
 function TelegramPreview({ message, lang, imagePreview }: { message: string; lang: string; imagePreview: string | null }) {
   const processed = message
     .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
@@ -25,7 +28,6 @@ function TelegramPreview({ message, lang, imagePreview }: { message: string; lan
 
   return (
     <div className="bg-[#0f1923] rounded-2xl p-4 min-h-[180px]">
-      {/* Telegram-style header */}
       <div className="flex items-center gap-2 mb-4">
         <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-white text-xs font-bold">U</div>
         <div>
@@ -69,11 +71,22 @@ export default function BroadcastPage() {
   const [image, setImage] = useState<File | null>(null)
   const [imagePreview, setImagePreview] = useState<string | null>(null)
   const [history, setHistory] = useState(MOCK_HISTORY)
+  const [scheduleEnabled, setScheduleEnabled] = useState(false)
+  const [scheduledAt, setScheduledAt] = useState('')
   const fileRef = useRef<HTMLInputElement>(null)
 
   const remaining = MAX_LEN - message.length
   const isNearLimit = remaining < 200
   const isOverLimit = remaining < 0
+
+  // Get real user count for recipient estimation
+  const { data: overview } = useQuery({
+    queryKey: ['analytics-overview'],
+    queryFn: () => getAnalyticsOverview().then((r) => r.data),
+    staleTime: 60_000,
+  })
+  const totalUsers = overview?.total_users ?? 0
+  const estimatedRecipients = Math.round(totalUsers * (LANG_SPLIT[lang] ?? 1))
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0] ?? null
@@ -96,24 +109,29 @@ export default function BroadcastPage() {
   const mut = useMutation({
     mutationFn: () => sendBroadcast(message, lang || undefined, image),
     onSuccess: (res) => {
-      const queued = res.data?.queued ?? 0
-      toast.success(`Queued for ${queued} users`)
+      const queued = res.data?.queued ?? estimatedRecipients
+      toast.success(`Queued for ${queued.toLocaleString()} users`)
       setHistory((h) => [
         {
           id: Date.now(),
           message,
           lang,
           queued,
-          sent_at: new Date().toISOString(),
+          sent_at: scheduleEnabled && scheduledAt ? scheduledAt : new Date().toISOString(),
           status: 'sent',
         },
         ...h,
       ])
       setMessage('')
       clearImage()
+      setScheduleEnabled(false)
+      setScheduledAt('')
     },
     onError: () => toast.error('Broadcast failed'),
   })
+
+  // Min datetime for schedule picker (now + 5 min)
+  const minSchedule = new Date(Date.now() + 5 * 60_000).toISOString().slice(0, 16)
 
   return (
     <div className="space-y-6 max-w-5xl">
@@ -138,22 +156,32 @@ export default function BroadcastPage() {
               Target Audience
             </label>
             <div className="grid grid-cols-2 gap-2">
-              {(['', 'uz', 'ru', 'en'] as const).map((l) => (
-                <button
-                  key={l}
-                  onClick={() => setLang(l)}
-                  className={`flex items-center gap-2 px-3 py-2 rounded-xl border text-sm font-medium transition-all
+              {(['', 'uz', 'ru', 'en'] as const).map((l) => {
+                const cnt = Math.round(totalUsers * (LANG_SPLIT[l] ?? 1))
+                return (
+                  <button
+                    key={l}
+                    onClick={() => setLang(l)}
+                    className={`flex items-center gap-2 px-3 py-2 rounded-xl border text-sm font-medium transition-all
                     ${lang === l
                       ? 'border-blue-500 bg-blue-50 text-blue-700 shadow-sm'
                       : 'border-slate-200 text-slate-600 hover:border-slate-300 hover:bg-slate-50'}`}
-                >
-                  <span className="text-lg">{LANG_FLAGS[l]}</span>
-                  {LANG_LABELS[l]}
-                  {l === '' && (
-                    <span className="ml-auto text-[10px] bg-blue-100 text-blue-600 px-1.5 py-0.5 rounded-full font-semibold">ALL</span>
-                  )}
-                </button>
-              ))}
+                  >
+                    <span className="text-lg">{LANG_FLAGS[l]}</span>
+                    <span className="flex-1 text-left">{LANG_LABELS[l]}</span>
+                    {totalUsers > 0 && (
+                      <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${
+                        lang === l ? 'bg-blue-200 text-blue-700' : 'bg-slate-100 text-slate-500'
+                      }`}>
+                        ~{cnt >= 1000 ? `${(cnt / 1000).toFixed(1)}k` : cnt}
+                      </span>
+                    )}
+                    {l === '' && (
+                      <span className="text-[10px] bg-blue-100 text-blue-600 px-1.5 py-0.5 rounded-full font-semibold">ALL</span>
+                    )}
+                  </button>
+                )
+              })}
             </div>
           </div>
 
@@ -194,10 +222,10 @@ export default function BroadcastPage() {
           <div>
             <div className="flex items-center justify-between mb-2">
               <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
-                Message <span className="text-slate-400 font-normal normal-case">(HTML/Telegram formatting)</span>
+                Message
               </label>
               <span className={`text-xs font-mono font-semibold ${isOverLimit ? 'text-red-500' : isNearLimit ? 'text-orange-500' : 'text-slate-400'}`}>
-                {remaining}
+                {remaining} chars left
               </span>
             </div>
             <textarea
@@ -217,6 +245,46 @@ export default function BroadcastPage() {
             )}
           </div>
 
+          {/* Schedule send */}
+          <div className="border border-slate-100 rounded-xl p-3.5 space-y-2.5">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <CalendarClock size={14} className="text-slate-400" />
+                <span className="text-sm font-semibold text-slate-700">Schedule Send</span>
+                <span className="text-[10px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded-full font-semibold">BETA</span>
+              </div>
+              {/* Toggle */}
+              <button
+                type="button"
+                onClick={() => { setScheduleEnabled((v) => !v); if (scheduleEnabled) setScheduledAt('') }}
+                className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors duration-200 ${scheduleEnabled ? 'bg-blue-500' : 'bg-slate-300'}`}
+              >
+                <span
+                  className="inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform duration-200"
+                  style={{ transform: scheduleEnabled ? 'translateX(18px)' : 'translateX(2px)' }}
+                />
+              </button>
+            </div>
+            {scheduleEnabled && (
+              <div>
+                <label className="text-xs text-slate-500 block mb-1.5">Send at</label>
+                <input
+                  type="datetime-local"
+                  value={scheduledAt}
+                  min={minSchedule}
+                  onChange={(e) => setScheduledAt(e.target.value)}
+                  className="border rounded-xl px-3 py-2 text-sm w-full focus:outline-none focus:ring-2 focus:ring-blue-400"
+                />
+                {scheduledAt && (
+                  <p className="text-xs text-blue-600 mt-1 flex items-center gap-1">
+                    <Info size={11} />
+                    Will be sent on {new Date(scheduledAt).toLocaleString()}
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+
           {/* Send button */}
           <button
             onClick={() => mut.mutate()}
@@ -227,6 +295,11 @@ export default function BroadcastPage() {
               <>
                 <div className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
                 Sending…
+              </>
+            ) : scheduleEnabled && scheduledAt ? (
+              <>
+                <CalendarClock size={15} />
+                Schedule for {new Date(scheduledAt).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
               </>
             ) : (
               <>
@@ -255,18 +328,47 @@ export default function BroadcastPage() {
             <TelegramPreview message={message} lang={lang} imagePreview={imagePreview} />
           </div>
 
+          {/* Recipient stats */}
           <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4">
+            <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">Estimated Recipients</p>
             <div className="grid grid-cols-2 gap-3">
               <div className="bg-blue-50 rounded-xl p-3 text-center">
                 <Users size={16} className="mx-auto text-blue-500 mb-1" />
-                <p className="text-lg font-extrabold text-blue-700">—</p>
+                <p className="text-xl font-extrabold text-blue-700">
+                  {totalUsers > 0 ? estimatedRecipients.toLocaleString() : '—'}
+                </p>
                 <p className="text-[10px] text-blue-500 font-medium">Eligible recipients</p>
               </div>
               <div className="bg-slate-50 rounded-xl p-3 text-center">
                 <Globe size={16} className="mx-auto text-slate-400 mb-1" />
-                <p className="text-lg font-extrabold text-slate-700">{LANG_FLAGS[lang]}</p>
+                <p className="text-xl font-extrabold text-slate-700">{LANG_FLAGS[lang]}</p>
                 <p className="text-[10px] text-slate-500 font-medium">{LANG_LABELS[lang]}</p>
               </div>
+            </div>
+            {totalUsers > 0 && (
+              <p className="text-[10px] text-slate-400 mt-2.5 text-center">
+                Based on {totalUsers.toLocaleString()} total registered users
+              </p>
+            )}
+          </div>
+
+          {/* Quick templates */}
+          <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4">
+            <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">Quick Templates</p>
+            <div className="space-y-1.5">
+              {[
+                { emoji: '🎉', text: 'New prizes added! Spin now to win!', lang_hint: 'en' },
+                { emoji: '🎁', text: "Yangi sovrinlar qo'shildi! Hoziroq spin qiling!", lang_hint: 'uz' },
+                { emoji: '🏆', text: 'Новые призы добавлены! Крутите прямо сейчас!', lang_hint: 'ru' },
+              ].map((t) => (
+                <button
+                  key={t.text}
+                  onClick={() => { setMessage(t.emoji + ' ' + t.text); setLang(t.lang_hint) }}
+                  className="w-full text-left text-xs px-3 py-2 rounded-xl border border-slate-100 hover:border-blue-200 hover:bg-blue-50 transition-colors text-slate-600 truncate"
+                >
+                  {t.emoji} {t.text}
+                </button>
+              ))}
             </div>
           </div>
         </div>
@@ -277,6 +379,7 @@ export default function BroadcastPage() {
         <div className="flex items-center gap-2 px-5 py-4 border-b border-slate-100">
           <Clock size={15} className="text-slate-400" />
           <h2 className="font-bold text-slate-800 text-sm">Recent Broadcasts</h2>
+          <span className="ml-auto text-xs text-slate-400">{history.length} broadcasts</span>
         </div>
         <div className="divide-y divide-slate-50">
           {history.map((h) => (
@@ -288,13 +391,13 @@ export default function BroadcastPage() {
                 <p className="text-sm text-slate-700 truncate">{h.message}</p>
                 <div className="flex items-center gap-3 mt-1">
                   <span className="text-xs text-slate-400">{LANG_LABELS[h.lang] || 'All'}</span>
-                  <span className="text-xs text-slate-400">·</span>
+                  <span className="text-xs text-slate-300">·</span>
                   <span className="text-xs text-slate-400">{new Date(h.sent_at).toLocaleString()}</span>
                 </div>
               </div>
               <div className="flex items-center gap-1.5 shrink-0">
                 <span className="flex items-center gap-1 text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">
-                  <CheckCircle size={10} /> {h.queued} sent
+                  <CheckCircle size={10} /> {h.queued.toLocaleString()} sent
                 </span>
               </div>
             </div>

@@ -22,9 +22,12 @@ export const commitSpin = () =>
 export const executeSpin = (commitment_id: string) =>
   api.post('/spins/execute', { commitment_id })
 export const getPrizeOdds = () => api.get('/spins/prizes')
+export const getSpinHistory = () => api.get('/spins/history')
 
 // ── Rewards / Wallet ──────────────────────────────────────────────────────────
 export const getMyRewards = () => api.get('/rewards')
+export const donateReward = (rewardId: string, campaignId?: string) =>
+  api.post(`/rewards/${rewardId}/donate`, campaignId ? { campaign_id: campaignId } : {})
 
 // ── Charity ───────────────────────────────────────────────────────────────────
 export const getPublicCampaigns = () => api.get('/charity/campaigns')
@@ -37,3 +40,4 @@ export const getCharityLeaderboard = () => api.get('/charity/leaderboard')
 
 // ── User profile ──────────────────────────────────────────────────────────────
 export const getMe = () => api.get('/me')
+export const getReferralStats = () => api.get('/me/referral')
