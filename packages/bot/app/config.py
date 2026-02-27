@@ -16,6 +16,9 @@ class Settings(BaseSettings):
     ENVIRONMENT: str = "development"
     LOG_LEVEL: str = "INFO"
 
+    BOT_USERNAME: str = "pprosta_bot"
+    SUPPORT_USERNAME: str = "pprosta_bot"
+
 
 @lru_cache
 def get_settings() -> Settings:

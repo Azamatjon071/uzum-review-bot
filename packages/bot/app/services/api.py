@@ -115,8 +115,11 @@ async def bot_register_user(
     username: str | None,
     language_code: str,
     secret: str,
+    bio: str | None = None,
+    profile_photo_file_id: str | None = None,
+    referred_by_code: str | None = None,
 ) -> dict:
-    """Register or look up a user. Returns {'is_new': bool, 'user_id': str}."""
+    """Register or look up a user. Returns {'is_new': bool, 'user_id': str, 'spin_count': int, ...}."""
     return await _request(
         "POST",
         "/api/v1/bot/register",
@@ -127,5 +130,17 @@ async def bot_register_user(
             "username": username,
             "language_code": language_code,
             "secret": secret,
+            "bio": bio,
+            "profile_photo_file_id": profile_photo_file_id,
+            "referred_by_code": referred_by_code,
         },
+    )
+
+
+async def get_user_info(telegram_id: int, secret: str) -> dict:
+    """Fetch full user info including spin_count, referral stats, etc."""
+    return await _request(
+        "GET",
+        f"/api/v1/bot/user/{telegram_id}",
+        params={"secret": secret},
     )

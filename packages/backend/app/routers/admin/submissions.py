@@ -14,7 +14,6 @@ from app.models import (
 from app.services.storage import StorageService
 from app.services.audit import AuditService
 from app.tasks.notifications import notify_submission_approved, notify_submission_rejected
-from pydantic import BaseModel
 
 router = APIRouter(prefix="/admin/submissions", tags=["admin-submissions"])
 storage = StorageService()
@@ -32,6 +31,9 @@ class BulkActionRequest(BaseModel):
     ids: List[uuid.UUID]
     action: str  # approve / reject
     reason: Optional[str] = None
+
+
+from pydantic import BaseModel
 
 
 @router.get("")
@@ -81,6 +83,7 @@ async def list_submissions(
                 "telegram_id": user.telegram_id if user else None,
                 "first_name": user.first_name if user else "Unknown",
                 "username": user.username if user else None,
+                "approved_submissions": user.approved_submissions if user else 0,
             },
             "images": [
                 {
@@ -106,21 +109,23 @@ async def approve_submission(
     sub = result.scalar_one_or_none()
     if not sub:
         raise HTTPException(status_code=404, detail="Submission not found")
-    if sub.status != SubmissionStatus.PENDING and sub.status != SubmissionStatus.DUPLICATE:
+    if sub.status not in (SubmissionStatus.PENDING, SubmissionStatus.DUPLICATE):
         raise HTTPException(status_code=400, detail="Submission already reviewed")
 
     before = {"status": sub.status.value}
     sub.status = SubmissionStatus.APPROVED
     sub.reviewed_by_admin_id = admin.id
     sub.reviewed_at = datetime.now(timezone.utc)
+    sub.spin_granted = True
 
-    # Update user stats
+    # Update user stats and grant available spin
     user_r = await db.execute(select(User).where(User.id == sub.user_id))
     user = user_r.scalar_one_or_none()
     if user:
         user.approved_submissions += 1
+        user.spin_count += 1   # grant 1 available spin
+        user.total_spins += 1  # lifetime counter
 
-    # Queue notification
     notif = Notification(
         user_id=sub.user_id,
         notification_type=NotificationType.SUBMISSION_APPROVED,
@@ -147,6 +152,8 @@ async def approve_submission(
             telegram_id=user.telegram_id,
             submission_id=str(submission_id),
             lang=user.language.value if user.language else "uz",
+            spin_count=user.spin_count,
+            approved_total=user.approved_submissions,
         )
 
     return {"message": "Submission approved", "id": str(submission_id)}
@@ -191,13 +198,11 @@ async def reject_submission(
         after_data={"status": "rejected", "reason": payload.reason},
     )
 
-    # Get user for notification
     user_r = await db.execute(select(User).where(User.id == sub.user_id))
     user = user_r.scalar_one_or_none()
 
     await db.commit()
 
-    # Dispatch Telegram notification via Celery
     if user and user.telegram_id:
         notify_submission_rejected.delay(
             telegram_id=user.telegram_id,
@@ -217,6 +222,8 @@ async def bulk_action(
     db: AsyncSession = Depends(get_db),
 ):
     processed = 0
+    notifications_to_send = []
+
     for sub_id in payload.ids:
         result = await db.execute(select(Submission).where(Submission.id == sub_id))
         sub = result.scalar_one_or_none()
@@ -226,10 +233,14 @@ async def bulk_action(
             sub.status = SubmissionStatus.APPROVED
             sub.reviewed_by_admin_id = admin.id
             sub.reviewed_at = datetime.now(timezone.utc)
+            sub.spin_granted = True
             user_r = await db.execute(select(User).where(User.id == sub.user_id))
             user = user_r.scalar_one_or_none()
             if user:
                 user.approved_submissions += 1
+                user.spin_count += 1
+                user.total_spins += 1
+                notifications_to_send.append(("approve", user, sub_id))
             db.add(Notification(
                 user_id=sub.user_id,
                 notification_type=NotificationType.SUBMISSION_APPROVED,
@@ -241,6 +252,10 @@ async def bulk_action(
             sub.rejection_reason = payload.reason or "Rejected by admin"
             sub.reviewed_by_admin_id = admin.id
             sub.reviewed_at = datetime.now(timezone.utc)
+            user_r = await db.execute(select(User).where(User.id == sub.user_id))
+            user = user_r.scalar_one_or_none()
+            if user:
+                notifications_to_send.append(("reject", user, sub_id))
             processed += 1
 
     audit = AuditService(db)
@@ -251,5 +266,28 @@ async def bulk_action(
         ip_address=request.client.host if request.client else None,
         after_data={"count": processed, "ids": [str(i) for i in payload.ids]},
     )
+
+    await db.commit()
+
+    # Dispatch notifications after commit
+    for action, user, sub_id in notifications_to_send:
+        if not user or not user.telegram_id:
+            continue
+        lang = user.language.value if user.language else "uz"
+        if action == "approve":
+            notify_submission_approved.delay(
+                telegram_id=user.telegram_id,
+                submission_id=str(sub_id),
+                lang=lang,
+                spin_count=user.spin_count,
+                approved_total=user.approved_submissions,
+            )
+        else:
+            notify_submission_rejected.delay(
+                telegram_id=user.telegram_id,
+                submission_id=str(sub_id),
+                reason=payload.reason or "Rejected by admin",
+                lang=lang,
+            )
 
     return {"message": f"Bulk {payload.action} completed", "processed": processed}

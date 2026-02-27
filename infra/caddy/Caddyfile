@@ -1,4 +1,12 @@
-uzum.n8nautomate.me {
+{$PUBLIC_DOMAIN:uzum.n8nautomate.me} {
+    # ── MinIO file proxy (presigned URLs rewritten to /minio/*) ─────────────
+    handle /minio/* {
+        uri strip_prefix /minio
+        reverse_proxy minio:9000 {
+            header_up Host minio:9000
+        }
+    }
+
     # ── API → backend ────────────────────────────────────────────────────────
     handle /api/* {
         reverse_proxy backend:8000 {

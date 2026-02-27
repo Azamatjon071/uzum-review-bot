@@ -64,3 +64,15 @@ def open_webapp_keyboard(lang: str, webapp_url: str) -> InlineKeyboardMarkup:
         )
     )
     return builder.as_markup()
+
+
+def referral_keyboard(lang: str, webapp_url: str) -> InlineKeyboardMarkup:
+    """Inline keyboard for referral command — opens Mini App."""
+    builder = InlineKeyboardBuilder()
+    builder.add(
+        InlineKeyboardButton(
+            text=t("btn.open_webapp", lang),
+            web_app=WebAppInfo(url=webapp_url),
+        )
+    )
+    return builder.as_markup()

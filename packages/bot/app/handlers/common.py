@@ -1,7 +1,7 @@
 """
 /start and /help handlers.
 """
-from aiogram import Router, F
+from aiogram import Router, F, Bot
 from aiogram.filters import CommandStart, Command
 from aiogram.types import Message
 
@@ -14,13 +14,36 @@ router = Router(name="common")
 settings = get_settings()
 
 
+async def _get_profile_photo_file_id(bot: Bot, user_id: int) -> str | None:
+    """Fetch the most recent profile photo file_id for a Telegram user."""
+    try:
+        photos = await bot.get_user_profile_photos(user_id, limit=1)
+        if photos.total_count > 0 and photos.photos:
+            return photos.photos[0][-1].file_id  # highest-res version
+    except Exception:
+        pass
+    return None
+
+
 @router.message(CommandStart())
-async def cmd_start(message: Message, lang: str):
+async def cmd_start(message: Message, lang: str, bot: Bot):
     tg_user = message.from_user
     name = tg_user.first_name or "Do'stim"
 
+    # Parse deep-link referral code: /start REFCODE
+    referred_by_code: str | None = None
+    if message.text:
+        parts = message.text.strip().split(maxsplit=1)
+        if len(parts) == 2 and parts[1]:
+            referred_by_code = parts[1]
+
+    # Fetch profile photo lazily
+    profile_photo_file_id = await _get_profile_photo_file_id(bot, tg_user.id)
+
     # Register or look up user in the backend
     is_new = True
+    spin_count = 0
+    approved = 0
     try:
         result = await bot_register_user(
             telegram_id=tg_user.id,
@@ -29,14 +52,26 @@ async def cmd_start(message: Message, lang: str):
             username=tg_user.username,
             language_code=tg_user.language_code or "uz",
             secret=settings.BOT_WEBHOOK_SECRET,
+            profile_photo_file_id=profile_photo_file_id,
+            referred_by_code=referred_by_code,
         )
         is_new = result.get("is_new", True)
+        spin_count = result.get("spin_count", 0)
+        # approved_submissions isn't in the register response directly;
+        # we get it from spin_count hint or leave as 0 for returning users
+        # (the status command shows the full history)
     except APIError:
         pass  # Fall back to "new user" greeting on error
 
-    key = "start.welcome" if is_new else "start.returning"
+    if is_new:
+        key = "start.welcome"
+        text = t(key, lang, name=name)
+    else:
+        key = "start.returning"
+        text = t(key, lang, name=name, spin_count=spin_count, approved=approved)
+
     await message.answer(
-        t(key, lang, name=name),
+        text,
         reply_markup=main_menu(lang, settings.WEBAPP_URL),
         parse_mode="HTML",
     )
@@ -45,7 +80,10 @@ async def cmd_start(message: Message, lang: str):
 @router.message(Command("help"))
 @router.message(F.text.in_({"❓ Yordam", "❓ Помощь", "❓ Help"}))
 async def cmd_help(message: Message, lang: str):
-    await message.answer(t("help.text", lang), parse_mode="HTML")
+    await message.answer(
+        t("help.text", lang, support=settings.SUPPORT_USERNAME),
+        parse_mode="HTML",
+    )
 
 
 @router.message(Command("language"))

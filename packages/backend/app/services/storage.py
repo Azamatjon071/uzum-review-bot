@@ -28,7 +28,6 @@ def ensure_bucket_exists():
         s3.head_bucket(Bucket=settings.MINIO_BUCKET)
     except Exception:
         s3.create_bucket(Bucket=settings.MINIO_BUCKET)
-        # Set public read policy for files bucket
         import json
         policy = {
             "Version": "2012-10-17",
@@ -64,12 +63,21 @@ class StorageService:
         return key
 
     def get_presigned_url(self, key: str, expires: int = 3600) -> str:
-        """Get presigned URL for private file access."""
-        return self.s3.generate_presigned_url(
+        """Get presigned URL for private file access (browser-accessible).
+        Replaces the internal minio:9000 hostname with the public-facing URL
+        so browsers outside Docker can load images.
+        """
+        url = self.s3.generate_presigned_url(
             "get_object",
             Params={"Bucket": self.bucket, "Key": key},
             ExpiresIn=expires,
         )
+        # Replace internal docker hostname with public-facing URL
+        minio_internal = f"{'https' if settings.MINIO_SECURE else 'http'}://{settings.MINIO_ENDPOINT}"
+        minio_public = settings.MINIO_PUBLIC_BASE_URL
+        if minio_public and minio_internal in url:
+            url = url.replace(minio_internal, minio_public.rstrip("/"))
+        return url
 
     def get_public_url(self, key: str) -> str:
         """Get public URL for public files."""
@@ -92,41 +100,24 @@ class ImageService:
         content_type: str,
         filename: str = "upload"
     ) -> Tuple[bytes, str, str]:
-        """
-        Validate image, re-encode as JPEG for consistency & safety.
-        Returns (processed_bytes, content_type, perceptual_hash)
-        """
         if len(file_data) > ImageService.MAX_SIZE_BYTES:
             raise ValueError(f"File too large (max {settings.MAX_UPLOAD_SIZE_MB}MB)")
-
         if content_type not in ImageService.ALLOWED_TYPES:
             raise ValueError(f"File type not allowed: {content_type}")
-
         try:
             img = Image.open(io.BytesIO(file_data))
-            img.verify()  # Verify it's not corrupted / malicious
+            img.verify()
         except Exception as e:
             raise ValueError(f"Invalid image file: {e}")
-
-        # Re-open after verify (verify closes the file)
         img = Image.open(io.BytesIO(file_data))
-
-        # Convert to RGB (handle RGBA, palette modes)
         if img.mode not in ("RGB", "L"):
             img = img.convert("RGB")
-
-        # Resize if too large
         if img.width > ImageService.MAX_DIMENSION or img.height > ImageService.MAX_DIMENSION:
             img.thumbnail((ImageService.MAX_DIMENSION, ImageService.MAX_DIMENSION), Image.LANCZOS)
-
-        # Compute perceptual hash BEFORE re-encoding (for dedup detection)
         phash = str(imagehash.phash(img))
-
-        # Re-encode as JPEG (strips EXIF metadata for privacy)
         output = io.BytesIO()
         img.save(output, format="JPEG", quality=85, optimize=True)
         processed_bytes = output.getvalue()
-
         return processed_bytes, "image/jpeg", phash
 
     @staticmethod
@@ -136,7 +127,6 @@ class ImageService:
 
     @staticmethod
     def are_duplicate(hash1: str, hash2: str, threshold: int = 10) -> bool:
-        """Two images are considered duplicate if hamming distance < threshold."""
         h1 = imagehash.hex_to_hash(hash1)
         h2 = imagehash.hex_to_hash(hash2)
         return (h1 - h2) < threshold

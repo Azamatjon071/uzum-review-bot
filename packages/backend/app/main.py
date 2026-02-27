@@ -111,8 +111,6 @@ async def telegram_webhook(request: Request):
     expected = settings.BOT_WEBHOOK_SECRET
     if not hmac.compare_digest(secret_token.encode(), expected.encode()):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Invalid webhook token")
-    # The actual update processing is handled by the bot service
-    # Here we just acknowledge receipt
     body = await request.json()
     log.debug("Telegram webhook received", update_id=body.get("update_id"))
     return {"ok": True}
@@ -253,6 +251,7 @@ async def claim_reward(
         raise HTTPException(status_code=400, detail="Reward has expired")
     reward.status = RewardStatus.CLAIMED
     reward.claimed_at = datetime.now(timezone.utc)
+    await db.commit()
     return {"message": "Reward claimed!", "claim_code": reward.claim_code}
 
 
@@ -264,18 +263,30 @@ app.include_router(rewards_router)
 me_router = APIRouter(prefix="/api/v1/me", tags=["me"])
 
 @me_router.get("")
-async def get_me(user: User = Depends(get_current_user)):
+async def get_me(user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    # Count referred users
+    referred_count_r = await db.execute(
+        select(func.count(User.id)).where(User.referred_by_id == user.id)
+    )
+    referred_count = referred_count_r.scalar() or 0
+
     return {
         "id": str(user.id),
         "telegram_id": user.telegram_id,
         "first_name": user.first_name,
         "last_name": user.last_name,
         "username": user.username,
+        "bio": user.bio,
+        "profile_photo_url": user.profile_photo_url,
         "language": user.language.value,
         "total_submissions": user.total_submissions,
         "approved_submissions": user.approved_submissions,
         "total_spins": user.total_spins,
+        "spin_count": user.spin_count,
         "referral_code": user.referral_code,
+        "referral_bonus_spins": user.referral_bonus_spins,
+        "referred_count": referred_count,
+        "last_seen_at": user.last_seen_at.isoformat() if user.last_seen_at else None,
         "created_at": user.created_at.isoformat(),
     }
 
@@ -283,6 +294,8 @@ app.include_router(me_router)
 
 
 # ─── Bot internal API ─────────────────────────────────────────────────────────
+
+from sqlalchemy import func as sql_func
 
 bot_router = APIRouter(prefix="/api/v1/bot", tags=["bot-internal"])
 
@@ -294,6 +307,11 @@ class BotRegisterRequest(BaseModel):
     username: str | None = None
     language_code: str = "uz"
     secret: str
+    # Extended profile
+    bio: str | None = None
+    profile_photo_file_id: str | None = None
+    # Referral
+    referred_by_code: str | None = None
 
 
 @bot_router.post("/register")
@@ -301,37 +319,143 @@ async def bot_register_user(
     payload: BotRegisterRequest,
     db: AsyncSession = Depends(get_db),
 ):
-    """Bot-internal: upsert user and return is_new flag."""
+    """Bot-internal: upsert user and return is_new flag. Handles referral attribution."""
     if not hmac.compare_digest(payload.secret, settings.BOT_WEBHOOK_SECRET):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Forbidden")
+
+    from datetime import datetime, timezone
+    from app.models import Language, NotificationType, Notification
 
     result = await db.execute(select(User).where(User.telegram_id == payload.telegram_id))
     user = result.scalar_one_or_none()
     is_new = user is None
 
+    lang_map = {"uz": "uz", "ru": "ru", "en": "en"}
+    lang = lang_map.get(payload.language_code, "uz")
+
     if is_new:
         import secrets as _secrets
-        lang_map = {"uz": "uz", "ru": "ru", "en": "en"}
-        from app.models import Language
-        lang = lang_map.get(payload.language_code, "uz")
         user = User(
             telegram_id=payload.telegram_id,
             first_name=payload.first_name,
             last_name=payload.last_name,
             username=payload.username,
             language=Language(lang),
+            bio=payload.bio,
+            profile_photo_file_id=payload.profile_photo_file_id,
             referral_code=_secrets.token_urlsafe(8)[:10].upper(),
+            last_seen_at=datetime.now(timezone.utc),
         )
         db.add(user)
+        await db.flush()  # get user.id before referral lookup
+
+        # ── Referral attribution ──────────────────────────────────────────
+        if payload.referred_by_code:
+            ref_r = await db.execute(
+                select(User).where(User.referral_code == payload.referred_by_code.upper())
+            )
+            referrer = ref_r.scalar_one_or_none()
+            if referrer and referrer.id != user.id and not referrer.is_banned:
+                user.referred_by_id = referrer.id
+                # Grant referrer bonus spins
+                bonus = settings.REFERRAL_BONUS_SPINS
+                referrer.spin_count += bonus
+                referrer.referral_bonus_spins += bonus
+                # Count total referrals for this referrer
+                ref_count_r = await db.execute(
+                    select(sql_func.count(User.id)).where(User.referred_by_id == referrer.id)
+                )
+                ref_total = (ref_count_r.scalar() or 0)
+
+                # Queue referral bonus notification
+                db.add(Notification(
+                    user_id=referrer.id,
+                    notification_type=NotificationType.REFERRAL_BONUS,
+                    payload={
+                        "referred_name": payload.first_name,
+                        "total_referrals": ref_total,
+                        "spin_count": referrer.spin_count,
+                    },
+                ))
+                # Dispatch Celery task immediately
+                from app.tasks.notifications import notify_referral_bonus
+                # We defer this to after commit below
+
         await db.commit()
+
+        # Send referral bonus notification (after commit so DB is consistent)
+        if payload.referred_by_code:
+            ref_r2 = await db.execute(
+                select(User).where(User.referral_code == payload.referred_by_code.upper())
+            )
+            referrer2 = ref_r2.scalar_one_or_none()
+            if referrer2 and referrer2.telegram_id:
+                from app.tasks.notifications import notify_referral_bonus
+                ref_count_r2 = await db.execute(
+                    select(sql_func.count(User.id)).where(User.referred_by_id == referrer2.id)
+                )
+                notify_referral_bonus.delay(
+                    telegram_id=referrer2.telegram_id,
+                    referred_name=payload.first_name or "Someone",
+                    total_referrals=ref_count_r2.scalar() or 1,
+                    spin_count=referrer2.spin_count,
+                    lang=referrer2.language.value if referrer2.language else "uz",
+                )
     else:
-        # Update name/username
+        # Update name/username/profile on every /start
         user.first_name = payload.first_name or user.first_name
         user.last_name = payload.last_name
         user.username = payload.username
+        user.last_seen_at = datetime.now(timezone.utc)
+        if payload.bio:
+            user.bio = payload.bio
+        if payload.profile_photo_file_id:
+            user.profile_photo_file_id = payload.profile_photo_file_id
         await db.commit()
 
-    return {"is_new": is_new, "user_id": str(user.id)}
+    return {
+        "is_new": is_new,
+        "user_id": str(user.id),
+        "referral_code": user.referral_code,
+        "spin_count": user.spin_count,
+        "language": user.language.value if user.language else "uz",
+    }
+
+
+@bot_router.get("/user/{telegram_id}")
+async def bot_get_user(
+    telegram_id: int,
+    secret: str,
+    db: AsyncSession = Depends(get_db),
+):
+    """Get user info including spin count and referral stats."""
+    if not hmac.compare_digest(secret, settings.BOT_WEBHOOK_SECRET):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Forbidden")
+
+    result = await db.execute(select(User).where(User.telegram_id == telegram_id))
+    user = result.scalar_one_or_none()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    ref_count_r = await db.execute(
+        select(sql_func.count(User.id)).where(User.referred_by_id == user.id)
+    )
+    referred_count = ref_count_r.scalar() or 0
+
+    return {
+        "id": str(user.id),
+        "first_name": user.first_name,
+        "username": user.username,
+        "language": user.language.value if user.language else "uz",
+        "spin_count": user.spin_count,
+        "total_spins": user.total_spins,
+        "approved_submissions": user.approved_submissions,
+        "total_submissions": user.total_submissions,
+        "referral_code": user.referral_code,
+        "referral_bonus_spins": user.referral_bonus_spins,
+        "referred_count": referred_count,
+        "is_banned": user.is_banned,
+    }
 
 
 app.include_router(bot_router)

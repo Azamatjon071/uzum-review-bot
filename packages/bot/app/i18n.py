@@ -10,25 +10,49 @@ STRINGS: dict[str, dict[str, str]] = {
     # ── /start ──────────────────────────────────────────────────────────────
     "start.welcome": {
         "uz": (
-            "Assalomu alaykum, {name}! 👋\n\n"
+            "Assalomu alaykum, <b>{name}</b>! 👋\n\n"
             "Uzum Market'dagi xaridlaringizdan sharh yozing va ajoyib sovrinlar yuting! 🎁\n\n"
+            "🔗 Do'stlaringizni taklif qiling — har bir taklif uchun qo'shimcha aylanish oling!\n"
+            "Taklif havolangiz: /referral\n\n"
             "Boshlash uchun quyidagi tugmani bosing:"
         ),
         "ru": (
-            "Привет, {name}! 👋\n\n"
+            "Привет, <b>{name}</b>! 👋\n\n"
             "Оставляйте отзывы о покупках на Uzum Market и выигрывайте призы! 🎁\n\n"
+            "🔗 Приглашайте друзей — за каждого получайте бонусное вращение!\n"
+            "Ваша ссылка: /referral\n\n"
             "Нажмите кнопку ниже, чтобы начать:"
         ),
         "en": (
-            "Hello, {name}! 👋\n\n"
+            "Hello, <b>{name}</b>! 👋\n\n"
             "Share your Uzum Market purchase reviews and win amazing prizes! 🎁\n\n"
+            "🔗 Invite friends — earn a bonus spin for each referral!\n"
+            "Your link: /referral\n\n"
             "Press the button below to get started:"
         ),
     },
     "start.returning": {
-        "uz": "Xush kelibsiz qaytib, {name}! Sharh yuborish uchun /submit buyrug'ini ishlating.",
-        "ru": "С возвращением, {name}! Используйте /submit чтобы отправить отзыв.",
-        "en": "Welcome back, {name}! Use /submit to send a review.",
+        "uz": (
+            "Xush kelibsiz qaytib, <b>{name}</b>! 👋\n\n"
+            "Mavjud aylanishlar: <b>{spin_count}</b> 🎡\n"
+            "Tasdiqlangan sharhlar: <b>{approved}</b> ✅\n\n"
+            "Yangi sharh yuborish: /submit\n"
+            "Sharhlar holati: /status"
+        ),
+        "ru": (
+            "С возвращением, <b>{name}</b>! 👋\n\n"
+            "Доступно вращений: <b>{spin_count}</b> 🎡\n"
+            "Одобренных отзывов: <b>{approved}</b> ✅\n\n"
+            "Отправить новый отзыв: /submit\n"
+            "Статус отзывов: /status"
+        ),
+        "en": (
+            "Welcome back, <b>{name}</b>! 👋\n\n"
+            "Available spins: <b>{spin_count}</b> 🎡\n"
+            "Approved reviews: <b>{approved}</b> ✅\n\n"
+            "Submit a new review: /submit\n"
+            "Review status: /status"
+        ),
     },
 
     # ── Language selection ───────────────────────────────────────────────────
@@ -46,34 +70,58 @@ STRINGS: dict[str, dict[str, str]] = {
     # ── /help ────────────────────────────────────────────────────────────────
     "help.text": {
         "uz": (
-            "<b>Yordam</b>\n\n"
+            "<b>📋 Yordam</b>\n\n"
             "/start — Bosh menyu\n"
             "/submit — Sharh yuborish\n"
-            "/status — Mening sharhlarim\n"
+            "/status — Mening sharhlarim va holati\n"
+            "/myspins — Mavjud aylanishlarim\n"
+            "/referral — Taklif havolam\n"
             "/wallet — Mening mukofotlarim\n"
             "/charity — Xayriya\n"
+            "/language — Tilni o'zgartirish\n"
             "/help — Yordam\n\n"
-            "<i>Savollar bo'lsa @support_username ga murojaat qiling.</i>"
+            "<b>Qanday ishlaydi?</b>\n"
+            "1️⃣ Uzum Market'dan xarid qiling\n"
+            "2️⃣ Mahsulot sahifasida sharh qoldiring\n"
+            "3️⃣ Sharh skrinshotini /submit orqali yuboring\n"
+            "4️⃣ Tasdiqlangandan so'ng sovrin g'ildiragini aylantiring!\n\n"
+            "<i>Savollar bo'lsa @{support} ga murojaat qiling.</i>"
         ),
         "ru": (
-            "<b>Помощь</b>\n\n"
+            "<b>📋 Помощь</b>\n\n"
             "/start — Главное меню\n"
             "/submit — Отправить отзыв\n"
-            "/status — Мои отзывы\n"
+            "/status — Мои отзывы и статус\n"
+            "/myspins — Доступные вращения\n"
+            "/referral — Моя реферальная ссылка\n"
             "/wallet — Мои награды\n"
             "/charity — Благотворительность\n"
+            "/language — Сменить язык\n"
             "/help — Помощь\n\n"
-            "<i>По вопросам обращайтесь к @support_username.</i>"
+            "<b>Как это работает?</b>\n"
+            "1️⃣ Сделайте покупку на Uzum Market\n"
+            "2️⃣ Оставьте отзыв на странице товара\n"
+            "3️⃣ Отправьте скриншот отзыва через /submit\n"
+            "4️⃣ После одобрения — крутите колесо призов!\n\n"
+            "<i>По вопросам обращайтесь к @{support}.</i>"
         ),
         "en": (
-            "<b>Help</b>\n\n"
+            "<b>📋 Help</b>\n\n"
             "/start — Main menu\n"
             "/submit — Submit a review\n"
-            "/status — My reviews\n"
+            "/status — My reviews and status\n"
+            "/myspins — Available spins\n"
+            "/referral — My referral link\n"
             "/wallet — My rewards\n"
             "/charity — Charity\n"
+            "/language — Change language\n"
             "/help — Help\n\n"
-            "<i>For questions contact @support_username.</i>"
+            "<b>How it works?</b>\n"
+            "1️⃣ Make a purchase on Uzum Market\n"
+            "2️⃣ Leave a review on the product page\n"
+            "3️⃣ Send a screenshot via /submit\n"
+            "4️⃣ After approval — spin the prize wheel!\n\n"
+            "<i>For questions contact @{support}.</i>"
         ),
     },
 
@@ -143,19 +191,19 @@ STRINGS: dict[str, dict[str, str]] = {
     "submit.success": {
         "uz": (
             "🎉 <b>Sharh yuborildi!</b>\n\n"
-            "Sharh raqami: <code>#{submission_id}</code>\n"
+            "Sharh raqami: <code>{submission_id}</code>\n"
             "Natija 24 soat ichida ma'lum qilinadi.\n\n"
             "Holat: /status"
         ),
         "ru": (
             "🎉 <b>Отзыв отправлен!</b>\n\n"
-            "Номер отзыва: <code>#{submission_id}</code>\n"
+            "Номер отзыва: <code>{submission_id}</code>\n"
             "Результат будет сообщён в течение 24 часов.\n\n"
             "Статус: /status"
         ),
         "en": (
             "🎉 <b>Review submitted!</b>\n\n"
-            "Review ID: <code>#{submission_id}</code>\n"
+            "Review ID: <code>{submission_id}</code>\n"
             "You will be notified within 24 hours.\n\n"
             "Status: /status"
         ),
@@ -181,21 +229,126 @@ STRINGS: dict[str, dict[str, str]] = {
         "en": "❌ Cancelled.",
     },
 
-    # ── Status ───────────────────────────────────────────────────────────────
+    # ── Status / History ─────────────────────────────────────────────────────
     "status.header": {
         "uz": "📋 <b>Mening sharhlarim:</b>",
         "ru": "📋 <b>Мои отзывы:</b>",
         "en": "📋 <b>My reviews:</b>",
     },
     "status.empty": {
-        "uz": "Hali sharh yubormagansiz. /submit buyrug'idan foydalaning.",
-        "ru": "Вы ещё не отправляли отзывы. Используйте /submit.",
-        "en": "You haven't submitted any reviews yet. Use /submit.",
+        "uz": "Hali sharh yubormagansiz.\n\n/submit buyrug'idan foydalaning.",
+        "ru": "Вы ещё не отправляли отзывы.\n\nИспользуйте /submit.",
+        "en": "You haven't submitted any reviews yet.\n\nUse /submit.",
+    },
+    "status.summary": {
+        "uz": (
+            "📊 <b>Umumiy:</b> {total} ta sharh\n"
+            "✅ Tasdiqlangan: {approved}\n"
+            "⏳ Kutilayotgan: {pending}\n"
+            "❌ Rad etilgan: {rejected}\n\n"
+        ),
+        "ru": (
+            "📊 <b>Итого:</b> {total} отзывов\n"
+            "✅ Одобрено: {approved}\n"
+            "⏳ На проверке: {pending}\n"
+            "❌ Отклонено: {rejected}\n\n"
+        ),
+        "en": (
+            "📊 <b>Total:</b> {total} reviews\n"
+            "✅ Approved: {approved}\n"
+            "⏳ Pending: {pending}\n"
+            "❌ Rejected: {rejected}\n\n"
+        ),
     },
     "status.item": {
-        "uz": "#{id} — {status_emoji} {status} | {created}",
-        "ru": "#{id} — {status_emoji} {status} | {created}",
-        "en": "#{id} — {status_emoji} {status} | {created}",
+        "uz": (
+            "{status_emoji} <b>{status_label}</b> · {created}\n"
+            "   ID: <code>{short_id}</code>"
+        ),
+        "ru": (
+            "{status_emoji} <b>{status_label}</b> · {created}\n"
+            "   ID: <code>{short_id}</code>"
+        ),
+        "en": (
+            "{status_emoji} <b>{status_label}</b> · {created}\n"
+            "   ID: <code>{short_id}</code>"
+        ),
+    },
+    "status.item_rejected": {
+        "uz": "   ↳ <i>Sabab: {reason}</i>",
+        "ru": "   ↳ <i>Причина: {reason}</i>",
+        "en": "   ↳ <i>Reason: {reason}</i>",
+    },
+    "status.item_spin": {
+        "uz": "   🎡 G'ildirak aylanishi berilgan",
+        "ru": "   🎡 Вращение колеса выдано",
+        "en": "   🎡 Spin granted",
+    },
+
+    # ── My Spins ─────────────────────────────────────────────────────────────
+    "myspins.text": {
+        "uz": (
+            "🎡 <b>Mening aylanishlarim</b>\n\n"
+            "Mavjud aylanishlar: <b>{spin_count}</b>\n"
+            "Jami aylanishlar: <b>{total_spins}</b>\n"
+            "Tasdiqlangan sharhlar: <b>{approved}</b>\n\n"
+            "{spin_note}"
+        ),
+        "ru": (
+            "🎡 <b>Мои вращения</b>\n\n"
+            "Доступно вращений: <b>{spin_count}</b>\n"
+            "Всего вращений: <b>{total_spins}</b>\n"
+            "Одобренных отзывов: <b>{approved}</b>\n\n"
+            "{spin_note}"
+        ),
+        "en": (
+            "🎡 <b>My Spins</b>\n\n"
+            "Available spins: <b>{spin_count}</b>\n"
+            "Total spins: <b>{total_spins}</b>\n"
+            "Approved reviews: <b>{approved}</b>\n\n"
+            "{spin_note}"
+        ),
+    },
+    "myspins.has_spins": {
+        "uz": "🎉 Aylanish uchun Mini Ilovani oching!",
+        "ru": "🎉 Откройте мини-приложение для вращения!",
+        "en": "🎉 Open the Mini App to spin!",
+    },
+    "myspins.no_spins": {
+        "uz": "Hozircha aylanish yo'q. Sharh yuboring va tasdiqlashni kuting!",
+        "ru": "Пока вращений нет. Отправьте отзыв и дождитесь одобрения!",
+        "en": "No spins yet. Submit a review and wait for approval!",
+    },
+
+    # ── Referral ─────────────────────────────────────────────────────────────
+    "referral.text": {
+        "uz": (
+            "🔗 <b>Mening taklif havolam</b>\n\n"
+            "Taklif kodingiz: <code>{code}</code>\n"
+            "Havola:\n<code>https://t.me/{bot_username}?start={code}</code>\n\n"
+            "Takliflar: <b>{count}</b> ta do'st\n"
+            "Bonus aylanishlar: <b>{bonus}</b>\n\n"
+            "Do'stlaringizni taklif qiling — har bir ro'yxatdan o'tish uchun <b>1 ta qo'shimcha aylanish</b> oling! 🎡\n\n"
+            "<i>Bu halol bonus tizimi — hech qanday to'lov talab qilinmaydi.</i>"
+        ),
+        "ru": (
+            "🔗 <b>Моя реферальная ссылка</b>\n\n"
+            "Ваш код: <code>{code}</code>\n"
+            "Ссылка:\n<code>https://t.me/{bot_username}?start={code}</code>\n\n"
+            "Приглашено: <b>{count}</b> друзей\n"
+            "Бонусных вращений: <b>{bonus}</b>\n\n"
+            "Приглашайте друзей — за каждую регистрацию получайте <b>1 вращение</b>! 🎡\n\n"
+            "<i>Это честная бонусная система — никаких платежей не требуется.</i>"
+        ),
+        "en": (
+            "🔗 <b>My Referral Link</b>\n\n"
+            "Your code: <code>{code}</code>\n"
+            "Link:\n<code>https://t.me/{bot_username}?start={code}</code>\n\n"
+            "Invited: <b>{count}</b> friends\n"
+            "Bonus spins earned: <b>{bonus}</b>\n\n"
+            "Invite friends — earn <b>1 extra spin</b> for each sign-up! 🎡\n\n"
+            "<i>This is a halal bonus system — no payments required.</i>"
+        ),
     },
 
     # ── Wallet ───────────────────────────────────────────────────────────────
@@ -243,9 +396,24 @@ STRINGS: dict[str, dict[str, str]] = {
     "btn.lang_uz": {"uz": "🇺🇿 O'zbek", "ru": "🇺🇿 O'zbek", "en": "🇺🇿 O'zbek"},
     "btn.lang_ru": {"uz": "🇷🇺 Русский", "ru": "🇷🇺 Русский", "en": "🇷🇺 Русский"},
     "btn.lang_en": {"uz": "🇬🇧 English", "ru": "🇬🇧 English", "en": "🇬🇧 English"},
+    "btn.copy_referral": {"uz": "🔗 Havolani ko'chirish", "ru": "🔗 Скопировать ссылку", "en": "🔗 Copy link"},
 }
 
 FALLBACK_LANG = "uz"
+
+STATUS_LABELS = {
+    "pending": {"uz": "Kutilmoqda", "ru": "На проверке", "en": "Pending"},
+    "approved": {"uz": "Tasdiqlandi", "ru": "Одобрен", "en": "Approved"},
+    "rejected": {"uz": "Rad etildi", "ru": "Отклонён", "en": "Rejected"},
+    "duplicate": {"uz": "Takror", "ru": "Дубликат", "en": "Duplicate"},
+}
+
+STATUS_EMOJI = {
+    "pending": "⏳",
+    "approved": "✅",
+    "rejected": "❌",
+    "duplicate": "♻️",
+}
 
 
 def t(key: str, lang: str = FALLBACK_LANG, **kwargs: Any) -> str:
@@ -258,3 +426,11 @@ def t(key: str, lang: str = FALLBACK_LANG, **kwargs: Any) -> str:
         except KeyError:
             pass
     return text
+
+
+def status_label(status: str, lang: str) -> str:
+    return STATUS_LABELS.get(status, {}).get(lang, status)
+
+
+def status_emoji(status: str) -> str:
+    return STATUS_EMOJI.get(status, "❓")

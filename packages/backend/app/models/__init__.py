@@ -47,6 +47,7 @@ class NotificationType(str, enum.Enum):
     REWARD_EARNED = "reward_earned"
     REWARD_EXPIRING = "reward_expiring"
     BROADCAST = "broadcast"
+    REFERRAL_BONUS = "referral_bonus"
 
 
 # ─── Models ───────────────────────────────────────────────────────────────────
@@ -59,14 +60,26 @@ class User(Base):
     username: Mapped[Optional[str]] = mapped_column(String(64))
     first_name: Mapped[str] = mapped_column(String(128), nullable=False)
     last_name: Mapped[Optional[str]] = mapped_column(String(128))
+    # Extended profile fields
+    phone: Mapped[Optional[str]] = mapped_column(String(32))
+    bio: Mapped[Optional[str]] = mapped_column(Text)
+    profile_photo_url: Mapped[Optional[str]] = mapped_column(String(512))
+    profile_photo_file_id: Mapped[Optional[str]] = mapped_column(String(256))
+    last_seen_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    # Language & status
     language: Mapped[Language] = mapped_column(SAEnum(Language), default=Language.UZ)
     is_banned: Mapped[bool] = mapped_column(Boolean, default=False)
     ban_reason: Mapped[Optional[str]] = mapped_column(Text)
+    # Stats
     total_submissions: Mapped[int] = mapped_column(Integer, default=0)
     approved_submissions: Mapped[int] = mapped_column(Integer, default=0)
     total_spins: Mapped[int] = mapped_column(Integer, default=0)
+    # Available spins balance (granted on approval, deducted on spin)
+    spin_count: Mapped[int] = mapped_column(Integer, default=0)
+    # Referral
     referral_code: Mapped[str] = mapped_column(String(16), unique=True, index=True)
     referred_by_id: Mapped[Optional[uuid.UUID]] = mapped_column(ForeignKey("users.id"), nullable=True)
+    referral_bonus_spins: Mapped[int] = mapped_column(Integer, default=0)  # lifetime bonus spins from referrals
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 

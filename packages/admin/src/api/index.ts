@@ -88,7 +88,19 @@ export const getSettings = () => api.get('/admin/settings')
 export const updateSettings = (data: unknown) => api.patch('/admin/settings', data)
 
 // ── Broadcast ─────────────────────────────────────────────────────────────────
-export const sendBroadcast = (data: unknown) => api.post('/admin/broadcast', data)
+export const sendBroadcast = (
+  message: string,
+  language?: string,
+  image?: File | null,
+) => {
+  const form = new FormData()
+  form.append('message', message)
+  if (language) form.append('language', language)
+  if (image) form.append('image', image)
+  return api.post('/admin/broadcast', form, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  })
+}
 
 // ── Products ──────────────────────────────────────────────────────────────────
 export const getProducts = (params?: Record<string, unknown>) =>

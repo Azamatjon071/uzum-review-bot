@@ -1,28 +1,26 @@
 """
-/status handler — shows the user's recent submissions.
+/status, /myspins, /referral, /wallet, /charity handlers.
 """
 from aiogram import Router, F
 from aiogram.filters import Command
 from aiogram.types import Message
 
 from app.config import get_settings
-from app.i18n import t
-from app.keyboards import main_menu
-from app.services.api import get_my_submissions, auth_telegram, APIError
+from app.i18n import t, status_label, status_emoji
+from app.keyboards import main_menu, open_webapp_keyboard, referral_keyboard
+from app.services.api import get_my_submissions, get_user_info, auth_telegram, APIError
 import hashlib, hmac, json, time, urllib.parse
 
 router = Router(name="status")
 settings = get_settings()
 
-STATUS_EMOJI = {
-    "pending": "⏳",
-    "approved": "✅",
-    "rejected": "❌",
-    "duplicate": "♻️",
-}
 
+# ---------------------------------------------------------------------------
+# Internal helpers
+# ---------------------------------------------------------------------------
 
 async def _get_token(tg_user, lang: str) -> str | None:
+    """Generate a valid Telegram initData HMAC and exchange it for a JWT."""
     user_json = json.dumps({
         "id": tg_user.id,
         "first_name": tg_user.first_name or "",
@@ -41,6 +39,10 @@ async def _get_token(tg_user, lang: str) -> str | None:
         return None
 
 
+# ---------------------------------------------------------------------------
+# /status
+# ---------------------------------------------------------------------------
+
 @router.message(Command("status"))
 async def cmd_status(message: Message, lang: str):
     token = await _get_token(message.from_user, lang)
@@ -50,7 +52,8 @@ async def cmd_status(message: Message, lang: str):
 
     try:
         resp = await get_my_submissions(token)
-        submissions = resp.get("submissions", [])
+        # Bug fix: key is "items", not "submissions"
+        submissions = resp.get("items", resp.get("submissions", []))
     except APIError:
         await message.answer(t("submit.error", lang))
         return
@@ -59,29 +62,126 @@ async def cmd_status(message: Message, lang: str):
         await message.answer(t("status.empty", lang))
         return
 
-    lines = [t("status.header", lang)]
+    # Compute summary counts
+    total = len(submissions)
+    approved_count = sum(1 for s in submissions if s.get("status") == "approved")
+    pending_count = sum(1 for s in submissions if s.get("status") == "pending")
+    rejected_count = sum(1 for s in submissions if s.get("status") in ("rejected", "duplicate"))
+
+    lines: list[str] = [
+        t("status.header", lang),
+        "",
+        t("status.summary", lang,
+          total=total,
+          approved=approved_count,
+          pending=pending_count,
+          rejected=rejected_count),
+    ]
+
     for s in submissions[:10]:
-        emoji = STATUS_EMOJI.get(s.get("status", "pending"), "❓")
-        created = s.get("created_at", "")[:10]
-        lines.append(
-            t("status.item", lang,
-              id=s["id"],
-              status_emoji=emoji,
-              status=s.get("status", ""),
-              created=created)
-        )
+        st = s.get("status", "pending")
+        emoji = status_emoji(st)
+        label = status_label(st, lang)
+        created = (s.get("created_at") or "")[:10]
+        short_id = str(s.get("id", ""))[:8].upper()
+
+        lines.append(t("status.item", lang,
+                       status_emoji=emoji,
+                       status_label=label,
+                       created=created,
+                       short_id=short_id))
+
+        # Rejection reason
+        if st in ("rejected", "duplicate") and s.get("rejection_reason"):
+            lines.append(t("status.item_rejected", lang, reason=s["rejection_reason"]))
+
+        # Spin granted indicator
+        if s.get("spin_granted"):
+            lines.append(t("status.item_spin", lang))
+
     await message.answer("\n".join(lines), parse_mode="HTML")
 
+
+# ---------------------------------------------------------------------------
+# /myspins
+# ---------------------------------------------------------------------------
+
+@router.message(Command("myspins"))
+async def cmd_myspins(message: Message, lang: str):
+    try:
+        info = await get_user_info(message.from_user.id, settings.BOT_WEBHOOK_SECRET)
+    except APIError:
+        await message.answer(t("submit.error", lang))
+        return
+
+    spin_count = info.get("spin_count", 0)
+    total_spins = info.get("total_spins", 0)
+    approved = info.get("approved_submissions", 0)
+
+    spin_note = t("myspins.has_spins", lang) if spin_count > 0 else t("myspins.no_spins", lang)
+
+    text = t("myspins.text", lang,
+             spin_count=spin_count,
+             total_spins=total_spins,
+             approved=approved,
+             spin_note=spin_note)
+
+    if spin_count > 0:
+        await message.answer(
+            text,
+            reply_markup=open_webapp_keyboard(lang, settings.WEBAPP_URL),
+            parse_mode="HTML",
+        )
+    else:
+        await message.answer(text, parse_mode="HTML")
+
+
+# ---------------------------------------------------------------------------
+# /referral
+# ---------------------------------------------------------------------------
+
+@router.message(Command("referral"))
+async def cmd_referral(message: Message, lang: str):
+    try:
+        info = await get_user_info(message.from_user.id, settings.BOT_WEBHOOK_SECRET)
+    except APIError:
+        await message.answer(t("submit.error", lang))
+        return
+
+    code = info.get("referral_code", "—")
+    referred_count = info.get("referred_count", 0)
+    bonus_spins = info.get("referral_bonus_spins", 0)
+    bot_username = settings.BOT_USERNAME if hasattr(settings, "BOT_USERNAME") else "pprosta_bot"
+
+    text = t("referral.text", lang,
+             code=code,
+             bot_username=bot_username,
+             count=referred_count,
+             bonus=bonus_spins)
+
+    await message.answer(
+        text,
+        reply_markup=referral_keyboard(lang, settings.WEBAPP_URL),
+        parse_mode="HTML",
+    )
+
+
+# ---------------------------------------------------------------------------
+# /wallet
+# ---------------------------------------------------------------------------
 
 @router.message(Command("wallet"))
 @router.message(F.text.in_({"💼 Mukofotlarim", "💼 Мои награды", "💼 My rewards"}))
 async def cmd_wallet(message: Message, lang: str):
-    from app.keyboards import open_webapp_keyboard
     await message.answer(
         t("wallet.open_app", lang),
         reply_markup=open_webapp_keyboard(lang, settings.WEBAPP_URL),
     )
 
+
+# ---------------------------------------------------------------------------
+# /charity
+# ---------------------------------------------------------------------------
 
 @router.message(Command("charity"))
 @router.message(F.text.in_({"🕌 Xayriya", "🕌 Благотворительность", "🕌 Charity"}))
