@@ -41,12 +41,10 @@ function ProductFormDrawer({
     e.preventDefault()
     const fd = new FormData(e.currentTarget)
     const payload = {
-      name_uz: fd.get('name_uz'),
-      name_ru: fd.get('name_ru'),
-      name_en: fd.get('name_en'),
-      uzum_product_id: fd.get('uzum_product_id') || null,
-      uzum_url: fd.get('uzum_url') || null,
-      category: fd.get('category') || null,
+      name: (fd.get('name_uz') as string) || '',
+      uzum_product_id: (fd.get('uzum_product_id') as string) || '',
+      url: (fd.get('uzum_url') as string) || '',
+      category: (fd.get('category') as string) || null,
       is_active: true,
     }
     editing ? onUpdate({ id: editing.id, data: payload }) : onCreate(payload)
@@ -70,17 +68,15 @@ function ProductFormDrawer({
 
         <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-6 space-y-4">
           {[
-            { name: 'name_uz', label: 'Name (Uzbek)', placeholder: 'Mahsulot nomi', required: true },
-            { name: 'name_ru', label: 'Name (Russian)', placeholder: 'Название продукта', required: true },
-            { name: 'name_en', label: 'Name (English)', placeholder: 'Product name', required: true },
-            { name: 'category', label: 'Category', placeholder: 'Electronics, Clothing…', required: false },
-          ].map(({ name, label, placeholder, required }) => (
+            { name: 'name_uz', label: 'Product Name', placeholder: 'Product name', required: true, defaultKey: 'name' },
+            { name: 'category', label: 'Category', placeholder: 'Electronics, Clothing…', required: false, defaultKey: 'category' },
+          ].map(({ name, label, placeholder, required, defaultKey }) => (
             <div key={name}>
               <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">{label}</label>
               <input
                 name={name}
                 placeholder={placeholder}
-                defaultValue={editing?.[name]}
+                defaultValue={editing?.[defaultKey]}
                 required={required}
                 className="border rounded-xl px-3 py-2.5 text-sm w-full focus:outline-none focus:ring-2 focus:ring-blue-400"
               />
@@ -103,7 +99,7 @@ function ProductFormDrawer({
               name="uzum_url"
               type="url"
               placeholder="https://uzum.uz/product/..."
-              defaultValue={editing?.uzum_url}
+              defaultValue={editing?.url}
               className="border rounded-xl px-3 py-2.5 text-sm w-full focus:outline-none focus:ring-2 focus:ring-blue-400"
             />
             <p className="text-xs text-slate-400 mt-1">Users will be directed to this URL when submitting reviews</p>
@@ -393,11 +389,11 @@ export default function ProductsPage() {
                     <div className="flex items-center gap-3">
                       {/* Product initial avatar */}
                       <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-slate-100 to-slate-200 flex items-center justify-center text-slate-500 font-bold text-sm flex-shrink-0 border border-slate-200">
-                        {(p.name_en?.[0] ?? p.name_uz?.[0] ?? '?').toUpperCase()}
+                        {(p.name?.[0] ?? '?').toUpperCase()}
                       </div>
                       <div>
-                        <p className="font-semibold text-slate-800 leading-tight">{p.name_uz}</p>
-                        <p className="text-xs text-slate-400">{p.name_en}</p>
+                        <p className="font-semibold text-slate-800 leading-tight">{p.name}</p>
+                        <p className="text-xs text-slate-400">{p.url}</p>
                       </div>
                     </div>
                   </td>
@@ -410,9 +406,9 @@ export default function ProductsPage() {
                   </td>
                   <td className="px-4 py-3">
                     {p.uzum_product_id ? (
-                      p.uzum_url ? (
+                       p.url ? (
                         <a
-                          href={p.uzum_url}
+                          href={p.url}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="flex items-center gap-1 text-blue-600 hover:text-blue-800 font-mono text-xs font-semibold"
@@ -444,7 +440,7 @@ export default function ProductsPage() {
                         Edit
                       </button>
                       <button
-                        onClick={() => { if (confirm(`Delete "${p.name_uz}"?`)) deleteMut.mutate(p.id) }}
+                        onClick={() => { if (confirm(`Delete "${p.name}"?`)) deleteMut.mutate(p.id) }}
                         className="text-xs text-red-600 hover:text-red-800 font-semibold"
                       >
                         Delete
