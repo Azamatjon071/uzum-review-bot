@@ -1,0 +1,39 @@
+uzum.n8nautomate.me {
+    # ── API → backend ────────────────────────────────────────────────────────
+    handle /api/* {
+        reverse_proxy backend:8000 {
+            header_up X-Real-IP {remote_host}
+            header_up X-Forwarded-For {remote_host}
+            header_up Host {host}
+        }
+    }
+
+    handle /metrics {
+        reverse_proxy backend:8000
+    }
+
+    # ── Telegram Mini App → webapp ───────────────────────────────────────────
+    handle /app* {
+        reverse_proxy webapp:80
+    }
+
+    # ── Admin Panel → admin (everything else) ────────────────────────────────
+    handle {
+        reverse_proxy admin:80
+    }
+
+    # ── Security headers ─────────────────────────────────────────────────────
+    header {
+        Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+        X-Content-Type-Options "nosniff"
+        Referrer-Policy "strict-origin-when-cross-origin"
+        -Server
+    }
+
+    encode gzip zstd
+
+    log {
+        output stdout
+        format console
+    }
+}

@@ -1,0 +1,131 @@
+"""
+HTTP client for communicating with the backend API.
+All calls use JWT tokens obtained via Telegram initData auth.
+"""
+from __future__ import annotations
+
+import logging
+from typing import Any, Optional
+import httpx
+
+from app.config import get_settings
+
+settings = get_settings()
+logger = logging.getLogger(__name__)
+
+BASE = settings.API_BASE_URL.rstrip("/")
+TIMEOUT = httpx.Timeout(15.0)
+
+
+class APIError(Exception):
+    def __init__(self, status_code: int, detail: str):
+        self.status_code = status_code
+        self.detail = detail
+        super().__init__(f"API {status_code}: {detail}")
+
+
+async def _request(
+    method: str,
+    path: str,
+    token: Optional[str] = None,
+    **kwargs: Any,
+) -> Any:
+    headers = kwargs.pop("headers", {})
+    if token:
+        headers["Authorization"] = f"Bearer {token}"
+
+    async with httpx.AsyncClient(timeout=TIMEOUT) as client:
+        resp = await client.request(method, f"{BASE}{path}", headers=headers, **kwargs)
+
+    if resp.status_code >= 400:
+        try:
+            detail = resp.json().get("detail", resp.text)
+        except Exception:
+            detail = resp.text
+        raise APIError(resp.status_code, detail)
+
+    if resp.status_code == 204:
+        return None
+    return resp.json()
+
+
+# ---------------------------------------------------------------------------
+# Auth
+# ---------------------------------------------------------------------------
+
+async def auth_telegram(init_data: str) -> dict:
+    """Exchange Telegram WebApp initData for a JWT."""
+    return await _request("POST", "/api/v1/auth/telegram", json={"init_data": init_data})
+
+
+# ---------------------------------------------------------------------------
+# Submissions
+# ---------------------------------------------------------------------------
+
+async def create_submission(
+    token: str,
+    product_url: str,
+    photo_bytes_list: list[tuple[bytes, str]],  # [(bytes, filename), ...]
+) -> dict:
+    """Upload a submission with multipart images."""
+    files = [
+        ("images", (fname, data, "image/jpeg"))
+        for data, fname in photo_bytes_list
+    ]
+    data = {"product_url": product_url}
+    return await _request("POST", "/api/v1/submissions", token=token, data=data, files=files)
+
+
+async def get_my_submissions(token: str) -> dict:
+    return await _request("GET", "/api/v1/submissions", token=token)
+
+
+# ---------------------------------------------------------------------------
+# Profile
+# ---------------------------------------------------------------------------
+
+async def get_me(token: str) -> dict:
+    return await _request("GET", "/api/v1/me", token=token)
+
+
+# ---------------------------------------------------------------------------
+# Rewards
+# ---------------------------------------------------------------------------
+
+async def get_my_rewards(token: str) -> dict:
+    return await _request("GET", "/api/v1/rewards", token=token)
+
+
+# ---------------------------------------------------------------------------
+# Charity
+# ---------------------------------------------------------------------------
+
+async def get_charity_campaigns() -> dict:
+    return await _request("GET", "/api/v1/charity/campaigns")
+
+
+# ---------------------------------------------------------------------------
+# Bot-internal registration
+# ---------------------------------------------------------------------------
+
+async def bot_register_user(
+    telegram_id: int,
+    first_name: str,
+    last_name: str | None,
+    username: str | None,
+    language_code: str,
+    secret: str,
+) -> dict:
+    """Register or look up a user. Returns {'is_new': bool, 'user_id': str}."""
+    return await _request(
+        "POST",
+        "/api/v1/bot/register",
+        json={
+            "telegram_id": telegram_id,
+            "first_name": first_name or "",
+            "last_name": last_name,
+            "username": username,
+            "language_code": language_code,
+            "secret": secret,
+        },
+    )
