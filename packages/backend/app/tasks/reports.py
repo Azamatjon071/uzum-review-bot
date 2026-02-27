@@ -54,7 +54,7 @@ async def _compute_and_send_daily_summary():
                 and_(
                     Submission.created_at >= start,
                     Submission.created_at <= end,
-                    Submission.status == SubmissionStatus.approved,
+                    Submission.status == SubmissionStatus.APPROVED,
                 )
             )
         )
@@ -133,10 +133,10 @@ async def _generate_export(admin_user_id: int, export_type: str, filters: dict):
 
     async with async_session() as session:
         if export_type == "submissions":
-            writer.writerow(["id", "user_id", "product_url", "status", "created_at"])
+            writer.writerow(["id", "user_id", "order_number", "review_text", "status", "created_at"])
             rows = (await session.execute(select(Submission).limit(10000))).scalars().all()
             for r in rows:
-                writer.writerow([r.id, r.user_id, r.product_url, r.status.value, r.created_at])
+                writer.writerow([r.id, r.user_id, r.order_number, r.review_text, r.status.value, r.created_at])
         elif export_type == "users":
             writer.writerow(["id", "telegram_id", "username", "language", "is_banned", "created_at"])
             rows = (await session.execute(select(User).limit(10000))).scalars().all()

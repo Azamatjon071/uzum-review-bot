@@ -15,7 +15,7 @@ router = APIRouter(prefix="/admin/analytics", tags=["admin-analytics"])
 
 @router.get("/overview")
 async def analytics_overview(
-    admin=Depends(require_permission("view_analytics")),
+    admin=Depends(require_permission("analytics.read")),
     db: AsyncSession = Depends(get_db),
 ):
     # Total users
@@ -66,7 +66,7 @@ async def analytics_overview(
 @router.get("/submissions")
 async def analytics_submissions(
     days: int = 30,
-    admin=Depends(require_permission("view_analytics")),
+    admin=Depends(require_permission("analytics.read")),
     db: AsyncSession = Depends(get_db),
 ):
     """Daily submission counts for the last N days."""
@@ -88,7 +88,7 @@ async def analytics_submissions(
 
 @router.get("/charity")
 async def analytics_charity(
-    admin=Depends(require_permission("view_analytics")),
+    admin=Depends(require_permission("analytics.read")),
     db: AsyncSession = Depends(get_db),
 ):
     campaigns = (await db.execute(

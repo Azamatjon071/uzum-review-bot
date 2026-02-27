@@ -54,23 +54,25 @@ export const getUserDetail = (id: string) => api.get(`/admin/users/${id}`)
 export const banUser = (id: string, reason?: string) =>
   api.patch(`/admin/users/${id}/ban`, { reason })
 export const unbanUser = (id: string) => api.patch(`/admin/users/${id}/unban`)
+export const rewardUser = (id: string, data: unknown) => api.post(`/admin/users/${id}/reward`, data)
 
 // ── Prizes ─────────────────────────────────────────────────────────────────────
 export const getPrizes = () => api.get('/admin/prizes')
 export const createPrize = (data: unknown) => api.post('/admin/prizes', data)
-export const updatePrize = (id: string, data: unknown) => api.patch(`/admin/prizes/${id}`, data)
+export const updatePrize = (id: string, data: unknown) => api.put(`/admin/prizes/${id}`, data)
 export const deletePrize = (id: string) => api.delete(`/admin/prizes/${id}`)
+export const togglePrize = (id: string) => api.patch(`/admin/prizes/${id}/toggle`)
 
 // ── Charity ───────────────────────────────────────────────────────────────────
 export const getCharityCampaigns = (params?: Record<string, unknown>) =>
   api.get('/admin/charity/campaigns', { params })
 export const createCampaign = (data: unknown) => api.post('/admin/charity/campaigns', data)
 export const updateCampaign = (id: string, data: unknown) =>
-  api.patch(`/admin/charity/campaigns/${id}`, data)
+  api.put(`/admin/charity/campaigns/${id}`, data)
 export const closeCampaign = (id: string) =>
-  api.post(`/admin/charity/campaigns/${id}/close`)
+  api.patch(`/admin/charity/campaigns/${id}/close`)
 export const getCampaignDonations = (_id: string) =>
-  api.get('/admin/charity/donations')
+  api.get('/admin/charity/donations', { params: { campaign_id: _id } })
 
 // ── Audit ─────────────────────────────────────────────────────────────────────
 export const getAuditLogs = (params?: Record<string, unknown>) =>

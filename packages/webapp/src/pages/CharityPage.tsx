@@ -165,7 +165,7 @@ export default function CharityPage() {
             <div className="space-y-4">
               {campaigns.map((c: any, i: number) => {
                 const pct = c.goal_amount > 0
-                  ? Math.min(100, (c.collected_amount / c.goal_amount) * 100)
+                  ? Math.min(100, (c.raised_amount / c.goal_amount) * 100)
                   : 0
                 return (
                   <motion.div
@@ -189,7 +189,7 @@ export default function CharityPage() {
                     {c.goal_amount > 0 && (
                       <div className="mb-4">
                         <div className="flex justify-between text-xs mb-1.5" style={{ color: 'rgba(167,243,208,0.5)' }}>
-                          <span>{c.collected_amount?.toLocaleString()} UZS {t('charity_raised')}</span>
+                          <span>{c.raised_amount?.toLocaleString()} UZS {t('charity_raised')}</span>
                           <span>{pct.toFixed(0)}%</span>
                         </div>
                         <div className="w-full rounded-full h-2" style={{ background: 'rgba(255,255,255,0.08)' }}>

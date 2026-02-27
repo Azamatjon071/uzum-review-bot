@@ -1,4 +1,5 @@
 import uuid
+from datetime import datetime as dt
 from typing import Optional
 from pydantic import BaseModel
 from fastapi import APIRouter, Depends, HTTPException, Request, Query
@@ -39,7 +40,7 @@ class CampaignUpdate(BaseModel):
 
 @router.get("/campaigns")
 async def list_campaigns(
-    admin=Depends(require_permission("view_charity")),
+    admin=Depends(require_permission("charity.read")),
     db: AsyncSession = Depends(get_db),
 ):
     campaigns = (await db.execute(select(CharityCampaign).order_by(desc(CharityCampaign.created_at)))).scalars().all()
@@ -68,7 +69,7 @@ async def list_campaigns(
 async def create_campaign(
     payload: CampaignCreate,
     request: Request,
-    admin=Depends(require_permission("manage_charity")),
+    admin=Depends(require_permission("charity.write")),
     db: AsyncSession = Depends(get_db),
 ):
     campaign = CharityCampaign(
@@ -81,6 +82,7 @@ async def create_campaign(
         image_url=payload.image_url,
         goal_amount=payload.goal_amount,
         currency=payload.currency,
+        deadline=dt.fromisoformat(payload.deadline) if payload.deadline else None,
     )
     db.add(campaign)
     await db.flush()
@@ -88,6 +90,7 @@ async def create_campaign(
     await audit.log("create_charity_campaign", "charity_campaign", str(campaign.id),
                     admin_id=admin.id, ip_address=request.client.host if request.client else None,
                     after_data=payload.model_dump())
+    await db.commit()
     return {"id": str(campaign.id), "message": "Campaign created"}
 
 
@@ -96,7 +99,7 @@ async def update_campaign(
     campaign_id: uuid.UUID,
     payload: CampaignUpdate,
     request: Request,
-    admin=Depends(require_permission("manage_charity")),
+    admin=Depends(require_permission("charity.write")),
     db: AsyncSession = Depends(get_db),
 ):
     result = await db.execute(select(CharityCampaign).where(CharityCampaign.id == campaign_id))
@@ -104,17 +107,20 @@ async def update_campaign(
     if not campaign:
         raise HTTPException(status_code=404, detail="Campaign not found")
     for k, v in payload.model_dump(exclude_unset=True).items():
+        if k == 'deadline' and isinstance(v, str):
+            v = dt.fromisoformat(v)
         setattr(campaign, k, v)
     audit = AuditService(db)
     await audit.log("update_charity_campaign", "charity_campaign", str(campaign_id),
                     admin_id=admin.id, ip_address=request.client.host if request.client else None)
+    await db.commit()
     return {"message": "Campaign updated"}
 
 
 @router.patch("/campaigns/{campaign_id}/close")
 async def close_campaign(
     campaign_id: uuid.UUID,
-    admin=Depends(require_permission("manage_charity")),
+    admin=Depends(require_permission("charity.write")),
     db: AsyncSession = Depends(get_db),
 ):
     result = await db.execute(select(CharityCampaign).where(CharityCampaign.id == campaign_id))
@@ -122,6 +128,7 @@ async def close_campaign(
     if not campaign:
         raise HTTPException(status_code=404, detail="Campaign not found")
     campaign.is_active = False
+    await db.commit()
     return {"message": "Campaign closed"}
 
 
@@ -130,7 +137,7 @@ async def list_donations(
     page: int = Query(1, ge=1),
     limit: int = Query(50, le=200),
     campaign_id: Optional[uuid.UUID] = None,
-    admin=Depends(require_permission("view_charity")),
+    admin=Depends(require_permission("charity.read")),
     db: AsyncSession = Depends(get_db),
 ):
     offset = (page - 1) * limit

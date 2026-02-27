@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { motion } from 'framer-motion'
-import { t } from '@/i18n'
+import { t, prizeName } from '@/i18n'
 import { getMyRewards } from '@/api'
 import { format } from 'date-fns'
 
@@ -132,7 +132,7 @@ export default function WalletPage() {
                       {r.prize?.value > 0 ? (r.prize.value.toLocaleString().slice(0, 4)) : '🎁'}
                     </span>
                     <div>
-                      <p className="font-semibold text-sm text-white">{r.prize?.name_uz ?? '—'}</p>
+                      <p className="font-semibold text-sm text-white">{prizeName(r.prize) ?? '—'}</p>
                       <p className="text-xs mt-0.5" style={{ color: 'rgba(167,139,250,0.5)' }}>
                         {r.prize?.value?.toLocaleString()} UZS
                       </p>

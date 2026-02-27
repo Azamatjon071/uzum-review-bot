@@ -22,7 +22,7 @@ async def list_users(
     limit: int = Query(20, le=100),
     search: Optional[str] = None,
     is_banned: Optional[bool] = None,
-    admin=Depends(require_permission("view_users")),
+    admin=Depends(require_permission("users.read")),
     db: AsyncSession = Depends(get_db),
 ):
     offset = (page - 1) * limit
@@ -69,7 +69,7 @@ async def list_users(
 @router.get("/{user_id}")
 async def get_user(
     user_id: uuid.UUID,
-    admin=Depends(require_permission("view_users")),
+    admin=Depends(require_permission("users.read")),
     db: AsyncSession = Depends(get_db),
 ):
     result = await db.execute(select(User).where(User.id == user_id))
@@ -115,7 +115,7 @@ async def ban_user(
     user_id: uuid.UUID,
     payload: BanRequest,
     request: Request,
-    admin=Depends(require_permission("manage_users")),
+    admin=Depends(require_permission("users.write")),
     db: AsyncSession = Depends(get_db),
 ):
     result = await db.execute(select(User).where(User.id == user_id))
@@ -137,7 +137,7 @@ async def ban_user(
 async def unban_user(
     user_id: uuid.UUID,
     request: Request,
-    admin=Depends(require_permission("manage_users")),
+    admin=Depends(require_permission("users.write")),
     db: AsyncSession = Depends(get_db),
 ):
     result = await db.execute(select(User).where(User.id == user_id))

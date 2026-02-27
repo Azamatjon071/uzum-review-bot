@@ -45,7 +45,7 @@ export default function SpinPage() {
   })
 
   const pendingCommitments = (commitmentsData?.commitments ?? []).filter(
-    (c: any) => c.status === 'pending'
+    (c: any) => !c.is_used
   )
   const prizes: any[] = oddsData?.prizes ?? PLACEHOLDER_SEGMENTS
   const totalWeight = prizes.reduce((s: number, p: any) => s + p.weight, 0)

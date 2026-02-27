@@ -147,7 +147,7 @@ app.include_router(admin_reports_router, prefix=PREFIX)
 
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, desc
+from sqlalchemy import select, desc, func
 from pydantic import BaseModel
 from app.database import get_db
 from app.deps import get_current_user

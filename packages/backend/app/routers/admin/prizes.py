@@ -47,7 +47,7 @@ class PrizeUpdate(BaseModel):
 
 @router.get("")
 async def list_prizes(
-    admin=Depends(require_permission("view_prizes")),
+    admin=Depends(require_permission("prizes.read")),
     db: AsyncSession = Depends(get_db),
 ):
     prizes = (await db.execute(select(Prize).order_by(desc(Prize.weight)))).scalars().all()
@@ -75,7 +75,7 @@ async def list_prizes(
 async def create_prize(
     payload: PrizeCreate,
     request: Request,
-    admin=Depends(require_permission("manage_prizes")),
+    admin=Depends(require_permission("prizes.write")),
     db: AsyncSession = Depends(get_db),
 ):
     prize = Prize(**payload.model_dump())
@@ -93,7 +93,7 @@ async def update_prize(
     prize_id: uuid.UUID,
     payload: PrizeUpdate,
     request: Request,
-    admin=Depends(require_permission("manage_prizes")),
+    admin=Depends(require_permission("prizes.write")),
     db: AsyncSession = Depends(get_db),
 ):
     result = await db.execute(select(Prize).where(Prize.id == prize_id))
@@ -116,7 +116,7 @@ async def update_prize(
 async def delete_prize(
     prize_id: uuid.UUID,
     request: Request,
-    admin=Depends(require_permission("manage_prizes")),
+    admin=Depends(require_permission("prizes.write")),
     db: AsyncSession = Depends(get_db),
 ):
     result = await db.execute(select(Prize).where(Prize.id == prize_id))

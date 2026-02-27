@@ -2,6 +2,7 @@ import uuid
 from datetime import datetime, timezone
 from typing import Optional, List
 from fastapi import APIRouter, Depends, HTTPException, status, Request, Query
+from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_, func, or_, desc
 
@@ -33,16 +34,13 @@ class BulkActionRequest(BaseModel):
     reason: Optional[str] = None
 
 
-from pydantic import BaseModel
-
-
 @router.get("")
 async def list_submissions(
     page: int = Query(1, ge=1),
     limit: int = Query(20, le=100),
     status: Optional[str] = None,
     search: Optional[str] = None,
-    admin=Depends(require_permission("view_submissions")),
+    admin=Depends(require_permission("submissions.read")),
     db: AsyncSession = Depends(get_db),
 ):
     offset = (page - 1) * limit
@@ -102,7 +100,7 @@ async def list_submissions(
 async def approve_submission(
     submission_id: uuid.UUID,
     request: Request,
-    admin=Depends(require_permission("review_submissions")),
+    admin=Depends(require_permission("submissions.write")),
     db: AsyncSession = Depends(get_db),
 ):
     result = await db.execute(select(Submission).where(Submission.id == submission_id))
@@ -164,7 +162,7 @@ async def reject_submission(
     submission_id: uuid.UUID,
     payload: RejectRequest,
     request: Request,
-    admin=Depends(require_permission("review_submissions")),
+    admin=Depends(require_permission("submissions.write")),
     db: AsyncSession = Depends(get_db),
 ):
     result = await db.execute(select(Submission).where(Submission.id == submission_id))
@@ -218,7 +216,7 @@ async def reject_submission(
 async def bulk_action(
     payload: BulkActionRequest,
     request: Request,
-    admin=Depends(require_permission("review_submissions")),
+    admin=Depends(require_permission("submissions.write")),
     db: AsyncSession = Depends(get_db),
 ):
     processed = 0

@@ -63,10 +63,10 @@ async def request_export(
     writer = csv.writer(buf)
 
     if body.export_type == "submissions":
-        writer.writerow(["id", "user_id", "product_url", "platform", "status", "reward_points", "created_at"])
+        writer.writerow(["id", "user_id", "order_number", "review_text", "status", "created_at"])
         rows = (await db.execute(select(Submission).order_by(Submission.id.desc()).limit(50000))).scalars().all()
         for r in rows:
-            writer.writerow([r.id, r.user_id, r.product_url, r.platform, r.status.value, r.reward_points, r.created_at])
+            writer.writerow([r.id, r.user_id, r.order_number, r.review_text, r.status.value, r.created_at])
 
     elif body.export_type == "users":
         writer.writerow(["id", "telegram_id", "username", "first_name", "language", "is_banned", "total_submissions", "created_at"])
@@ -75,16 +75,16 @@ async def request_export(
             writer.writerow([r.id, r.telegram_id, r.username, r.first_name, r.language, r.is_banned, r.total_submissions, r.created_at])
 
     elif body.export_type == "spins":
-        writer.writerow(["id", "user_id", "prize_id", "seed_hash", "nonce", "created_at"])
+        writer.writerow(["id", "user_id", "prize_id", "server_seed_hash", "nonce", "created_at"])
         rows = (await db.execute(select(PrizeSpin).order_by(PrizeSpin.id.desc()).limit(50000))).scalars().all()
         for r in rows:
-            writer.writerow([r.id, r.user_id, r.prize_id, r.seed_hash, r.nonce, r.created_at])
+            writer.writerow([r.id, r.user_id, r.prize_id, r.server_seed_hash, r.nonce, r.created_at])
 
     elif body.export_type == "donations":
-        writer.writerow(["id", "user_id", "campaign_id", "amount_uzs", "is_anonymous", "created_at"])
+        writer.writerow(["id", "user_id", "campaign_id", "amount_uzs", "source", "created_at"])
         rows = (await db.execute(select(CharityDonation).order_by(CharityDonation.id.desc()).limit(50000))).scalars().all()
         for r in rows:
-            writer.writerow([r.id, r.user_id, r.campaign_id, r.amount_uzs, r.is_anonymous, r.created_at])
+            writer.writerow([r.id, r.user_id, r.campaign_id, r.amount_uzs, r.source, r.created_at])
 
     else:
         raise HTTPException(status_code=400, detail="Invalid export type")

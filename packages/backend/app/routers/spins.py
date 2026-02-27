@@ -9,7 +9,7 @@ from typing import Optional
 from app.database import get_db
 from app.deps import get_current_user
 from app.models import Prize, User
-from app.services.spin import SpinService, generate_server_seed, hash_seed, generate_nonce
+from app.services.spin import SpinService
 from app.config import get_settings
 
 settings = get_settings()
@@ -65,10 +65,6 @@ async def create_commitment(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Not eligible to spin: {reason}"
         )
-
-    seed = generate_server_seed()
-    nonce = generate_nonce()
-    seed_hash = hash_seed(seed)
 
     commitment, seed = await svc.create_commitment(user.id)
 
@@ -140,6 +136,33 @@ async def execute_spin(
         "seed_hash": spin.server_seed_hash,
         "nonce": spin.nonce,
         "raw_result": spin.raw_result,
+    }
+
+
+@router.get("/commitments")
+async def get_commitments(
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Return this user's unused spin commitments."""
+    from app.models import SpinCommitment
+    result = await db.execute(
+        select(SpinCommitment)
+        .where(SpinCommitment.user_id == user.id, SpinCommitment.is_used == False)
+        .order_by(SpinCommitment.created_at.desc())
+    )
+    commitments = result.scalars().all()
+    return {
+        "commitments": [
+            {
+                "id": str(c.id),
+                "seed_hash": c.server_seed_hash,
+                "nonce": c.nonce,
+                "is_used": c.is_used,
+                "created_at": c.created_at.isoformat(),
+            }
+            for c in commitments
+        ]
     }
 
 

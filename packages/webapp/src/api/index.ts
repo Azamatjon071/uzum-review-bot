@@ -16,7 +16,7 @@ export const authWithTelegram = (initData: string) =>
   api.post('/auth/telegram', { init_data: initData })
 
 // ── Spins ─────────────────────────────────────────────────────────────────────
-export const getSpinCommitments = () => api.get('/spins/history')
+export const getSpinCommitments = () => api.get('/spins/commitments')
 export const commitSpin = () =>
   api.post('/spins/commit')
 export const executeSpin = (commitment_id: string) =>
@@ -30,6 +30,7 @@ export const getMyRewards = () => api.get('/rewards')
 export const getPublicCampaigns = () => api.get('/charity/campaigns')
 export const donateToCapmaign = (campaign_id: string, amount: number) =>
   api.post('/charity/donate', { campaign_id, amount })
+export const donateToCampaign = donateToCapmaign
 export const giveSadaqa = (amount: number) =>
   api.post('/charity/donate', { amount })
 export const getCharityLeaderboard = () => api.get('/charity/leaderboard')

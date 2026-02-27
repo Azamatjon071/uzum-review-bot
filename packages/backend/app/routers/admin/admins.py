@@ -26,9 +26,14 @@ class UpdateAdmin(BaseModel):
     is_active: Optional[bool] = None
 
 
+class CreateRoleRequest(BaseModel):
+    name: str
+    permissions: List[str]
+
+
 @router.get("")
 async def list_admins(
-    admin=Depends(require_permission("super_admin")),
+    admin=Depends(require_permission("admins.write")),
     db: AsyncSession = Depends(get_db),
 ):
     admins = (await db.execute(select(AdminUser))).scalars().all()
@@ -53,7 +58,7 @@ async def list_admins(
 async def invite_admin(
     payload: InviteAdmin,
     request: Request,
-    admin=Depends(require_permission("super_admin")),
+    admin=Depends(require_permission("admins.write")),
     db: AsyncSession = Depends(get_db),
 ):
     existing = (await db.execute(select(AdminUser).where(AdminUser.email == payload.email))).scalar_one_or_none()
@@ -73,6 +78,7 @@ async def invite_admin(
     await audit.log("invite_admin", "admin_user", str(new_admin.id), admin_id=admin.id,
                     ip_address=request.client.host if request.client else None,
                     after_data={"email": payload.email, "role_id": str(payload.role_id)})
+    await db.commit()
     return {"id": str(new_admin.id), "message": "Admin invited"}
 
 
@@ -81,7 +87,7 @@ async def update_admin(
     admin_id: uuid.UUID,
     payload: UpdateAdmin,
     request: Request,
-    admin=Depends(require_permission("super_admin")),
+    admin=Depends(require_permission("admins.write")),
     db: AsyncSession = Depends(get_db),
 ):
     result = await db.execute(select(AdminUser).where(AdminUser.id == admin_id))
@@ -115,12 +121,12 @@ async def list_roles(
 
 @router.post("/roles", status_code=201)
 async def create_role(
-    name: str,
-    permissions: dict,
-    admin=Depends(require_permission("super_admin")),
+    payload: CreateRoleRequest,
+    admin=Depends(require_permission("admins.write")),
     db: AsyncSession = Depends(get_db),
 ):
-    role = AdminRole(name=name, permissions=permissions)
+    role = AdminRole(name=payload.name, permissions=payload.permissions)
     db.add(role)
     await db.flush()
+    await db.commit()
     return {"id": str(role.id), "message": "Role created"}
