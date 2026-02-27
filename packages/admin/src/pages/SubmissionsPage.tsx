@@ -10,6 +10,11 @@ import {
 
 const LIMIT = 20
 
+/** API returns images as either string[] or { url: string }[] — normalise to string[] */
+function toImageUrls(images: any[]): string[] {
+  return (images ?? []).map((img) => (typeof img === 'string' ? img : img?.url ?? '')).filter(Boolean)
+}
+
 const STATUS_BADGE: Record<string, string> = {
   PENDING:   'bg-yellow-100 text-yellow-700 border border-yellow-200',
   APPROVED:  'bg-emerald-100 text-emerald-700 border border-emerald-200',
@@ -80,7 +85,7 @@ function SubmissionCard({
   selected: boolean; onToggle: () => void
 }) {
   const StatusIcon = STATUS_ICON[s.status] ?? AlertCircle
-  const images: string[] = s.images ?? []
+  const images: string[] = toImageUrls(s.images)
   return (
     <div
       className={`bg-white rounded-2xl border shadow-sm overflow-hidden cursor-pointer transition-all hover:shadow-md hover:-translate-y-0.5 ${selected ? 'ring-2 ring-blue-400' : ''}`}
@@ -147,7 +152,7 @@ function DetailDrawer({ sub, onClose, onApprove, onReject }: {
   sub: any; onClose: () => void; onApprove: (id: string) => void; onReject: (id: string) => void
 }) {
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null)
-  const images: string[] = sub.images ?? []
+  const images: string[] = toImageUrls(sub.images)
   const StatusIcon = STATUS_ICON[sub.status] ?? AlertCircle
 
   return (
@@ -448,7 +453,7 @@ export default function SubmissionsPage() {
                   </tr>
                 ) : submissions.map((s: any) => {
                   const StatusIcon = STATUS_ICON[s.status] ?? AlertCircle
-                  const images: string[] = s.images ?? []
+                  const images: string[] = toImageUrls(s.images)
                   return (
                     <tr key={s.id}
                       className={`transition-colors cursor-pointer ${STATUS_ROW_BG[s.status] ?? 'hover:bg-slate-50'}`}
