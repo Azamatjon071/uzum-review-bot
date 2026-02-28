@@ -10,6 +10,7 @@ const strings = {
     // Tab labels
     tab_spin: 'Aylantirish',
     tab_wallet: 'Hamyon',
+    tab_reviews: 'Sharhlar',
     tab_charity: 'Xayriya',
     tab_profile: 'Profil',
 
@@ -106,6 +107,26 @@ const strings = {
     profile_bonus_spins: 'Bonus spinlar',
     profile_referral_info: 'Har bir do\'st uchun bonus spin oling',
 
+    // Reviews page
+    reviews_title: 'Mening sharhlarim',
+    reviews_empty: 'Hali sharh yubormagansiz',
+    reviews_empty_sub: 'Mahsulot sharhi yuboring va sovrin yuting!',
+    reviews_status_pending: 'Kutilmoqda',
+    reviews_status_approved: 'Tasdiqlandi',
+    reviews_status_rejected: 'Rad etildi',
+    reviews_status_duplicate: 'Takror',
+    reviews_spin_granted: 'Spin berildi',
+    reviews_submitted_on: 'Yuborilgan:',
+    reviews_product: 'Mahsulot:',
+    reviews_filter_all: 'Barchasi',
+    reviews_filter_pending: 'Kutilmoqda',
+    reviews_filter_approved: 'Tasdiqlangan',
+    reviews_filter_rejected: 'Rad etilgan',
+    reviews_rejection_reason: 'Sabab:',
+    reviews_total: 'Jami sharhlar',
+    reviews_approved_count: 'Tasdiqlangan',
+    reviews_pending_count: 'Kutilmoqda',
+
     // Common
     loading: 'Yuklanmoqda…',
     error: 'Xato yuz berdi',
@@ -118,6 +139,7 @@ const strings = {
   ru: {
     tab_spin: 'Крутить',
     tab_wallet: 'Кошелёк',
+    tab_reviews: 'Отзывы',
     tab_charity: 'Благотворительность',
     tab_profile: 'Профиль',
 
@@ -210,6 +232,25 @@ const strings = {
     profile_bonus_spins: 'Бонусные спины',
     profile_referral_info: 'Получайте бонусный спин за каждого друга',
 
+    reviews_title: 'Мои отзывы',
+    reviews_empty: 'Отзывы ещё не отправлялись',
+    reviews_empty_sub: 'Отправьте отзыв о товаре и получите приз!',
+    reviews_status_pending: 'На проверке',
+    reviews_status_approved: 'Одобрен',
+    reviews_status_rejected: 'Отклонён',
+    reviews_status_duplicate: 'Дубликат',
+    reviews_spin_granted: 'Спин выдан',
+    reviews_submitted_on: 'Отправлено:',
+    reviews_product: 'Товар:',
+    reviews_filter_all: 'Все',
+    reviews_filter_pending: 'На проверке',
+    reviews_filter_approved: 'Одобренные',
+    reviews_filter_rejected: 'Отклонённые',
+    reviews_rejection_reason: 'Причина:',
+    reviews_total: 'Всего отзывов',
+    reviews_approved_count: 'Одобрено',
+    reviews_pending_count: 'На проверке',
+
     loading: 'Загрузка…',
     error: 'Произошла ошибка',
     retry: 'Попробовать снова',
@@ -221,6 +262,7 @@ const strings = {
   en: {
     tab_spin: 'Spin',
     tab_wallet: 'Wallet',
+    tab_reviews: 'Reviews',
     tab_charity: 'Charity',
     tab_profile: 'Profile',
 
@@ -312,6 +354,25 @@ const strings = {
     profile_language: 'Language',
     profile_bonus_spins: 'Bonus spins',
     profile_referral_info: 'Earn a bonus spin for every friend you invite',
+
+    reviews_title: 'My Reviews',
+    reviews_empty: 'No reviews submitted yet',
+    reviews_empty_sub: 'Submit a product review to win a prize!',
+    reviews_status_pending: 'Pending',
+    reviews_status_approved: 'Approved',
+    reviews_status_rejected: 'Rejected',
+    reviews_status_duplicate: 'Duplicate',
+    reviews_spin_granted: 'Spin granted',
+    reviews_submitted_on: 'Submitted:',
+    reviews_product: 'Product:',
+    reviews_filter_all: 'All',
+    reviews_filter_pending: 'Pending',
+    reviews_filter_approved: 'Approved',
+    reviews_filter_rejected: 'Rejected',
+    reviews_rejection_reason: 'Reason:',
+    reviews_total: 'Total reviews',
+    reviews_approved_count: 'Approved',
+    reviews_pending_count: 'Pending',
 
     loading: 'Loading…',
     error: 'An error occurred',

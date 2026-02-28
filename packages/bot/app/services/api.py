@@ -144,3 +144,15 @@ async def get_user_info(telegram_id: int, secret: str) -> dict:
         f"/api/v1/bot/user/{telegram_id}",
         params={"secret": secret},
     )
+
+
+# ---------------------------------------------------------------------------
+# Products (public — no auth required)
+# ---------------------------------------------------------------------------
+
+async def get_products(search: Optional[str] = None, page: int = 1, page_size: int = 50) -> dict:
+    """Fetch active products from the public endpoint. Used for bot submission flow."""
+    params: dict = {"page": page, "page_size": page_size}
+    if search:
+        params["search"] = search
+    return await _request("GET", "/api/v1/products", params=params)

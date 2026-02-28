@@ -41,3 +41,11 @@ export const getCharityLeaderboard = () => api.get('/charity/leaderboard')
 // ── User profile ──────────────────────────────────────────────────────────────
 export const getMe = () => api.get('/me')
 export const getReferralStats = () => api.get('/me/referral')
+
+// ── Submissions (My Reviews) ──────────────────────────────────────────────────
+export const getMySubmissions = (page = 1, limit = 20) =>
+  api.get('/submissions', { params: { page, limit } })
+
+// ── Products (public) ─────────────────────────────────────────────────────────
+export const getProducts = (search?: string, page = 1, page_size = 50) =>
+  api.get('/products', { params: { search, page, page_size } })

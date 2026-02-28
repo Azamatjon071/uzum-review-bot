@@ -4,13 +4,17 @@ import { useAuth } from '@/hooks/useAuth'
 
 /**
  * Authenticates the Mini App with the backend using Telegram initData.
- * Returns { ready, error }.
+ * Returns { ready, error, notInTelegram }.
+ * - ready: auth succeeded (or dev mode)
+ * - error: auth failed (wrong credentials etc.)
+ * - notInTelegram: opened outside Telegram — show "Open in Telegram" UI
  */
 export function useTelegramAuth() {
   const setAuth = useAuth((s) => s.setAuth)
   const token = useAuth((s) => s.token)
   const [ready, setReady] = useState(!!token)
   const [error, setError] = useState<string | null>(null)
+  const [notInTelegram, setNotInTelegram] = useState(false)
 
   useEffect(() => {
     if (token) { setReady(true); return }
@@ -22,7 +26,8 @@ export function useTelegramAuth() {
         setReady(true)
         return
       }
-      setError('Not opened from Telegram')
+      // Production: not opened from Telegram
+      setNotInTelegram(true)
       return
     }
 
@@ -34,5 +39,5 @@ export function useTelegramAuth() {
       .catch(() => setError('Authentication failed'))
   }, [])
 
-  return { ready, error }
+  return { ready, error, notInTelegram }
 }

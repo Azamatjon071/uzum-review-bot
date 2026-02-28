@@ -98,3 +98,29 @@ async def cmd_language(message: Message, lang: str):
         reply_markup=language_keyboard(),
         parse_mode="HTML",
     )
+
+
+# ── New menu button shortcuts ────────────────────────────────────────────────
+# These simply delegate to the existing /status, /myspins and /referral handlers
+# by re-using the same filter text values that the buttons emit.
+
+@router.message(F.text.in_({"📋 Sharhlarim", "📋 Мои отзывы", "📋 My Reviews"}))
+async def btn_my_status(message: Message, lang: str):
+    """Redirect 'My Reviews' keyboard button → /status logic."""
+    # Import here to avoid circular imports
+    from app.handlers.status import cmd_status
+    await cmd_status(message, lang)
+
+
+@router.message(F.text.in_({"🎡 Aylanishlarim", "🎡 Мои вращения", "🎡 My Spins"}))
+async def btn_my_spins(message: Message, lang: str):
+    """Redirect 'My Spins' keyboard button → /myspins logic."""
+    from app.handlers.status import cmd_myspins
+    await cmd_myspins(message, lang)
+
+
+@router.message(F.text.in_({"🔗 Taklif", "🔗 Реферал", "🔗 Referral"}))
+async def btn_referral(message: Message, lang: str):
+    """Redirect 'Referral' keyboard button → /referral logic."""
+    from app.handlers.status import cmd_referral
+    await cmd_referral(message, lang)

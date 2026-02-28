@@ -1,19 +1,20 @@
 """
 Admin router: product catalog management.
-Admins add known Uzum products so the bot can validate submission URLs.
+Admins add known Uzum products so the bot can show them in the submission flow.
 """
 from __future__ import annotations
 
+import uuid
 from typing import Optional, List
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from pydantic import BaseModel, HttpUrl
+from pydantic import BaseModel
 from sqlalchemy import select, func, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.deps import require_permission
-from app.models import Product, AdminUser
+from app.models import Product, AdminUser, Submission
 from app.services.audit import AuditService
 
 router = APIRouter(prefix="/admin/products", tags=["admin-products"])
@@ -24,28 +25,33 @@ router = APIRouter(prefix="/admin/products", tags=["admin-products"])
 # ---------------------------------------------------------------------------
 
 class ProductCreate(BaseModel):
-    name: str
-    uzum_product_id: str
-    url: str
-    category: Optional[str] = None
+    name_uz: str
+    name_ru: str
+    name_en: str
+    uzum_product_url: Optional[str] = None
+    image_url: Optional[str] = None
     is_active: bool = True
 
 
 class ProductUpdate(BaseModel):
-    name: Optional[str] = None
-    url: Optional[str] = None
-    category: Optional[str] = None
+    name_uz: Optional[str] = None
+    name_ru: Optional[str] = None
+    name_en: Optional[str] = None
+    uzum_product_url: Optional[str] = None
+    image_url: Optional[str] = None
     is_active: Optional[bool] = None
 
 
 class ProductOut(BaseModel):
-    id: int
-    name: str
-    uzum_product_id: str
-    url: str
-    category: Optional[str]
+    id: str
+    name_uz: str
+    name_ru: str
+    name_en: str
+    uzum_product_url: Optional[str]
+    image_url: Optional[str]
     is_active: bool
     submission_count: int = 0
+    created_at: str
 
     class Config:
         from_attributes = True
@@ -75,8 +81,9 @@ async def list_products(
     if search:
         query = query.where(
             or_(
-                Product.name.ilike(f"%{search}%"),
-                Product.uzum_product_id.ilike(f"%{search}%"),
+                Product.name_uz.ilike(f"%{search}%"),
+                Product.name_ru.ilike(f"%{search}%"),
+                Product.name_en.ilike(f"%{search}%"),
             )
         )
     if is_active is not None:
@@ -85,12 +92,29 @@ async def list_products(
     total = await db.scalar(select(func.count()).select_from(query.subquery()))
     products = (
         await db.execute(
-            query.offset((page - 1) * page_size).limit(page_size).order_by(Product.id.desc())
+            query.offset((page - 1) * page_size).limit(page_size).order_by(Product.created_at.desc())
         )
     ).scalars().all()
 
+    items = []
+    for p in products:
+        sub_count = await db.scalar(
+            select(func.count(Submission.id)).where(Submission.product_id == p.id)
+        )
+        items.append(ProductOut(
+            id=str(p.id),
+            name_uz=p.name_uz,
+            name_ru=p.name_ru,
+            name_en=p.name_en,
+            uzum_product_url=p.uzum_product_url,
+            image_url=p.image_url,
+            is_active=p.is_active,
+            submission_count=sub_count or 0,
+            created_at=p.created_at.isoformat(),
+        ))
+
     return ProductListResponse(
-        items=[ProductOut.model_validate(p) for p in products],
+        items=items,
         total=total or 0,
         page=page,
         page_size=page_size,
@@ -103,13 +127,14 @@ async def create_product(
     db: AsyncSession = Depends(get_db),
     admin: AdminUser = Depends(require_permission("submissions.write")),
 ):
-    existing = await db.scalar(
-        select(Product).where(Product.uzum_product_id == body.uzum_product_id)
+    product = Product(
+        name_uz=body.name_uz,
+        name_ru=body.name_ru,
+        name_en=body.name_en,
+        uzum_product_url=body.uzum_product_url,
+        image_url=body.image_url,
+        is_active=body.is_active,
     )
-    if existing:
-        raise HTTPException(status_code=409, detail="Product with this uzum_product_id already exists")
-
-    product = Product(**body.model_dump())
     db.add(product)
     await db.commit()
     await db.refresh(product)
@@ -120,26 +145,49 @@ async def create_product(
         resource_type="product",
         resource_id=str(product.id),
         admin_id=admin.id,
-        after_data={"name": product.name},
+        after_data={"name_uz": product.name_uz},
     )
-    return ProductOut.model_validate(product)
+    return ProductOut(
+        id=str(product.id),
+        name_uz=product.name_uz,
+        name_ru=product.name_ru,
+        name_en=product.name_en,
+        uzum_product_url=product.uzum_product_url,
+        image_url=product.image_url,
+        is_active=product.is_active,
+        submission_count=0,
+        created_at=product.created_at.isoformat(),
+    )
 
 
 @router.get("/{product_id}", response_model=ProductOut)
 async def get_product(
-    product_id: int,
+    product_id: uuid.UUID,
     db: AsyncSession = Depends(get_db),
     admin: AdminUser = Depends(require_permission("submissions.read")),
 ):
     product = await db.get(Product, product_id)
     if not product:
         raise HTTPException(status_code=404, detail="Product not found")
-    return ProductOut.model_validate(product)
+    sub_count = await db.scalar(
+        select(func.count(Submission.id)).where(Submission.product_id == product.id)
+    )
+    return ProductOut(
+        id=str(product.id),
+        name_uz=product.name_uz,
+        name_ru=product.name_ru,
+        name_en=product.name_en,
+        uzum_product_url=product.uzum_product_url,
+        image_url=product.image_url,
+        is_active=product.is_active,
+        submission_count=sub_count or 0,
+        created_at=product.created_at.isoformat(),
+    )
 
 
 @router.patch("/{product_id}", response_model=ProductOut)
 async def update_product(
-    product_id: int,
+    product_id: uuid.UUID,
     body: ProductUpdate,
     db: AsyncSession = Depends(get_db),
     admin: AdminUser = Depends(require_permission("submissions.write")),
@@ -160,12 +208,25 @@ async def update_product(
         resource_id=str(product_id),
         admin_id=admin.id,
     )
-    return ProductOut.model_validate(product)
+    sub_count = await db.scalar(
+        select(func.count(Submission.id)).where(Submission.product_id == product.id)
+    )
+    return ProductOut(
+        id=str(product.id),
+        name_uz=product.name_uz,
+        name_ru=product.name_ru,
+        name_en=product.name_en,
+        uzum_product_url=product.uzum_product_url,
+        image_url=product.image_url,
+        is_active=product.is_active,
+        submission_count=sub_count or 0,
+        created_at=product.created_at.isoformat(),
+    )
 
 
 @router.delete("/{product_id}", status_code=204)
 async def delete_product(
-    product_id: int,
+    product_id: uuid.UUID,
     db: AsyncSession = Depends(get_db),
     admin: AdminUser = Depends(require_permission("submissions.write")),
 ):

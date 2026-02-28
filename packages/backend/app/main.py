@@ -147,8 +147,9 @@ app.include_router(admin_reports_router, prefix=PREFIX)
 
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, desc, func
+from sqlalchemy import select, desc, func, or_
 from pydantic import BaseModel
+from typing import Optional
 from app.database import get_db
 from app.deps import get_current_user
 from app.models import Reward, RewardStatus, User, Prize
@@ -255,12 +256,77 @@ async def claim_reward(
     return {"message": "Reward claimed!", "claim_code": reward.claim_code}
 
 
+@rewards_router.post("/{reward_id}/donate")
+async def donate_reward(
+    reward_id: uuid.UUID,
+    campaign_id: uuid.UUID = None,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Donate a pending reward to charity."""
+    from datetime import datetime, timezone
+    from app.models import CharityDonation, RewardStatus
+    result = await db.execute(select(Reward).where(
+        Reward.id == reward_id, Reward.user_id == user.id
+    ))
+    reward = result.scalar_one_or_none()
+    if not reward:
+        raise HTTPException(status_code=404, detail="Reward not found")
+    if reward.status != RewardStatus.PENDING:
+        raise HTTPException(status_code=400, detail=f"Cannot donate: reward is {reward.status.value}")
+
+    # Get prize value for donation amount
+    prize_r = await db.execute(select(Prize).where(Prize.id == reward.prize_id))
+    prize = prize_r.scalar_one_or_none()
+    amount = float(prize.value) if prize else 0
+
+    reward.status = RewardStatus.DONATED
+    reward.claimed_at = datetime.now(timezone.utc)
+
+    donation = CharityDonation(
+        user_id=user.id,
+        campaign_id=campaign_id,
+        amount_uzs=amount,
+        source="reward",
+        reward_id=reward.id,
+    )
+    db.add(donation)
+
+    # Update campaign raised amount
+    if campaign_id:
+        from app.models import CharityCampaign
+        camp = await db.get(CharityCampaign, campaign_id)
+        if camp:
+            camp.raised_amount = float(camp.raised_amount) + amount
+
+    await db.commit()
+    return {"message": "JazakAllah khayr! Reward donated to charity.", "donation_id": str(donation.id)}
+
+
 app.include_router(rewards_router)
 
 
 # ─── User profile ─────────────────────────────────────────────────────────────
 
 me_router = APIRouter(prefix="/api/v1/me", tags=["me"])
+
+@me_router.get("/referral")
+async def get_me_referral(user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    """Return referral stats for the current user (used by webapp ProfilePage)."""
+    referred_count_r = await db.execute(
+        select(func.count(User.id)).where(User.referred_by_id == user.id)
+    )
+    referred_count = referred_count_r.scalar() or 0
+    return {
+        "referral_code": user.referral_code,
+        "referral_count": referred_count,
+        "total_referrals": referred_count,
+        "bonus_spins": user.referral_bonus_spins,
+        "earned_bonus_spins": user.referral_bonus_spins,
+        "total_spins": user.total_spins,
+        "total_wins": user.total_spins,
+    }
+
 
 @me_router.get("")
 async def get_me(user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
@@ -291,6 +357,51 @@ async def get_me(user: User = Depends(get_current_user), db: AsyncSession = Depe
     }
 
 app.include_router(me_router)
+
+
+# ─── Public products endpoint (for bot + webapp) ──────────────────────────────
+
+products_public_router = APIRouter(prefix="/api/v1/products", tags=["products"])
+
+@products_public_router.get("")
+async def list_public_products(
+    search: Optional[str] = None,
+    page: int = 1,
+    page_size: int = 50,
+    db: AsyncSession = Depends(get_db),
+):
+    """Public endpoint: list active products for bot/webapp product selection."""
+    from app.models import Product
+    from sqlalchemy import or_
+    query = select(Product).where(Product.is_active == True)
+    if search:
+        query = query.where(
+            or_(
+                Product.name_uz.ilike(f"%{search}%"),
+                Product.name_ru.ilike(f"%{search}%"),
+                Product.name_en.ilike(f"%{search}%"),
+            )
+        )
+    total = await db.scalar(select(func.count()).select_from(query.subquery()))
+    products = (
+        await db.execute(query.offset((page - 1) * page_size).limit(page_size).order_by(Product.name_uz))
+    ).scalars().all()
+    return {
+        "products": [
+            {
+                "id": str(p.id),
+                "name_uz": p.name_uz,
+                "name_ru": p.name_ru,
+                "name_en": p.name_en,
+                "uzum_product_url": p.uzum_product_url,
+                "image_url": p.image_url,
+            }
+            for p in products
+        ],
+        "total": total or 0,
+    }
+
+app.include_router(products_public_router)
 
 
 # ─── Bot internal API ─────────────────────────────────────────────────────────

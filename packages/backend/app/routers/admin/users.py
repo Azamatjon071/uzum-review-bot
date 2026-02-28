@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, desc, or_
 from app.database import get_db
 from app.deps import require_permission
-from app.models import User, Reward, Submission
+from app.models import User, Reward, Submission, Prize, RewardStatus
 from app.services.audit import AuditService
 
 router = APIRouter(prefix="/admin/users", tags=["admin-users"])
@@ -14,6 +14,11 @@ router = APIRouter(prefix="/admin/users", tags=["admin-users"])
 
 class BanRequest(BaseModel):
     reason: str
+
+
+class RewardGrantRequest(BaseModel):
+    prize_id: str
+    note: Optional[str] = None
 
 
 @router.get("")
@@ -152,3 +157,54 @@ async def unban_user(
     await audit.log("unban_user", "user", str(user_id), admin_id=admin.id,
                     ip_address=request.client.host if request.client else None)
     return {"message": "User unbanned"}
+
+
+@router.post("/{user_id}/reward")
+async def grant_reward(
+    user_id: uuid.UUID,
+    payload: RewardGrantRequest,
+    request: Request,
+    admin=Depends(require_permission("users.write")),
+    db: AsyncSession = Depends(get_db),
+):
+    """Manually grant a prize reward to a user."""
+    import secrets as _secrets
+    from datetime import datetime, timezone, timedelta
+
+    result = await db.execute(select(User).where(User.id == user_id))
+    user = result.scalar_one_or_none()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    try:
+        prize_uuid = uuid.UUID(payload.prize_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid prize_id")
+
+    prize_r = await db.execute(select(Prize).where(Prize.id == prize_uuid))
+    prize = prize_r.scalar_one_or_none()
+    if not prize:
+        raise HTTPException(status_code=404, detail="Prize not found")
+
+    reward = Reward(
+        user_id=user_id,
+        prize_id=prize_uuid,
+        status=RewardStatus.PENDING,
+        claim_code=_secrets.token_hex(6).upper(),
+        expires_at=datetime.now(timezone.utc) + timedelta(days=30),
+    )
+    db.add(reward)
+
+    audit = AuditService(db)
+    await audit.log(
+        "grant_reward", "user", str(user_id),
+        admin_id=admin.id,
+        ip_address=request.client.host if request.client else None,
+        after_data={"prize_id": str(prize_uuid), "note": payload.note},
+    )
+    await db.commit()
+    return {
+        "message": "Reward granted",
+        "reward_id": str(reward.id),
+        "claim_code": reward.claim_code,
+    }

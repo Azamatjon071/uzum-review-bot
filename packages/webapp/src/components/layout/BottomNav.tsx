@@ -7,6 +7,7 @@ import { getMyRewards } from '@/api'
 const TABS = [
   { to: '/', icon: '🎡', labelKey: 'tab_spin' as const },
   { to: '/wallet', icon: '👛', labelKey: 'tab_wallet' as const },
+  { to: '/reviews', icon: '📝', labelKey: 'tab_reviews' as const },
   { to: '/charity', icon: '🤲', labelKey: 'tab_charity' as const },
   { to: '/profile', icon: '👤', labelKey: 'tab_profile' as const },
 ]

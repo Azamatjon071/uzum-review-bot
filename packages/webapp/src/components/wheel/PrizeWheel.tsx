@@ -24,13 +24,15 @@ const CENTER = SIZE / 2
 const RADIUS = CENTER - 12
 
 function buildArcs(segments: WheelSegment[]) {
-  const total = segments.reduce((s, seg) => s + seg.weight, 0)
+  // Each segment gets an EQUAL visual slice regardless of weight.
+  // Weight is purely a backend/logic concern — the wheel always looks fair.
+  const count = segments.length || 1
+  const equalSweep = TWO_PI / count
   let angle = 0
   return segments.map((seg) => {
-    const sweep = (seg.weight / total) * TWO_PI
     const start = angle
-    angle += sweep
-    return { ...seg, start, sweep, mid: start + sweep / 2 }
+    angle += equalSweep
+    return { ...seg, start, sweep: equalSweep, mid: start + equalSweep / 2 }
   })
 }
 

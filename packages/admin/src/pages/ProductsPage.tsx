@@ -41,10 +41,11 @@ function ProductFormDrawer({
     e.preventDefault()
     const fd = new FormData(e.currentTarget)
     const payload = {
-      name: (fd.get('name_uz') as string) || '',
-      uzum_product_id: (fd.get('uzum_product_id') as string) || '',
-      url: (fd.get('uzum_url') as string) || '',
-      category: (fd.get('category') as string) || null,
+      name_uz: (fd.get('name_uz') as string) || '',
+      name_ru: (fd.get('name_ru') as string) || '',
+      name_en: (fd.get('name_en') as string) || '',
+      uzum_product_url: (fd.get('uzum_product_url') as string) || null,
+      image_url: (fd.get('image_url') as string) || null,
       is_active: true,
     }
     editing ? onUpdate({ id: editing.id, data: payload }) : onCreate(payload)
@@ -68,8 +69,9 @@ function ProductFormDrawer({
 
         <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-6 space-y-4">
           {[
-            { name: 'name_uz', label: 'Product Name', placeholder: 'Product name', required: true, defaultKey: 'name' },
-            { name: 'category', label: 'Category', placeholder: 'Electronics, Clothing…', required: false, defaultKey: 'category' },
+            { name: 'name_uz', label: "Name (O'zbek)", placeholder: 'Mahsulot nomi', required: true, defaultKey: 'name_uz' },
+            { name: 'name_ru', label: 'Name (Русский)', placeholder: 'Название товара', required: true, defaultKey: 'name_ru' },
+            { name: 'name_en', label: 'Name (English)', placeholder: 'Product name', required: true, defaultKey: 'name_en' },
           ].map(({ name, label, placeholder, required, defaultKey }) => (
             <div key={name}>
               <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">{label}</label>
@@ -84,25 +86,26 @@ function ProductFormDrawer({
           ))}
 
           <div>
-            <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Uzum Product ID</label>
+            <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Uzum Product URL</label>
             <input
-              name="uzum_product_id"
-              placeholder="e.g. 12345678"
-              defaultValue={editing?.uzum_product_id}
+              name="uzum_product_url"
+              type="url"
+              placeholder="https://uzum.uz/product/..."
+              defaultValue={editing?.uzum_product_url}
               className="border rounded-xl px-3 py-2.5 text-sm w-full focus:outline-none focus:ring-2 focus:ring-blue-400"
             />
+            <p className="text-xs text-slate-400 mt-1">Link to the product page on Uzum Market</p>
           </div>
 
           <div>
-            <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Uzum Product URL</label>
+            <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Image URL (optional)</label>
             <input
-              name="uzum_url"
+              name="image_url"
               type="url"
-              placeholder="https://uzum.uz/product/..."
-              defaultValue={editing?.url}
+              placeholder="https://..."
+              defaultValue={editing?.image_url}
               className="border rounded-xl px-3 py-2.5 text-sm w-full focus:outline-none focus:ring-2 focus:ring-blue-400"
             />
-            <p className="text-xs text-slate-400 mt-1">Users will be directed to this URL when submitting reviews</p>
           </div>
 
           <div className="flex gap-2 pt-2">
@@ -289,7 +292,7 @@ export default function ProductsPage() {
     onError: () => toast.error('Failed to delete product'),
   })
 
-  const products = data?.products ?? []
+  const products = data?.items ?? []
   const total = data?.total ?? 0
   const totalPages = Math.max(1, Math.ceil(total / 20))
   const activeCount = products.filter((p: any) => p.is_active).length
@@ -350,105 +353,100 @@ export default function ProductsPage() {
           <table className="w-full text-sm">
             <thead className="bg-slate-50 border-b border-slate-100">
               <tr>
-                {['#', 'Product', 'Category', 'Uzum ID', 'Submissions', 'Active', 'Actions'].map((h) => (
-                  <th key={h} className="px-4 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider whitespace-nowrap">{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-50">
-              {isLoading ? (
-                [...Array(5)].map((_, i) => (
-                  <tr key={i}>
-                    {[...Array(7)].map((_, j) => (
-                      <td key={j} className="px-4 py-3">
-                        <div className="h-3 bg-slate-100 rounded animate-pulse" />
-                      </td>
-                    ))}
-                  </tr>
-                ))
-              ) : products.length === 0 ? (
-                <tr>
-                  <td colSpan={7} className="px-4 py-16 text-center">
-                    <div className="w-14 h-14 bg-slate-100 rounded-2xl flex items-center justify-center mx-auto mb-3">
-                      <Package size={24} className="text-slate-300" />
-                    </div>
-                    <p className="font-medium text-slate-500">
-                      {search ? 'No products match your search' : 'No products yet'}
-                    </p>
-                    <p className="text-xs text-slate-400 mt-1">
-                      {search ? 'Try a different search term' : 'Add your first product to get started'}
-                    </p>
-                  </td>
+                {['#', 'Product (UZ/RU)', 'English Name', 'Uzum URL', 'Submissions', 'Active', 'Actions'].map((h) => (
+                    <th key={h} className="px-4 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider whitespace-nowrap">{h}</th>
+                  ))}
                 </tr>
-              ) : products.map((p: any, idx: number) => (
-                <tr key={p.id} className="hover:bg-blue-50/30 transition-colors group">
-                  <td className="px-4 py-3 text-slate-400 text-xs font-mono">
-                    {(page - 1) * 20 + idx + 1}
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-3">
-                      {/* Product initial avatar */}
-                      <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-slate-100 to-slate-200 flex items-center justify-center text-slate-500 font-bold text-sm flex-shrink-0 border border-slate-200">
-                        {(p.name?.[0] ?? '?').toUpperCase()}
+              </thead>
+              <tbody className="divide-y divide-slate-50">
+                {isLoading ? (
+                  [...Array(5)].map((_, i) => (
+                    <tr key={i}>
+                      {[...Array(7)].map((_, j) => (
+                        <td key={j} className="px-4 py-3">
+                          <div className="h-3 bg-slate-100 rounded animate-pulse" />
+                        </td>
+                      ))}
+                    </tr>
+                  ))
+                ) : products.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} className="px-4 py-16 text-center">
+                      <div className="w-14 h-14 bg-slate-100 rounded-2xl flex items-center justify-center mx-auto mb-3">
+                        <Package size={24} className="text-slate-300" />
                       </div>
-                      <div>
-                        <p className="font-semibold text-slate-800 leading-tight">{p.name}</p>
-                        <p className="text-xs text-slate-400">{p.url}</p>
+                      <p className="font-medium text-slate-500">
+                        {search ? 'No products match your search' : 'No products yet'}
+                      </p>
+                      <p className="text-xs text-slate-400 mt-1">
+                        {search ? 'Try a different search term' : 'Add your first product to get started'}
+                      </p>
+                    </td>
+                  </tr>
+                ) : products.map((p: any, idx: number) => (
+                  <tr key={p.id} className="hover:bg-blue-50/30 transition-colors group">
+                    <td className="px-4 py-3 text-slate-400 text-xs font-mono">
+                      {(page - 1) * 20 + idx + 1}
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-3">
+                        {p.image_url ? (
+                          <img src={p.image_url} alt="" className="w-9 h-9 rounded-xl object-cover border border-slate-200 flex-shrink-0" />
+                        ) : (
+                          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-slate-100 to-slate-200 flex items-center justify-center text-slate-500 font-bold text-sm flex-shrink-0 border border-slate-200">
+                            {(p.name_uz?.[0] ?? '?').toUpperCase()}
+                          </div>
+                        )}
+                        <div>
+                          <p className="font-semibold text-slate-800 leading-tight">{p.name_uz}</p>
+                          <p className="text-xs text-slate-400">{p.name_ru}</p>
+                        </div>
                       </div>
-                    </div>
-                  </td>
-                  <td className="px-4 py-3">
-                    {p.category ? (
-                      <span className="text-xs font-semibold text-slate-600 bg-slate-100 px-2.5 py-1 rounded-full">{p.category}</span>
-                    ) : (
-                      <span className="text-slate-300 text-xs">—</span>
-                    )}
-                  </td>
-                  <td className="px-4 py-3">
-                    {p.uzum_product_id ? (
-                       p.url ? (
+                    </td>
+                    <td className="px-4 py-3">
+                      <p className="text-xs text-slate-500">{p.name_en}</p>
+                    </td>
+                    <td className="px-4 py-3">
+                      {p.uzum_product_url ? (
                         <a
-                          href={p.url}
+                          href={p.uzum_product_url}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="flex items-center gap-1 text-blue-600 hover:text-blue-800 font-mono text-xs font-semibold"
+                          className="flex items-center gap-1 text-blue-600 hover:text-blue-800 text-xs font-semibold max-w-[160px] truncate"
                         >
-                          {p.uzum_product_id}
-                          <ExternalLink size={10} />
+                          <ExternalLink size={10} className="shrink-0" />
+                          <span className="truncate">{p.uzum_product_url.replace('https://uzum.uz', '')}</span>
                         </a>
-                      ) : (
-                        <span className="font-mono text-xs text-slate-500">{p.uzum_product_id}</span>
-                      )
-                    ) : <span className="text-slate-300 text-xs">—</span>}
-                  </td>
-                  <td className="px-4 py-3">
-                    <span className="font-semibold text-slate-700">{p.submission_count ?? 0}</span>
-                  </td>
-                  <td className="px-4 py-3">
-                    <ToggleSwitch
-                      checked={p.is_active}
-                      onChange={() => toggleActiveMut.mutate({ id: p.id, is_active: !p.is_active })}
-                      disabled={toggleActiveMut.isPending}
-                    />
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="flex gap-3 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <button
-                        onClick={() => { setEditing(p); setShowForm(true) }}
-                        className="text-xs text-blue-600 hover:text-blue-800 font-semibold"
-                      >
-                        Edit
-                      </button>
-                      <button
-                        onClick={() => { if (confirm(`Delete "${p.name}"?`)) deleteMut.mutate(p.id) }}
-                        className="text-xs text-red-600 hover:text-red-800 font-semibold"
-                      >
-                        Delete
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
+                      ) : <span className="text-slate-300 text-xs">—</span>}
+                    </td>
+                    <td className="px-4 py-3">
+                      <span className="font-semibold text-slate-700">{p.submission_count ?? 0}</span>
+                    </td>
+                    <td className="px-4 py-3">
+                      <ToggleSwitch
+                        checked={p.is_active}
+                        onChange={() => toggleActiveMut.mutate({ id: p.id, is_active: !p.is_active })}
+                        disabled={toggleActiveMut.isPending}
+                      />
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex gap-3 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button
+                          onClick={() => { setEditing(p); setShowForm(true) }}
+                          className="text-xs text-blue-600 hover:text-blue-800 font-semibold"
+                        >
+                          Edit
+                        </button>
+                        <button
+                          onClick={() => { if (confirm(`Delete "${p.name_uz}"?`)) deleteMut.mutate(p.id) }}
+                          className="text-xs text-red-600 hover:text-red-800 font-semibold"
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
             </tbody>
           </table>
         </div>

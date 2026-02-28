@@ -126,6 +126,48 @@ STRINGS: dict[str, dict[str, str]] = {
     },
 
     # ── Submission FSM ───────────────────────────────────────────────────────
+    "submit.ask_product": {
+        "uz": (
+            "📦 <b>Sharh yuborish</b>\n\n"
+            "Qaysi mahsulot uchun sharh yozgansiz?\n"
+            "Ro'yxatdan tanlang yoki qidirish uchun mahsulot nomini yozing:"
+        ),
+        "ru": (
+            "📦 <b>Отправить отзыв</b>\n\n"
+            "На какой товар вы написали отзыв?\n"
+            "Выберите из списка или напишите название для поиска:"
+        ),
+        "en": (
+            "📦 <b>Submit a review</b>\n\n"
+            "Which product did you review?\n"
+            "Select from the list or type a product name to search:"
+        ),
+    },
+    "submit.product_list_header": {
+        "uz": "📋 Mavjud mahsulotlar:\n\n",
+        "ru": "📋 Доступные товары:\n\n",
+        "en": "📋 Available products:\n\n",
+    },
+    "submit.product_not_found": {
+        "uz": "❌ Mahsulot topilmadi. Boshqa so'z bilan qidiring yoki ro'yxatdan tanlang.",
+        "ru": "❌ Товар не найден. Попробуйте другой запрос или выберите из списка.",
+        "en": "❌ Product not found. Try a different search or select from the list.",
+    },
+    "submit.product_selected": {
+        "uz": "✅ Mahsulot tanlandi: <b>{name}</b>\n\nEndi sharhingizning skrinshotini yuboring.\n(<b>1–5 rasm</b>, JPEG yoki PNG)\n\nHammasini yuborganingizdan so'ng <b>«Tayyor»</b> tugmasini bosing.",
+        "ru": "✅ Товар выбран: <b>{name}</b>\n\nТеперь отправьте скриншот(ы) вашего отзыва.\n(<b>1–5 фото</b>, JPEG или PNG)\n\nПосле загрузки нажмите <b>«Готово»</b>.",
+        "en": "✅ Product selected: <b>{name}</b>\n\nNow send screenshot(s) of your review.\n(<b>1–5 images</b>, JPEG or PNG)\n\nAfter uploading press <b>«Done»</b>.",
+    },
+    "submit.no_products": {
+        "uz": "⚠️ Hozircha faol mahsulotlar yo'q. Keyinroq qayta urinib ko'ring.",
+        "ru": "⚠️ Пока нет активных товаров. Попробуйте позже.",
+        "en": "⚠️ No active products available yet. Try again later.",
+    },
+    "submit.search_hint": {
+        "uz": "🔍 Mahsulot nomini yozing yoki «Bekor qilish» tugmasini bosing:",
+        "ru": "🔍 Напишите название товара или нажмите «Отмена»:",
+        "en": "🔍 Type a product name or press «Cancel»:",
+    },
     "submit.ask_url": {
         "uz": (
             "📦 <b>Sharh yuborish</b>\n\n"
@@ -395,8 +437,67 @@ STRINGS: dict[str, dict[str, str]] = {
         "en": "<b>{name}</b>\n{raised} / {goal} UZS ({pct}%)\n",
     },
 
-    # ── Buttons ──────────────────────────────────────────────────────────────
+    # ── Engagement / Psychological nudges ────────────────────────────────────
+    "engage.spin_available": {
+        "uz": (
+            "🎡 <b>Sizda {spin_count} ta aylanish mavjud!</b>\n\n"
+            "Mini Ilovani oching va sovrin yutib oling 🎁\n"
+            "Har bir aylanish yangi imkoniyat!"
+        ),
+        "ru": (
+            "🎡 <b>У вас {spin_count} вращений ждут!</b>\n\n"
+            "Откройте мини-приложение и выиграйте приз 🎁\n"
+            "Каждое вращение — новый шанс!"
+        ),
+        "en": (
+            "🎡 <b>You have {spin_count} spin(s) waiting!</b>\n\n"
+            "Open the Mini App and win a prize 🎁\n"
+            "Every spin is a new chance!"
+        ),
+    },
+    "engage.review_approved": {
+        "uz": (
+            "🎉 <b>Sharhingiz tasdiqlandi!</b>\n\n"
+            "Tabriklaymiz! Endi sovrin g'ildiragini aylantiring 🎡\n"
+            "Mavjud aylanishlar: <b>{spin_count}</b>\n\n"
+            "Mini Ilovani oching va o'z omadingizni sinab ko'ring!"
+        ),
+        "ru": (
+            "🎉 <b>Ваш отзыв одобрен!</b>\n\n"
+            "Поздравляем! Теперь крутите колесо призов 🎡\n"
+            "Доступных вращений: <b>{spin_count}</b>\n\n"
+            "Откройте мини-приложение и испытайте удачу!"
+        ),
+        "en": (
+            "🎉 <b>Your review was approved!</b>\n\n"
+            "Congratulations! Now spin the prize wheel 🎡\n"
+            "Available spins: <b>{spin_count}</b>\n\n"
+            "Open the Mini App and try your luck!"
+        ),
+    },
+    "engage.streak_reminder": {
+        "uz": (
+            "🔥 <b>{streak} kunlik ketma-ketlik!</b>\n\n"
+            "Zo'r! Har kuni sharh yuboring va bonus spinlar yuting.\n"
+            "Bugun ham sharh yubordingizmi? /submit"
+        ),
+        "ru": (
+            "🔥 <b>{streak}-дневная серия!</b>\n\n"
+            "Отлично! Отправляйте отзыв каждый день и выигрывайте бонусные спины.\n"
+            "Вы уже отправили отзыв сегодня? /submit"
+        ),
+        "en": (
+            "🔥 <b>{streak}-day streak!</b>\n\n"
+            "Great! Submit a review every day and earn bonus spins.\n"
+            "Have you submitted a review today? /submit"
+        ),
+    },
+
+
     "btn.submit_review": {"uz": "📝 Sharh yuborish", "ru": "📝 Отправить отзыв", "en": "📝 Submit review"},
+    "btn.my_status": {"uz": "📋 Sharhlarim", "ru": "📋 Мои отзывы", "en": "📋 My Reviews"},
+    "btn.my_spins": {"uz": "🎡 Aylanishlarim", "ru": "🎡 Мои вращения", "en": "🎡 My Spins"},
+    "btn.referral": {"uz": "🔗 Taklif", "ru": "🔗 Реферал", "en": "🔗 Referral"},
     "btn.open_webapp": {"uz": "🎡 Mini Ilova", "ru": "🎡 Мини-приложение", "en": "🎡 Mini App"},
     "btn.share_referral": {"uz": "🔗 Do'stlarga ulashish", "ru": "🔗 Поделиться с друзьями", "en": "🔗 Share with friends"},
     "btn.my_rewards": {"uz": "💼 Mukofotlarim", "ru": "💼 Мои награды", "en": "💼 My rewards"},

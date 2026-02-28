@@ -26,6 +26,11 @@ def main_menu(lang: str, webapp_url: str) -> ReplyKeyboardMarkup:
         KeyboardButton(text=t("btn.my_rewards", lang)),
         KeyboardButton(text=t("btn.charity", lang)),
     )
+    builder.row(
+        KeyboardButton(text=t("btn.my_status", lang)),
+        KeyboardButton(text=t("btn.my_spins", lang)),
+        KeyboardButton(text=t("btn.referral", lang)),
+    )
     builder.row(KeyboardButton(text=t("btn.help", lang)))
     return builder.as_markup(resize_keyboard=True)
 
