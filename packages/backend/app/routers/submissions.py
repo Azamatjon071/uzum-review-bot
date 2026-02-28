@@ -195,9 +195,22 @@ async def list_my_submissions(
             select(SubmissionImage).where(SubmissionImage.submission_id == s.id)
         )
         imgs = img_result.scalars().all()
+
+        # Load product for name fields
+        product = None
+        if s.product_id:
+            prod_result = await db.execute(select(Product).where(Product.id == s.product_id))
+            product = prod_result.scalar_one_or_none()
+
         items.append({
             "id": str(s.id),
             "product_id": str(s.product_id),
+            "product": {
+                "name_uz": product.name_uz if product else "",
+                "name_ru": product.name_ru if product else "",
+                "name_en": product.name_en if product else "",
+                "image_url": product.image_url if product else None,
+            } if product else None,
             "status": s.status.value,
             "rejection_reason": s.rejection_reason,
             "spin_granted": s.spin_granted,

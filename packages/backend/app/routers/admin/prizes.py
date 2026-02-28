@@ -129,3 +129,23 @@ async def delete_prize(
     await audit.log("delete_prize", "prize", str(prize_id), admin_id=admin.id,
                     ip_address=request.client.host if request.client else None)
     return {"message": "Prize deactivated"}
+
+
+@router.patch("/{prize_id}/toggle")
+async def toggle_prize(
+    prize_id: uuid.UUID,
+    request: Request,
+    admin=Depends(require_permission("prizes.write")),
+    db: AsyncSession = Depends(get_db),
+):
+    """Toggle prize active/inactive status."""
+    result = await db.execute(select(Prize).where(Prize.id == prize_id))
+    prize = result.scalar_one_or_none()
+    if not prize:
+        raise HTTPException(status_code=404, detail="Prize not found")
+    prize.is_active = not prize.is_active
+    audit = AuditService(db)
+    await audit.log("toggle_prize", "prize", str(prize_id), admin_id=admin.id,
+                    ip_address=request.client.host if request.client else None,
+                    after_data={"is_active": prize.is_active})
+    return {"message": f"Prize {'activated' if prize.is_active else 'deactivated'}", "is_active": prize.is_active}

@@ -180,15 +180,23 @@ async def get_campaigns(db: AsyncSession = Depends(get_db)):
     }
 
 
+class DonateRequest(BaseModel):
+    campaign_id: Optional[uuid.UUID] = None
+    amount: Optional[float] = None
+    amount_uzs: Optional[float] = None  # alias for compatibility
+
+
 @charity_router.post("/donate")
 async def donate(
-    campaign_id: uuid.UUID = None,
-    amount_uzs: float = None,
+    body: DonateRequest,
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
+    amount_uzs = body.amount_uzs or body.amount
+    if not amount_uzs:
+        raise HTTPException(status_code=400, detail="amount or amount_uzs is required")
     svc = CharityService(db)
-    donation = await svc.donate(user.id, amount_uzs, campaign_id=campaign_id)
+    donation = await svc.donate(user.id, float(amount_uzs), campaign_id=body.campaign_id)
     return {"id": str(donation.id), "message": "Sadaqa accepted. JazakAllah khayr."}
 
 
@@ -223,6 +231,8 @@ async def get_my_rewards(
             "created_at": r.created_at.isoformat(),
             "prize": {
                 "name_uz": prize.name_uz if prize else "",
+                "name_ru": prize.name_ru if prize else "",
+                "name_en": prize.name_en if prize else "",
                 "type": prize.prize_type.value if prize else "",
                 "value": float(prize.value) if prize else 0,
                 "icon_url": prize.icon_url if prize else None,
@@ -317,6 +327,13 @@ async def get_me_referral(user: User = Depends(get_current_user), db: AsyncSessi
         select(func.count(User.id)).where(User.referred_by_id == user.id)
     )
     referred_count = referred_count_r.scalar() or 0
+
+    # total_wins = actual claimed/pending rewards (not total_spins)
+    total_wins_r = await db.execute(
+        select(func.count(Reward.id)).where(Reward.user_id == user.id)
+    )
+    total_wins = total_wins_r.scalar() or 0
+
     return {
         "referral_code": user.referral_code,
         "referral_count": referred_count,
@@ -324,7 +341,7 @@ async def get_me_referral(user: User = Depends(get_current_user), db: AsyncSessi
         "bonus_spins": user.referral_bonus_spins,
         "earned_bonus_spins": user.referral_bonus_spins,
         "total_spins": user.total_spins,
-        "total_wins": user.total_spins,
+        "total_wins": total_wins,
     }
 
 

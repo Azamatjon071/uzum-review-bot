@@ -46,7 +46,7 @@ async def request_export(
     audit = AuditService(db)
     if body.async_mode:
         task = generate_export_csv.delay(
-            admin.id,
+            str(admin.id),  # UUID → string for Celery serialization
             body.export_type,
             {"date_from": body.date_from, "date_to": body.date_to},
         )

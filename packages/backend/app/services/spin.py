@@ -5,10 +5,10 @@ import struct
 from typing import List, Tuple
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_
-from app.models import Prize, SpinCommitment, PrizeSpin, Reward, User, Submission
+from app.models import Prize, SpinCommitment, PrizeSpin, Reward, RewardStatus, User, Submission, SubmissionStatus
 from app.config import get_settings
 import uuid
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 settings = get_settings()
 
@@ -72,7 +72,7 @@ class SpinService:
             select(Submission).where(
                 and_(
                     Submission.user_id == user_id,
-                    Submission.status == "approved",
+                    Submission.status == SubmissionStatus.APPROVED,
                     Submission.spin_granted == False,
                 )
             ).limit(1)
@@ -88,7 +88,7 @@ class SpinService:
             select(Submission).where(
                 and_(
                     Submission.user_id == user_id,
-                    Submission.status == "approved",
+                    Submission.status == SubmissionStatus.APPROVED,
                     Submission.spin_granted == False,
                 )
             ).order_by(Submission.reviewed_at).limit(1)
@@ -179,11 +179,11 @@ class SpinService:
 
         # Create reward
         claim_code = secrets.token_urlsafe(16)
-        expires_at = datetime.utcnow() + timedelta(days=30)
+        expires_at = datetime.now(timezone.utc) + timedelta(days=30)
         reward = Reward(
             user_id=user_id,
             prize_id=prize.id,
-            status="pending",
+            status=RewardStatus.PENDING,
             claim_code=claim_code,
             expires_at=expires_at,
         )
