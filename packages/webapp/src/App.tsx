@@ -14,13 +14,6 @@ import { t } from '@/i18n'
 
 const BOT_USERNAME = import.meta.env.VITE_BOT_USERNAME || 'UzumReviewBot'
 
-function TelegramIcon() {
-  return (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-      <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.562 8.248-2.018 9.505c-.145.658-.537.818-1.084.508l-3-2.21-1.447 1.394c-.16.16-.295.295-.605.295l.213-3.053 5.56-5.023c.242-.213-.054-.333-.373-.12L7.09 14.15l-2.96-.924c-.643-.204-.657-.643.136-.953l11.57-4.461c.537-.194 1.006.13.726.436z" />
-    </svg>
-  )
-}
 
 function AlertIcon() {
   return (
@@ -104,29 +97,10 @@ function NotInTelegramScreen({ onLogin }: { onLogin: () => void }) {
         <p className="text-white/70 text-xs mb-3">{loginError}</p>
       )}
       {widgetError && (
-        <p className="text-white/60 text-xs mb-3">Widget yuklanmadi. Quyidagi tugmadan foydalaning.</p>
+        <p className="text-white/60 text-xs mb-3">Widget yuklanmadi. Sahifani yangilang yoki Telegram ilovasidan kiring.</p>
       )}
 
-      {/* Divider */}
-      <div className="flex items-center gap-3 w-full max-w-[220px] mb-4">
-        <div className="flex-1 h-px bg-white/20" />
-        <span className="text-white/40 text-xs">yoki</span>
-        <div className="flex-1 h-px bg-white/20" />
-      </div>
-
-      {/* Open in Telegram CTA */}
-      <a
-        href={`https://t.me/${BOT_USERNAME}`}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="inline-flex items-center gap-3 px-8 py-4 rounded-2xl font-semibold text-white text-base transition-all active:scale-95 no-underline"
-        style={{ backgroundColor: '#229ed9', boxShadow: '0 8px 32px rgba(34,158,217,0.45)' }}
-      >
-        <TelegramIcon />
-        Telegramda ochish
-      </a>
-
-      <p className="text-white/35 text-xs mt-8">
+      <p className="text-white/35 text-xs mt-4">
         Kirish uchun Telegram akkauntingiz kerak
       </p>
     </div>
