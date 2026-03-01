@@ -29,6 +29,8 @@ from app.routers.admin.settings import router as admin_settings_router
 from app.routers.admin.broadcast import router as admin_broadcast_router
 from app.routers.admin.products import router as admin_products_router
 from app.routers.admin.reports import router as admin_reports_router
+from app.routers.admin.fraud import router as admin_fraud_router
+from app.routers.gamification import router as gamification_router
 
 settings = get_settings()
 log = structlog.get_logger()
@@ -141,6 +143,8 @@ app.include_router(admin_settings_router, prefix=PREFIX)
 app.include_router(admin_broadcast_router, prefix=PREFIX)
 app.include_router(admin_products_router, prefix=PREFIX)
 app.include_router(admin_reports_router, prefix=PREFIX)
+app.include_router(admin_fraud_router, prefix=PREFIX)
+app.include_router(gamification_router, prefix=PREFIX)
 
 
 # ─── Charity & Rewards routers (inline) ──────────────────────────────────────
@@ -151,7 +155,7 @@ from sqlalchemy import select, desc, func, or_
 from pydantic import BaseModel
 from typing import Optional
 from app.database import get_db
-from app.deps import get_current_user
+from app.deps import get_current_user, verify_bot_signature
 from app.models import Reward, RewardStatus, User, Prize
 from app.services.charity import CharityService
 import uuid
@@ -442,7 +446,7 @@ class BotRegisterRequest(BaseModel):
     referred_by_code: str | None = None
 
 
-@bot_router.post("/register")
+@bot_router.post("/register", dependencies=[Depends(verify_bot_signature)])
 async def bot_register_user(
     payload: BotRegisterRequest,
     db: AsyncSession = Depends(get_db),
@@ -550,7 +554,7 @@ async def bot_register_user(
     }
 
 
-@bot_router.get("/user/{telegram_id}")
+@bot_router.get("/user/{telegram_id}", dependencies=[Depends(verify_bot_signature)])
 async def bot_get_user(
     telegram_id: int,
     secret: str,

@@ -51,6 +51,12 @@ class Settings(BaseSettings):
     # CORS
     CORS_ORIGINS: str = "http://localhost:4000,http://localhost:5000"
 
+    # Security / Auth hardening
+    ADMIN_LOGIN_MAX_ATTEMPTS: int = 5          # lockout after N failures
+    ADMIN_LOGIN_LOCKOUT_SECONDS: int = 900     # 15-minute lockout
+    ADMIN_TOTP_REQUIRED: bool = True           # block admins without TOTP
+    BOT_API_HMAC_SECRET: str = ""              # shared HMAC secret bot↔backend
+
     # Rate Limiting
     RATE_LIMIT_PER_MINUTE: int = 60
 

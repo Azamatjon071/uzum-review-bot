@@ -2,15 +2,15 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  LineChart, Line,
+  LineChart, Line, PieChart, Pie, Cell,
 } from 'recharts'
 import {
   Users, FileText, CheckCircle2, Dices, Gift, HeartHandshake,
   RefreshCw, ArrowRight, TrendingUp, TrendingDown, Activity,
-  Zap, Star, BarChart3, Clock, ChevronRight,
+  Zap, Star, BarChart3, Clock, ChevronRight, Trophy,
 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
-import { getAnalyticsOverview, getAnalyticsChart, getSubmissions } from '@/api'
+import { getAnalyticsOverview, getAnalyticsChart, getSubmissions, getUsers } from '@/api'
 import { cn, formatNumber, formatDate } from '@/lib/utils'
 import { useViewPreferences, densityClasses } from '@/hooks/useViewPreferences'
 import PageHeader from '@/components/ui/PageHeader'
@@ -245,6 +245,137 @@ function getAvatarColor(name: string) {
   return avatarColors[Math.abs(hash) % avatarColors.length]
 }
 
+/* ── Approval Rate Donut ── */
+
+function ApprovalDonut({ approved, total }: { approved: number; total: number }) {
+  const rate = total > 0 ? Math.round((approved / total) * 100) : 0
+  const pending = total - approved
+  const data = total === 0
+    ? [{ name: 'No data', value: 1 }]
+    : [
+        { name: 'Approved', value: approved },
+        { name: 'Other', value: Math.max(pending, 0) },
+      ]
+  const colors = total === 0 ? ['#e5e7eb'] : ['#10b981', '#e5e7eb']
+
+  return (
+    <div className="flex flex-col items-center justify-center gap-2 py-2">
+      <div className="relative">
+        <PieChart width={140} height={140}>
+          <Pie
+            data={data}
+            cx={65}
+            cy={65}
+            innerRadius={44}
+            outerRadius={62}
+            startAngle={90}
+            endAngle={-270}
+            dataKey="value"
+            strokeWidth={0}
+          >
+            {data.map((_entry, index) => (
+              <Cell key={`cell-${index}`} fill={colors[index % colors.length]} />
+            ))}
+          </Pie>
+        </PieChart>
+        <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+          <span className="text-2xl font-bold text-foreground">{rate}%</span>
+          <span className="text-[10px] text-muted-foreground">approved</span>
+        </div>
+      </div>
+      <div className="flex items-center gap-4 text-xs text-muted-foreground">
+        <span className="flex items-center gap-1.5">
+          <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block" />
+          {formatNumber(approved)} approved
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className="w-2.5 h-2.5 rounded-full bg-muted inline-block border border-border" />
+          {formatNumber(Math.max(total - approved, 0))} other
+        </span>
+      </div>
+    </div>
+  )
+}
+
+/* ── Top Users Leaderboard ── */
+
+const TIER_COLORS: Record<string, string> = {
+  gold: 'text-amber-500',
+  silver: 'text-slate-400',
+  bronze: 'text-orange-400',
+}
+
+const RANK_BADGE: Record<number, string> = {
+  0: 'bg-amber-100 dark:bg-amber-500/20 text-amber-600 dark:text-amber-400',
+  1: 'bg-slate-100 dark:bg-slate-500/20 text-slate-600 dark:text-slate-400',
+  2: 'bg-orange-100 dark:bg-orange-500/20 text-orange-600 dark:text-orange-400',
+}
+
+function TopUsersWidget({ users }: { users: any[] }) {
+  const navigate = useNavigate()
+  if (!users.length) return (
+    <div className="flex flex-col items-center justify-center py-8 text-center text-muted-foreground text-sm gap-2">
+      <Trophy className="w-8 h-8 opacity-30" />
+      <p>No user data yet</p>
+    </div>
+  )
+  const maxApproved = Math.max(...users.map((u) => u.approved_submissions ?? 0), 1)
+  return (
+    <div className="divide-y divide-border">
+      {users.slice(0, 8).map((u, i) => {
+        const name = [u.first_name, u.last_name].filter(Boolean).join(' ') || 'Unknown'
+        const approved = u.approved_submissions ?? 0
+        const total = u.total_submissions ?? 0
+        const pct = Math.round((approved / maxApproved) * 100)
+        const avatarCls = avatarColors[Math.abs(name.split('').reduce((h, c) => c.charCodeAt(0) + ((h << 5) - h), 0)) % avatarColors.length]
+        const tierColor = TIER_COLORS[u.tier] ?? 'text-muted-foreground'
+        return (
+          <div
+            key={u.id}
+            className="flex items-center gap-3 px-4 py-2.5 hover:bg-muted/30 transition-colors cursor-pointer group"
+            onClick={() => navigate('/users')}
+          >
+            {/* Rank */}
+            <div className={cn(
+              'w-6 h-6 rounded-lg flex items-center justify-center text-[11px] font-bold shrink-0',
+              RANK_BADGE[i] ?? 'bg-muted text-muted-foreground',
+            )}>
+              {i + 1}
+            </div>
+            {/* Avatar */}
+            <div className={cn(
+              'w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold shrink-0 transition-transform duration-200 group-hover:scale-110',
+              avatarCls,
+            )}>
+              {name[0].toUpperCase()}
+            </div>
+            {/* Name + bar */}
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center justify-between mb-0.5 gap-2">
+                <span className="text-sm font-medium text-foreground truncate group-hover:text-primary transition-colors">{name}</span>
+                {u.tier && (
+                  <span className={cn('text-[10px] font-semibold uppercase tracking-wide shrink-0', tierColor)}>{u.tier}</span>
+                )}
+              </div>
+              <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+                <div
+                  className="h-full rounded-full transition-all duration-700"
+                  style={{ width: `${pct}%`, background: 'linear-gradient(90deg, #7000FF, #e8007c)' }}
+                />
+              </div>
+            </div>
+            {/* Stats */}
+            <div className="text-right shrink-0">
+              <p className="text-sm font-semibold text-foreground">{formatNumber(approved)}</p>
+              <p className="text-[10px] text-muted-foreground">of {formatNumber(total)}</p>
+            </div>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
 /* ── Dashboard Page ── */
 
 export default function DashboardPage() {
@@ -277,8 +408,15 @@ export default function DashboardPage() {
     queryFn: () => getSubmissions({ page: 1, page_size: 10 }).then((r) => r.data),
   })
 
+  const { data: topUsersData } = useQuery({
+    queryKey: ['top-users-leaderboard'],
+    queryFn: () => getUsers({ page: 1, page_size: 8, sort_by: 'approved_submissions', sort_dir: 'desc' }).then((r) => r.data),
+    refetchInterval: 120_000,
+  })
+
   const chartData = chart?.daily ?? []
   const recentItems = recentSubs?.items ?? []
+  const topUsers = topUsersData?.items ?? []
   const pendingCount = recentItems.filter((s: any) => s.status === 'PENDING').length
 
   // Build sparklines from chart data (last N values of each series)
@@ -587,6 +725,55 @@ export default function DashboardPage() {
               </span>
             </div>
           )}
+        </div>
+      </div>
+
+      {/* Approval Rate + Top Users leaderboard */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        {/* Approval Rate Donut */}
+        <div className="rounded-xl border border-border bg-card overflow-hidden">
+          <div className="px-5 py-4 border-b border-border">
+            <h2 className="text-sm font-semibold text-foreground">Approval Rate</h2>
+            <p className="text-xs text-muted-foreground mt-0.5">Approved vs all submissions</p>
+          </div>
+          <div className="px-5 py-3">
+            <ApprovalDonut
+              approved={overview?.approved_submissions ?? 0}
+              total={overview?.total_submissions ?? 0}
+            />
+            <div className="grid grid-cols-3 gap-2 mt-3">
+              {[
+                { label: 'Approved', value: overview?.approved_submissions ?? 0, color: 'text-emerald-600 dark:text-emerald-400' },
+                { label: 'Pending', value: (overview?.total_submissions ?? 0) - (overview?.approved_submissions ?? 0), color: 'text-amber-600 dark:text-amber-400' },
+                { label: 'Total', value: overview?.total_submissions ?? 0, color: 'text-foreground' },
+              ].map((s) => (
+                <div key={s.label} className="rounded-lg bg-muted/40 px-3 py-2 text-center">
+                  <p className={cn('text-base font-bold', s.color)}>{formatNumber(s.value)}</p>
+                  <p className="text-[10px] text-muted-foreground mt-0.5">{s.label}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Top Users Leaderboard */}
+        <div className="rounded-xl border border-border bg-card overflow-hidden">
+          <div className="flex items-center justify-between px-5 py-4 border-b border-border">
+            <div>
+              <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                <Trophy className="w-4 h-4 text-amber-500" />
+                Top Contributors
+              </h2>
+              <p className="text-xs text-muted-foreground mt-0.5">Most approved submissions</p>
+            </div>
+            <button
+              onClick={() => navigate('/users')}
+              className="inline-flex items-center gap-1.5 text-xs font-medium text-primary hover:text-primary/80 transition-colors"
+            >
+              View all <ArrowRight className="w-3 h-3" />
+            </button>
+          </div>
+          <TopUsersWidget users={topUsers} />
         </div>
       </div>
 

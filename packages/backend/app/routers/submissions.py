@@ -11,6 +11,7 @@ from app.deps import get_current_user
 from app.models import Submission, SubmissionImage, SubmissionStatus, Product, User
 from app.services.storage import StorageService, ImageService
 from app.services.audit import AuditService
+from app.services.fraud import FraudService
 from app.config import get_settings
 
 settings = get_settings()
@@ -159,6 +160,11 @@ async def create_submission(
     user.total_submissions += 1
 
     await db.flush()
+
+    # Anti-fraud check — runs after all images are attached
+    fraud_svc = FraudService(db)
+    await fraud_svc.check_submission(submission, user)
+    await db.commit()
 
     return {
         "id": str(submission.id),

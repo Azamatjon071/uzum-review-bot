@@ -2,9 +2,10 @@ import { useState } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import {
-  LayoutDashboard, FileCheck, Users, Package, Trophy, Heart,
-  Megaphone, BarChart3, ScrollText, ShieldCheck, Settings,
-  LogOut, X, PanelLeftClose, PanelLeft, Zap,
+  LayoutDashboard, FileCheck, Package, Trophy, Gift,
+  Users, Heart, Megaphone, TrendingUp, ShieldAlert,
+  Settings, LogOut, X, PanelLeftClose, PanelLeft,
+  ShieldCheck, ScrollText, BarChart3,
 } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
 import { useViewPreferences } from '@/hooks/useViewPreferences'
@@ -18,6 +19,8 @@ type NavItem = {
   icon: React.ComponentType<{ size?: number; className?: string }>
   label: string
   badgeKey?: string
+  iconBg: string
+  iconColor: string
 }
 
 type NavSection = {
@@ -29,32 +32,86 @@ const NAV_SECTIONS: NavSection[] = [
   {
     title: 'Overview',
     items: [
-      { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
+      {
+        to: '/', icon: LayoutDashboard, label: 'Dashboard',
+        iconBg: 'bg-orange-500/20', iconColor: 'text-orange-300',
+      },
     ],
   },
   {
-    title: 'Management',
+    title: 'Content',
     items: [
-      { to: '/submissions', icon: FileCheck, label: 'Submissions', badgeKey: 'pending_submissions' },
-      { to: '/users', icon: Users, label: 'Users' },
-      { to: '/products', icon: Package, label: 'Products' },
-      { to: '/prizes', icon: Trophy, label: 'Prizes' },
+      {
+        to: '/submissions', icon: FileCheck, label: 'Submissions',
+        badgeKey: 'pending_submissions',
+        iconBg: 'bg-amber-500/20', iconColor: 'text-amber-300',
+      },
+      {
+        to: '/products', icon: Package, label: 'Products',
+        iconBg: 'bg-teal-500/20', iconColor: 'text-teal-300',
+      },
     ],
   },
   {
-    title: 'Engagement',
+    title: 'Commerce',
     items: [
-      { to: '/charity', icon: Heart, label: 'Charity' },
-      { to: '/broadcast', icon: Megaphone, label: 'Broadcast' },
+      {
+        to: '/prizes', icon: Trophy, label: 'Prizes',
+        iconBg: 'bg-yellow-500/20', iconColor: 'text-yellow-300',
+      },
+      {
+        to: '/reports', icon: Gift, label: 'Rewards',
+        iconBg: 'bg-pink-500/20', iconColor: 'text-pink-300',
+      },
+    ],
+  },
+  {
+    title: 'Community',
+    items: [
+      {
+        to: '/users', icon: Users, label: 'Users',
+        iconBg: 'bg-blue-500/20', iconColor: 'text-blue-300',
+      },
+      {
+        to: '/charity', icon: Heart, label: 'Charity',
+        iconBg: 'bg-rose-500/20', iconColor: 'text-rose-300',
+      },
+      {
+        to: '/broadcast', icon: Megaphone, label: 'Broadcast',
+        badgeKey: 'draft_broadcasts',
+        iconBg: 'bg-violet-500/20', iconColor: 'text-violet-300',
+      },
+    ],
+  },
+  {
+    title: 'Analytics',
+    items: [
+      {
+        to: '/analytics', icon: TrendingUp, label: 'Analytics',
+        iconBg: 'bg-cyan-500/20', iconColor: 'text-cyan-300',
+      },
     ],
   },
   {
     title: 'System',
     items: [
-      { to: '/reports', icon: BarChart3, label: 'Reports' },
-      { to: '/audit', icon: ScrollText, label: 'Audit Log' },
-      { to: '/admins', icon: ShieldCheck, label: 'Admins' },
-      { to: '/settings', icon: Settings, label: 'Settings' },
+      {
+        to: '/admins', icon: ShieldCheck, label: 'Admins',
+        iconBg: 'bg-emerald-500/20', iconColor: 'text-emerald-300',
+      },
+      {
+        to: '/settings', icon: Settings, label: 'Settings',
+        iconBg: 'bg-slate-500/20', iconColor: 'text-slate-300',
+      },
+      {
+        to: '/audit', icon: ScrollText, label: 'Audit Log',
+        iconBg: 'bg-gray-500/20', iconColor: 'text-gray-300',
+      },
+      {
+        to: '/fraud', icon: ShieldAlert, label: 'Fraud Signals',
+        badgeKey: 'fraud_review',
+        iconBg: 'bg-red-500/20', iconColor: 'text-red-300',
+      },
     ],
   },
 ]
@@ -88,87 +145,104 @@ function SidebarContent({
 
   const badges: Record<string, number> = {
     pending_submissions: overview?.pending_submissions ?? 0,
+    draft_broadcasts: overview?.draft_broadcasts ?? 0,
+    fraud_review: overview?.fraud_review_count ?? 0,
   }
 
   return (
     <aside
       className={cn(
-        'flex flex-col h-full bg-sidebar text-sidebar-foreground transition-all duration-300 ease-out relative',
-        collapsed ? 'w-[68px]' : 'w-[260px]',
+        'flex flex-col h-full bg-sidebar text-sidebar-foreground transition-all duration-300 ease-out relative overflow-hidden',
+        collapsed ? 'w-[68px]' : 'w-[280px]',
       )}
     >
-      {/* Subtle gradient overlay for light mode depth */}
-      <div className="absolute inset-0 bg-gradient-to-b from-white/[0.06] to-transparent pointer-events-none dark:from-white/[0.02]" />
+      {/* Decorative coral orb */}
+      <div
+        className="absolute -top-16 -left-16 w-48 h-48 rounded-full pointer-events-none"
+        style={{ background: 'radial-gradient(circle, rgba(255,107,53,0.15) 0%, transparent 70%)' }}
+      />
+      <div
+        className="absolute bottom-0 -right-12 w-36 h-36 rounded-full pointer-events-none"
+        style={{ background: 'radial-gradient(circle, rgba(255,107,53,0.08) 0%, transparent 70%)' }}
+      />
 
       {/* ── Header ── */}
       <div
         className={cn(
-          'relative flex items-center shrink-0 h-16 border-b border-sidebar-border/50',
-          collapsed ? 'justify-center px-2' : 'px-5',
+          'relative flex items-center shrink-0 h-16 border-b border-sidebar-border/30',
+          collapsed ? 'justify-center px-2' : 'px-4',
         )}
       >
         {!collapsed ? (
-          <div className="flex items-center gap-3 min-w-0">
-            {/* Brand mark */}
+          <div className="flex items-center gap-3 min-w-0 w-full">
             <div className="relative w-9 h-9 shrink-0">
-              <div className="w-9 h-9 rounded-xl bg-white/20 dark:bg-white/10 flex items-center justify-center backdrop-blur-sm shadow-sm shadow-black/10">
-                <Zap size={18} className="text-sidebar-foreground" />
+              <div
+                className="w-9 h-9 rounded-xl flex items-center justify-center shadow-lg shadow-black/25"
+                style={{ background: 'linear-gradient(135deg, #FF6B35, #ff9a5c)' }}
+              >
+                <span className="text-white font-black text-lg leading-none select-none">U</span>
               </div>
-              {/* Tiny online indicator */}
-              <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-emerald-400 rounded-full border-2 border-sidebar" />
+              <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-emerald-400 rounded-full border-2 border-sidebar shadow-sm shadow-emerald-400/50" />
             </div>
-            <div className="min-w-0">
-              <p className="text-[13px] font-bold leading-tight tracking-tight truncate">
+            <div className="min-w-0 flex-1">
+              <p className="text-[13px] font-bold leading-tight tracking-tight truncate text-sidebar-foreground">
                 UzumBot
               </p>
-              <p className="text-[10px] leading-tight opacity-60 font-medium">
+              <p className="text-[10px] leading-tight font-medium" style={{ color: 'rgba(255,255,255,0.45)' }}>
                 Admin Panel
               </p>
             </div>
+            {onClose && !showCollapseBtn && (
+              <button
+                onClick={onClose}
+                className="p-1.5 rounded-lg transition-colors"
+                style={{ color: 'rgba(255,255,255,0.5)' }}
+              >
+                <X size={18} />
+              </button>
+            )}
           </div>
         ) : (
-          <div className="relative w-9 h-9">
-            <div className="w-9 h-9 rounded-xl bg-white/20 dark:bg-white/10 flex items-center justify-center backdrop-blur-sm shadow-sm shadow-black/10">
-              <Zap size={18} className="text-sidebar-foreground" />
+          <div className="relative w-9 h-9 shrink-0">
+            <div
+              className="w-9 h-9 rounded-xl flex items-center justify-center shadow-lg shadow-black/25"
+              style={{ background: 'linear-gradient(135deg, #FF6B35, #ff9a5c)' }}
+            >
+              <span className="text-white font-black text-lg leading-none select-none">U</span>
             </div>
             <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-emerald-400 rounded-full border-2 border-sidebar" />
           </div>
         )}
-
-        {/* Close button for mobile drawer */}
-        {onClose && !showCollapseBtn && (
-          <button
-            onClick={onClose}
-            className="absolute right-3 top-1/2 -translate-y-1/2 p-1.5 rounded-lg text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-white/10 transition-colors"
-          >
-            <X size={18} />
-          </button>
-        )}
       </div>
 
       {/* ── Navigation ── */}
-      <nav className={cn(
-        'relative flex-1 overflow-y-auto overflow-x-hidden py-5',
-        collapsed ? 'px-2' : 'px-3',
-      )}>
+      <nav
+        className={cn(
+          'relative flex-1 overflow-y-auto overflow-x-hidden py-4',
+          collapsed ? 'px-2' : 'px-3',
+        )}
+      >
         {NAV_SECTIONS.map((section, si) => (
-          <div key={section.title} className={si > 0 ? 'mt-5' : ''}>
+          <div key={section.title} className={si > 0 ? 'mt-4' : ''}>
             {/* Section label */}
             {!collapsed && (
-              <div className="flex items-center gap-2 px-3 mb-2">
-                <span className="text-[10px] font-semibold uppercase tracking-[0.08em] opacity-40">
+              <div className="flex items-center gap-2 px-2 mb-1.5">
+                <span
+                  className="text-[9px] font-bold uppercase tracking-[0.12em]"
+                  style={{ color: 'rgba(255,255,255,0.3)' }}
+                >
                   {section.title}
                 </span>
-                <div className="flex-1 h-px bg-sidebar-foreground/[0.08]" />
+                <div className="flex-1 h-px" style={{ background: 'rgba(255,255,255,0.07)' }} />
               </div>
             )}
             {collapsed && si > 0 && (
-              <div className="my-3 mx-2.5 border-t border-sidebar-foreground/[0.1]" />
+              <div className="my-3 mx-2.5 border-t" style={{ borderColor: 'rgba(255,255,255,0.08)' }} />
             )}
 
             {/* Nav items */}
             <div className="space-y-0.5">
-              {section.items.map(({ to, icon: Icon, label, badgeKey }) => {
+              {section.items.map(({ to, icon: Icon, label, badgeKey, iconBg, iconColor }) => {
                 const badgeCount = badgeKey ? (badges[badgeKey] ?? 0) : 0
                 return (
                   <NavLink
@@ -179,56 +253,75 @@ function SidebarContent({
                     title={collapsed ? label : undefined}
                     className={({ isActive }) =>
                       cn(
-                        'group flex items-center rounded-lg text-[13px] font-medium transition-all duration-150 relative',
+                        'group flex items-center rounded-xl text-[13px] font-medium transition-all duration-150 relative',
                         collapsed
                           ? 'justify-center w-11 h-11 mx-auto'
-                          : 'gap-3 px-3 py-2.5',
+                          : 'gap-2.5 px-2.5 py-2',
                         isActive
-                          ? 'bg-white/20 dark:bg-white/10 text-sidebar-foreground shadow-sm shadow-black/5'
-                          : 'text-sidebar-foreground/65 hover:text-sidebar-foreground hover:bg-white/10 dark:hover:bg-white/[0.06]',
+                          ? 'text-white'
+                          : 'hover:text-white',
                       )
+                    }
+                    style={({ isActive }) =>
+                      isActive
+                        ? {
+                            background: 'rgba(255,255,255,0.1)',
+                            boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.07)',
+                          }
+                        : {}
                     }
                   >
                     {({ isActive }) => (
                       <>
-                        {/* Active left accent bar */}
+                        {/* Active left accent bar — coral */}
                         {isActive && !collapsed && (
-                          <span className="absolute left-0 top-2 bottom-2 w-[3px] rounded-r-full bg-sidebar-foreground/80" />
-                        )}
-                        {isActive && collapsed && (
-                          <span className="absolute left-0 top-2.5 bottom-2.5 w-[3px] rounded-r-full bg-sidebar-foreground/80" />
+                          <span
+                            className="absolute left-0 top-2 bottom-2 w-[3px] rounded-r-full"
+                            style={{ background: 'linear-gradient(180deg, #FF6B35, #ff9a5c)' }}
+                          />
                         )}
 
-                        {/* Icon with subtle glow when active */}
-                        <span className={cn(
-                          'shrink-0 transition-transform duration-150',
-                          isActive && 'scale-110',
-                          !collapsed && !isActive && 'group-hover:translate-x-0.5',
-                        )}>
-                          <Icon size={collapsed ? 19 : 17} />
+                        {/* Colored icon box */}
+                        <span
+                          className={cn(
+                            'shrink-0 w-7 h-7 rounded-lg flex items-center justify-center transition-all duration-150',
+                            isActive ? iconBg : 'bg-transparent group-hover:' + iconBg,
+                          )}
+                        >
+                          <Icon
+                            size={15}
+                            className={cn(
+                              'transition-colors duration-150',
+                              isActive
+                                ? iconColor
+                                : 'text-sidebar-foreground/50 group-hover:' + iconColor,
+                            )}
+                          />
                         </span>
 
                         {!collapsed && (
-                          <span className="truncate flex-1">{label}</span>
+                          <span
+                            className={cn(
+                              'truncate flex-1 transition-colors duration-150',
+                              isActive
+                                ? 'text-white font-semibold'
+                                : 'text-sidebar-foreground/65 group-hover:text-sidebar-foreground',
+                            )}
+                          >
+                            {label}
+                          </span>
                         )}
 
                         {/* Badge — expanded */}
                         {badgeCount > 0 && !collapsed && (
-                          <span
-                            className={cn(
-                              'ml-auto text-[10px] font-bold px-2 py-0.5 rounded-full leading-none',
-                              isActive
-                                ? 'bg-white/25 text-sidebar-foreground'
-                                : 'bg-orange-400/90 text-white dark:bg-orange-500/80',
-                            )}
-                          >
+                          <span className="ml-auto text-[10px] font-bold px-2 py-0.5 rounded-full leading-none bg-orange-500 text-white shadow-sm shadow-orange-500/40">
                             {badgeCount > 99 ? '99+' : badgeCount}
                           </span>
                         )}
 
-                        {/* Badge — collapsed (dot) */}
+                        {/* Badge — collapsed dot */}
                         {badgeCount > 0 && collapsed && (
-                          <span className="absolute top-1 right-1 w-2 h-2 bg-orange-400 rounded-full shadow-lg shadow-orange-500/30 animate-pulse" />
+                          <span className="absolute top-1 right-1 w-2 h-2 bg-orange-400 rounded-full shadow-sm shadow-orange-500/50 animate-pulse" />
                         )}
                       </>
                     )}
@@ -241,21 +334,30 @@ function SidebarContent({
       </nav>
 
       {/* ── Bottom Section ── */}
-      <div className={cn(
-        'relative border-t border-sidebar-foreground/[0.1] shrink-0',
-        collapsed ? 'px-2 py-3' : 'px-3 py-4',
-      )}>
+      <div
+        className={cn(
+          'relative shrink-0 border-t',
+          collapsed ? 'px-2 py-3' : 'px-3 py-4',
+        )}
+        style={{ borderColor: 'rgba(255,255,255,0.08)' }}
+      >
         {/* Theme & Density — expanded */}
         {!collapsed && (
-          <div className="space-y-2.5 mb-3">
+          <div className="space-y-2 mb-3">
             <div className="flex items-center justify-between">
-              <span className="text-[10px] font-semibold uppercase tracking-[0.08em] opacity-40">
+              <span
+                className="text-[10px] font-semibold uppercase tracking-[0.08em]"
+                style={{ color: 'rgba(255,255,255,0.3)' }}
+              >
                 Theme
               </span>
               <ThemeToggle variant="sidebar" />
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-[10px] font-semibold uppercase tracking-[0.08em] opacity-40">
+              <span
+                className="text-[10px] font-semibold uppercase tracking-[0.08em]"
+                style={{ color: 'rgba(255,255,255,0.3)' }}
+              >
                 Density
               </span>
               <DensityToggle current={density} onChange={setDensity} variant="sidebar" />
@@ -269,12 +371,21 @@ function SidebarContent({
             onClick={onToggleCollapse}
             title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
             className={cn(
-              'flex items-center rounded-lg text-[13px] font-medium text-sidebar-foreground/50 hover:text-sidebar-foreground hover:bg-white/10 transition-all w-full',
-              collapsed ? 'justify-center w-11 h-11 mx-auto' : 'gap-3 px-3 py-2.5',
+              'flex items-center rounded-xl text-[13px] font-medium transition-all w-full mb-1',
+              collapsed ? 'justify-center w-11 h-11 mx-auto' : 'gap-2.5 px-2.5 py-2',
             )}
+            style={{ color: 'rgba(255,255,255,0.4)' }}
+            onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(255,255,255,0.07)')}
+            onMouseLeave={(e) => (e.currentTarget.style.background = '')}
           >
-            {collapsed ? <PanelLeft size={18} /> : <PanelLeftClose size={17} />}
-            {!collapsed && <span>Collapse</span>}
+            {collapsed ? (
+              <PanelLeft size={17} />
+            ) : (
+              <>
+                <PanelLeftClose size={17} />
+                <span>Collapse</span>
+              </>
+            )}
           </button>
         )}
 
@@ -287,19 +398,31 @@ function SidebarContent({
           }}
           title={collapsed ? 'Logout' : undefined}
           className={cn(
-            'flex items-center rounded-lg text-[13px] font-medium text-sidebar-foreground/50 hover:bg-red-500/20 hover:text-red-200 dark:hover:text-red-400 transition-all w-full',
-            collapsed ? 'justify-center w-11 h-11 mx-auto' : 'gap-3 px-3 py-2.5',
+            'group flex items-center rounded-xl text-[13px] font-medium transition-all w-full',
+            collapsed ? 'justify-center w-11 h-11 mx-auto' : 'gap-2.5 px-2.5 py-2',
           )}
+          style={{ color: 'rgba(255,255,255,0.45)' }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.background = 'rgba(239,68,68,0.15)'
+            e.currentTarget.style.color = 'rgba(252,165,165,1)'
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.background = ''
+            e.currentTarget.style.color = 'rgba(255,255,255,0.45)'
+          }}
         >
-          <LogOut size={collapsed ? 18 : 17} className="shrink-0" />
+          <LogOut size={collapsed ? 17 : 16} className="shrink-0" />
           {!collapsed && <span>Logout</span>}
         </button>
 
-        {/* Branding footer — expanded only */}
+        {/* Version footer */}
         {!collapsed && (
-          <div className="mt-3 pt-3 border-t border-sidebar-foreground/[0.06]">
-            <p className="text-[9px] font-medium tracking-wider uppercase opacity-25 text-center">
-              Powered by UzumBot v2.0
+          <div className="mt-3 pt-3" style={{ borderTop: '1px solid rgba(255,255,255,0.05)' }}>
+            <p
+              className="text-[9px] font-medium tracking-wider uppercase text-center"
+              style={{ color: 'rgba(255,255,255,0.2)' }}
+            >
+              UzumBot v2.0
             </p>
           </div>
         )}
@@ -325,7 +448,6 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
       {/* Mobile overlay drawer */}
       {open !== undefined && (
         <>
-          {/* Backdrop */}
           <div
             className={cn(
               'fixed inset-0 z-40 lg:hidden transition-all duration-300',
@@ -335,7 +457,6 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
             )}
             onClick={onClose}
           />
-          {/* Drawer */}
           <div
             className={cn(
               'fixed top-0 left-0 h-full z-50 lg:hidden transition-transform duration-300 ease-out shadow-2xl shadow-black/30',

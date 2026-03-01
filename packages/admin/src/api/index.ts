@@ -1,8 +1,29 @@
-import axios from 'axios'
+import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios'
 
 const BASE = import.meta.env.VITE_API_URL || '/api/v1'
 
 export const api = axios.create({ baseURL: BASE })
+
+// Track whether a token refresh is in-flight to avoid concurrent refreshes
+let _refreshPromise: Promise<string | null> | null = null
+
+async function tryRefreshToken(): Promise<string | null> {
+  const refresh = localStorage.getItem('admin_refresh_token')
+  if (!refresh) return null
+  try {
+    const res = await axios.post(`${BASE}/auth/admin/refresh`, { refresh_token: refresh })
+    const newToken: string = res.data.access_token
+    localStorage.setItem('admin_token', newToken)
+    if (res.data.refresh_token) {
+      localStorage.setItem('admin_refresh_token', res.data.refresh_token)
+    }
+    return newToken
+  } catch {
+    localStorage.removeItem('admin_token')
+    localStorage.removeItem('admin_refresh_token')
+    return null
+  }
+}
 
 // Attach stored admin JWT
 api.interceptors.request.use((config) => {
@@ -11,14 +32,38 @@ api.interceptors.request.use((config) => {
   return config
 })
 
-// Auto-logout on 401
+// Silent refresh on 401, then retry once; redirect to /login only if refresh fails
 api.interceptors.response.use(
   (r) => r,
-  (err) => {
-    if (err.response?.status === 401) {
-      localStorage.removeItem('admin_token')
+  async (err: AxiosError) => {
+    const original = err.config as InternalAxiosRequestConfig & { _retry?: boolean }
+
+    // Only intercept 401s that haven't been retried yet and are not the refresh call itself
+    if (
+      err.response?.status === 401 &&
+      !original._retry &&
+      !original.url?.includes('/auth/admin/refresh') &&
+      !original.url?.includes('/auth/admin/login') &&
+      !original.url?.includes('/auth/admin/2fa')
+    ) {
+      original._retry = true
+
+      // Deduplicate: if a refresh is already in-flight, wait for it
+      if (!_refreshPromise) {
+        _refreshPromise = tryRefreshToken().finally(() => { _refreshPromise = null })
+      }
+
+      const newToken = await _refreshPromise
+      if (newToken) {
+        original.headers.Authorization = `Bearer ${newToken}`
+        return api(original)
+      }
+
+      // Refresh failed — redirect to login
       window.location.href = '/login'
+      return Promise.reject(err)
     }
+
     return Promise.reject(err)
   }
 )
@@ -27,13 +72,37 @@ api.interceptors.response.use(
 export const adminLogin = (email: string, password: string) =>
   api.post('/auth/admin/login', { email, password })
 
-export const adminVerify2FA = (temp_token: string, totp_code: string) =>
-  api.post('/auth/admin/2fa', { temp_token, totp_code })
+export const adminVerify2FA = (temp_token: string, code: string) =>
+  api.post('/auth/admin/2fa', { temp_token, code })
+
+/** Initiate forced TOTP setup (step 1 — no code yet, returns QR). */
+export const adminInitForcedSetup = (temp_token: string) =>
+  api.post('/auth/admin/2fa/setup-forced', { temp_token, code: '' })
+
+/** Confirm forced TOTP setup (step 2 — submit scanned code). */
+export const adminConfirmForcedSetup = (temp_token: string, code: string) =>
+  api.post('/auth/admin/2fa/setup-forced', { temp_token, code })
+
+export const adminRefresh = (refresh_token: string) =>
+  api.post('/auth/admin/refresh', { refresh_token })
 
 // ── Dashboard ────────────────────────────────────────────────────────────────
-export const getAnalyticsOverview = () => api.get('/admin/analytics/overview')
+export const getAnalyticsOverview = (range = '30d') =>
+  api.get(`/admin/analytics/overview?range=${range}`)
 export const getAnalyticsChart = (days = 30) => api.get(`/admin/analytics/submissions?days=${days}`)
 export const getAnalyticsCharity = () => api.get('/admin/analytics/charity')
+
+// ── Advanced Analytics ────────────────────────────────────────────────────────
+export const getRetentionData = (weeks = 8) =>
+  api.get(`/admin/analytics/retention?weeks=${weeks}`)
+export const getFunnelData = (range = '30d') =>
+  api.get(`/admin/analytics/funnel?range=${range}`)
+export const getPrizePopularity = (range = '30d') =>
+  api.get(`/admin/analytics/prize-popularity?range=${range}`)
+export const getHeatmapData = (range = '30d') =>
+  api.get(`/admin/analytics/heatmap?range=${range}`)
+export const getGeoData = (range = '30d') =>
+  api.get(`/admin/analytics/geo?range=${range}`)
 
 // ── Submissions ──────────────────────────────────────────────────────────────
 export const getSubmissions = (params?: Record<string, unknown>) =>
@@ -41,7 +110,9 @@ export const getSubmissions = (params?: Record<string, unknown>) =>
 export const approveSubmission = (id: string) =>
   api.patch(`/admin/submissions/${id}/approve`)
 export const rejectSubmission = (id: string, reason?: string) =>
-  api.patch(`/admin/submissions/${id}/reject`, { reason })
+  api.patch(`/admin/submissions/${id}/reject`, reason !== undefined ? { reason } : {})
+export const deleteSubmission = (id: string) =>
+  api.delete(`/admin/submissions/${id}`)
 export const bulkApprove = (ids: string[]) =>
   api.post('/admin/submissions/bulk', { ids, action: 'approve' })
 export const bulkReject = (ids: string[], reason?: string) =>
@@ -51,6 +122,7 @@ export const bulkReject = (ids: string[], reason?: string) =>
 export const getUsers = (params?: Record<string, unknown>) =>
   api.get('/admin/users', { params })
 export const getUserDetail = (id: string) => api.get(`/admin/users/${id}`)
+export const updateUser = (id: string, data: unknown) => api.patch(`/admin/users/${id}`, data)
 export const banUser = (id: string, reason?: string) =>
   api.patch(`/admin/users/${id}/ban`, { reason })
 export const unbanUser = (id: string) => api.patch(`/admin/users/${id}/unban`)
@@ -117,3 +189,11 @@ export const deleteProduct = (id: string) => api.delete(`/admin/products/${id}`)
 // ── Reports ───────────────────────────────────────────────────────────────────
 export const downloadExport = (export_type: string) =>
   api.post('/admin/reports/export', { export_type }, { responseType: 'blob' })
+
+// ── Fraud Signals ─────────────────────────────────────────────────────────────
+export const getFraudStats = () =>
+  api.get('/admin/fraud/stats')
+export const getFraudSignals = (params?: Record<string, unknown>) =>
+  api.get('/admin/fraud/signals', { params })
+export const dismissFraudSignal = (id: string, reason?: string) =>
+  api.post(`/admin/fraud/signals/${id}/dismiss`, { reason })

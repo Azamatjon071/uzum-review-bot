@@ -16,6 +16,14 @@ class BanRequest(BaseModel):
     reason: str
 
 
+class UpdateUserRequest(BaseModel):
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+    username: Optional[str] = None
+    spin_count_delta: Optional[int] = None  # positive to add, negative to subtract
+    language: Optional[str] = None
+
+
 class RewardGrantRequest(BaseModel):
     prize_id: str
     note: Optional[str] = None
@@ -135,6 +143,7 @@ async def ban_user(
     await audit.log("ban_user", "user", str(user_id), admin_id=admin.id,
                     ip_address=request.client.host if request.client else None,
                     after_data={"reason": payload.reason})
+    await db.commit()
     return {"message": "User banned"}
 
 
@@ -156,7 +165,54 @@ async def unban_user(
     audit = AuditService(db)
     await audit.log("unban_user", "user", str(user_id), admin_id=admin.id,
                     ip_address=request.client.host if request.client else None)
+    await db.commit()
     return {"message": "User unbanned"}
+
+
+@router.patch("/{user_id}")
+async def update_user(
+    user_id: uuid.UUID,
+    payload: UpdateUserRequest,
+    request: Request,
+    admin=Depends(require_permission("users.write")),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(select(User).where(User.id == user_id))
+    user = result.scalar_one_or_none()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    before: dict = {}
+    if payload.first_name is not None:
+        before["first_name"] = user.first_name
+        user.first_name = payload.first_name
+    if payload.last_name is not None:
+        before["last_name"] = user.last_name
+        user.last_name = payload.last_name
+    if payload.username is not None:
+        before["username"] = user.username
+        user.username = payload.username
+    if payload.spin_count_delta is not None and payload.spin_count_delta != 0:
+        before["spin_count"] = user.spin_count
+        user.spin_count = max(0, user.spin_count + payload.spin_count_delta)
+    if payload.language is not None:
+        from app.models import Language as LangEnum
+        try:
+            before["language"] = user.language.value
+            user.language = LangEnum(payload.language)
+        except ValueError:
+            raise HTTPException(status_code=400, detail=f"Invalid language: {payload.language}")
+
+    audit = AuditService(db)
+    await audit.log(
+        "update_user", "user", str(user_id),
+        admin_id=admin.id,
+        ip_address=request.client.host if request.client else None,
+        before_data=before,
+        after_data={k: getattr(user, k, None) for k in before},
+    )
+    await db.commit()
+    return {"message": "User updated", "id": str(user_id)}
 
 
 @router.post("/{user_id}/reward")

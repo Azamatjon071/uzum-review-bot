@@ -322,6 +322,31 @@ STRINGS: dict[str, dict[str, str]] = {
         "ru": "❌ Произошла ошибка. Пожалуйста, попробуйте снова.",
         "en": "❌ An error occurred. Please try again.",
     },
+    "submit.error_product_not_found": {
+        "uz": "❌ Tanlangan mahsulot topilmadi yoki faol emas. Boshqa mahsulotni tanlang.",
+        "ru": "❌ Выбранный товар не найден или неактивен. Выберите другой товар.",
+        "en": "❌ The selected product was not found or is no longer active. Please select another product.",
+    },
+    "submit.error_image_invalid": {
+        "uz": "❌ Rasm noto'g'ri yoki o'qib bo'lmaydi. Boshqa rasm yuboring.",
+        "ru": "❌ Изображение недействительно или не может быть обработано. Попробуйте другое фото.",
+        "en": "❌ The image is invalid or could not be processed. Please send a different photo.",
+    },
+    "submit.error_validation": {
+        "uz": "❌ Ma'lumotlar noto'g'ri: {detail}\n\nIltimos, qayta urinib ko'ring.",
+        "ru": "❌ Ошибка валидации: {detail}\n\nПожалуйста, попробуйте снова.",
+        "en": "❌ Validation error: {detail}\n\nPlease try again.",
+    },
+    "submit.error_download_failed": {
+        "uz": "❌ Rasmni yuklab bo'lmadi. Iltimos, qayta yuboring.",
+        "ru": "❌ Не удалось загрузить фото. Пожалуйста, попробуйте снова.",
+        "en": "❌ Failed to download the photo. Please try sending it again.",
+    },
+    "submit.error_server": {
+        "uz": "❌ Server xatosi yuz berdi. Biroz kutib, qayta urinib ko'ring.",
+        "ru": "❌ Произошла ошибка сервера. Подождите немного и попробуйте снова.",
+        "en": "❌ A server error occurred. Please wait a moment and try again.",
+    },
     "submit.duplicate": {
         "uz": "⚠️ Siz allaqachon shu mahsulot uchun sharh yuborgansiz.",
         "ru": "⚠️ Вы уже отправляли отзыв на этот товар.",
@@ -731,6 +756,210 @@ STRINGS: dict[str, dict[str, str]] = {
         "uz": "📝 Birinchi sharhingizni yuboring va aylanish yuting!\n👉 /submit",
         "ru": "📝 Отправьте свой первый отзыв и получите вращение!\n👉 /submit",
         "en": "📝 Submit your first review to earn a spin!\n👉 /submit",
+    },
+
+    # ── Onboarding wizard ────────────────────────────────────────────────────
+    "onboarding.step1": {
+        "uz": (
+            "🌐 <b>Tilni tanlang:</b>\n\n"
+            "Davom etish uchun o'zingizga qulay tilni tanlang."
+        ),
+        "ru": (
+            "🌐 <b>Выберите язык:</b>\n\n"
+            "Выберите удобный язык для продолжения."
+        ),
+        "en": (
+            "🌐 <b>Choose your language:</b>\n\n"
+            "Select your preferred language to continue."
+        ),
+    },
+    "onboarding.step2": {
+        "uz": (
+            "📖 <b>Qanday ishlaydi?</b>\n\n"
+            "━━━━━━━━━━━━━━━━━━━━━━\n"
+            "1️⃣ Uzum Market'dan <b>xarid qiling</b>\n"
+            "2️⃣ Mahsulot sahifasida <b>sharh yozing</b>\n"
+            "3️⃣ Sharh skrinshotini <b>yuboring</b> 📸\n"
+            "4️⃣ Admin tasdiqlasa — <b>aylanish yuting</b> 🎡\n"
+            "5️⃣ G'ildirakni aylantirib <b>sovrin oling</b> 🏆\n"
+            "━━━━━━━━━━━━━━━━━━━━━━\n\n"
+            "Tayyor bo'lgach «Davom etish» tugmasini bosing!"
+        ),
+        "ru": (
+            "📖 <b>Как это работает?</b>\n\n"
+            "━━━━━━━━━━━━━━━━━━━━━━\n"
+            "1️⃣ <b>Купите</b> что-нибудь на Uzum Market\n"
+            "2️⃣ <b>Оставьте отзыв</b> на странице товара\n"
+            "3️⃣ <b>Отправьте скриншот</b> отзыва 📸\n"
+            "4️⃣ После одобрения — <b>вращение выдано</b> 🎡\n"
+            "5️⃣ Крутите колесо и <b>выигрывайте призы</b> 🏆\n"
+            "━━━━━━━━━━━━━━━━━━━━━━\n\n"
+            "Когда будете готовы, нажмите «Продолжить»!"
+        ),
+        "en": (
+            "📖 <b>How it works?</b>\n\n"
+            "━━━━━━━━━━━━━━━━━━━━━━\n"
+            "1️⃣ <b>Purchase</b> something on Uzum Market\n"
+            "2️⃣ <b>Leave a review</b> on the product page\n"
+            "3️⃣ <b>Send a screenshot</b> of your review 📸\n"
+            "4️⃣ After approval — <b>spin earned</b> 🎡\n"
+            "5️⃣ Spin the wheel and <b>win prizes</b> 🏆\n"
+            "━━━━━━━━━━━━━━━━━━━━━━\n\n"
+            "When ready, press «Continue»!"
+        ),
+    },
+    "onboarding.step2_btn": {
+        "uz": "▶️ Davom etish",
+        "ru": "▶️ Продолжить",
+        "en": "▶️ Continue",
+    },
+    "onboarding.step3": {
+        "uz": "🛍 <b>Birinchi sharhingiz uchun mahsulotni tanlang:</b>",
+        "ru": "🛍 <b>Выберите товар для вашего первого отзыва:</b>",
+        "en": "🛍 <b>Choose a product for your first review:</b>",
+    },
+    "onboarding.step4": {
+        "uz": (
+            "🔢 <b>Buyurtma raqamingizni kiriting:</b>\n\n"
+            "Uzum Market buyurtma tarixidan raqamni toping.\n"
+            "<i>Masalan: 123456789</i>\n\n"
+            "Agar raqam yo'q bo'lsa «O'tkazib yuborish» tugmasini bosing."
+        ),
+        "ru": (
+            "🔢 <b>Введите номер заказа:</b>\n\n"
+            "Найдите номер в истории заказов Uzum Market.\n"
+            "<i>Например: 123456789</i>\n\n"
+            "Если номера нет — нажмите «Пропустить»."
+        ),
+        "en": (
+            "🔢 <b>Enter your order number:</b>\n\n"
+            "Find the number in your Uzum Market order history.\n"
+            "<i>Example: 123456789</i>\n\n"
+            "If you don't have one — press «Skip»."
+        ),
+    },
+    "onboarding.step5": {
+        "uz": (
+            "🎉 <b>Onboarding tugallandi!</b>\n\n"
+            "━━━━━━━━━━━━━━━━━━━━━━\n"
+            "Siz tayyor! Endi sharh yuborishni boshlang\n"
+            "va birinchi sovringizni yuting! 🏆\n"
+            "━━━━━━━━━━━━━━━━━━━━━━"
+        ),
+        "ru": (
+            "🎉 <b>Знакомство завершено!</b>\n\n"
+            "━━━━━━━━━━━━━━━━━━━━━━\n"
+            "Вы готовы! Начните отправлять отзывы\n"
+            "и выиграйте свой первый приз! 🏆\n"
+            "━━━━━━━━━━━━━━━━━━━━━━"
+        ),
+        "en": (
+            "🎉 <b>Onboarding complete!</b>\n\n"
+            "━━━━━━━━━━━━━━━━━━━━━━\n"
+            "You're all set! Start submitting reviews\n"
+            "and win your first prize! 🏆\n"
+            "━━━━━━━━━━━━━━━━━━━━━━"
+        ),
+    },
+
+    # ── Submit order number ──────────────────────────────────────────────────
+    "submit.ask_order_number": {
+        "uz": (
+            "🔢 <b>Buyurtma raqami (ixtiyoriy):</b>\n\n"
+            "Uzum Market buyurtma tarixidagi raqamni kiriting.\n"
+            "<i>Masalan: 123456789</i>\n\n"
+            "Raqam yo'q bo'lsa «O'tkazib yuborish» tugmasini bosing."
+        ),
+        "ru": (
+            "🔢 <b>Номер заказа (необязательно):</b>\n\n"
+            "Введите номер из истории заказов Uzum Market.\n"
+            "<i>Например: 123456789</i>\n\n"
+            "Если нет — нажмите «Пропустить»."
+        ),
+        "en": (
+            "🔢 <b>Order number (optional):</b>\n\n"
+            "Enter the number from your Uzum Market order history.\n"
+            "<i>Example: 123456789</i>\n\n"
+            "If you don't have one — press «Skip»."
+        ),
+    },
+    "submit.order_saved": {
+        "uz": "✅ Buyurtma raqami: <code>{order}</code>\n\nEndi skrinshotlarni yuboring:",
+        "ru": "✅ Номер заказа: <code>{order}</code>\n\nТеперь отправьте скриншоты:",
+        "en": "✅ Order number: <code>{order}</code>\n\nNow send your screenshots:",
+    },
+    "submit.confirm_header": {
+        "uz": (
+            "📋 <b>Yuborishdan oldin tekshiring:</b>\n\n"
+            "📦 Mahsulot: <b>{product}</b>\n"
+            "🔢 Buyurtma: <code>{order}</code>\n"
+            "📷 Rasmlar: <b>{count}</b> ta\n\n"
+            "Tasdiqlaysizmi?"
+        ),
+        "ru": (
+            "📋 <b>Проверьте перед отправкой:</b>\n\n"
+            "📦 Товар: <b>{product}</b>\n"
+            "🔢 Заказ: <code>{order}</code>\n"
+            "📷 Фото: <b>{count}</b>\n\n"
+            "Подтверждаете?"
+        ),
+        "en": (
+            "📋 <b>Review before submitting:</b>\n\n"
+            "📦 Product: <b>{product}</b>\n"
+            "🔢 Order: <code>{order}</code>\n"
+            "📷 Photos: <b>{count}</b>\n\n"
+            "Confirm?"
+        ),
+    },
+    "submit.btn_confirm": {
+        "uz": "✅ Tasdiqlash",
+        "ru": "✅ Подтвердить",
+        "en": "✅ Confirm",
+    },
+    "submit.btn_skip": {
+        "uz": "⏭ O'tkazib yuborish",
+        "ru": "⏭ Пропустить",
+        "en": "⏭ Skip",
+    },
+    "submit.btn_edit": {
+        "uz": "✏️ Tahrirlash",
+        "ru": "✏️ Изменить",
+        "en": "✏️ Edit",
+    },
+    "submit.draft_saved": {
+        "uz": "💾 Qoralama saqlandi. Davom etish uchun /submit bosing.",
+        "ru": "💾 Черновик сохранён. Нажмите /submit для продолжения.",
+        "en": "💾 Draft saved. Press /submit to continue.",
+    },
+    "submit.draft_resume": {
+        "uz": (
+            "💾 <b>Saqlangan qoralama topildi:</b>\n\n"
+            "📦 Mahsulot: <b>{product}</b>\n"
+            "📷 Rasmlar: <b>{count}</b> ta\n\n"
+            "Davom etasizmi?"
+        ),
+        "ru": (
+            "💾 <b>Найден сохранённый черновик:</b>\n\n"
+            "📦 Товар: <b>{product}</b>\n"
+            "📷 Фото: <b>{count}</b>\n\n"
+            "Продолжить?"
+        ),
+        "en": (
+            "💾 <b>Saved draft found:</b>\n\n"
+            "📦 Product: <b>{product}</b>\n"
+            "📷 Photos: <b>{count}</b>\n\n"
+            "Continue?"
+        ),
+    },
+    "submit.btn_resume": {
+        "uz": "▶️ Davom etish",
+        "ru": "▶️ Продолжить",
+        "en": "▶️ Continue",
+    },
+    "submit.btn_new": {
+        "uz": "🆕 Yangi boshlash",
+        "ru": "🆕 Начать заново",
+        "en": "🆕 Start fresh",
     },
 }
 

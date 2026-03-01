@@ -13,6 +13,8 @@ import ReportsPage from '@/pages/ReportsPage'
 import AuditPage from '@/pages/AuditPage'
 import AdminsPage from '@/pages/AdminsPage'
 import SettingsPage from '@/pages/SettingsPage'
+import AnalyticsPage from '@/pages/AnalyticsPage'
+import FraudPage from '@/pages/FraudPage'
 
 export default function App() {
   return (
@@ -30,6 +32,8 @@ export default function App() {
         <Route path="audit" element={<AuditPage />} />
         <Route path="admins" element={<AdminsPage />} />
         <Route path="settings" element={<SettingsPage />} />
+        <Route path="analytics" element={<AnalyticsPage />} />
+        <Route path="fraud" element={<FraudPage />} />
       </Route>
       {/* Catch-all → dashboard */}
       <Route path="*" element={<Navigate to="/" replace />} />

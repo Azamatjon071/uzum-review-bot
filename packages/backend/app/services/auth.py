@@ -100,8 +100,9 @@ def create_user_refresh_token(user_id: str) -> str:
     )
 
 
-def create_admin_token(admin_id: str, role: str, permissions: dict) -> str:
-    expire = datetime.now(timezone.utc) + timedelta(hours=settings.ADMIN_JWT_EXPIRE_HOURS)
+def create_admin_token(admin_id: str, role: str, permissions: dict, expire_hours: Optional[float] = None) -> str:
+    hours = expire_hours if expire_hours is not None else settings.ADMIN_JWT_EXPIRE_HOURS
+    expire = datetime.now(timezone.utc) + timedelta(hours=hours)
     return jwt.encode(
         {
             "sub": admin_id,

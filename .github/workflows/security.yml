@@ -1,0 +1,141 @@
+name: Security Scan
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+  schedule:
+    # Run weekly on Monday at 08:00 UTC
+    - cron: "0 8 * * 1"
+
+jobs:
+  # ── Dependency vulnerability scan (Python) ──────────────────────────────────
+  pip-audit:
+    name: pip-audit (Python dependencies)
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        package: [backend, bot]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install pip-audit
+        run: pip install pip-audit
+
+      - name: Audit ${{ matrix.package }} dependencies
+        run: pip-audit -r packages/${{ matrix.package }}/requirements.txt --output json -o pip-audit-${{ matrix.package }}.json
+        continue-on-error: true
+
+      - name: Upload audit results
+        uses: actions/upload-artifact@v4
+        with:
+          name: pip-audit-${{ matrix.package }}
+          path: pip-audit-${{ matrix.package }}.json
+
+  # ── Dependency vulnerability scan (Node) ────────────────────────────────────
+  npm-audit:
+    name: pnpm audit (Node dependencies)
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Enable corepack / pnpm
+        run: corepack enable
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Audit
+        run: pnpm audit --audit-level moderate
+        continue-on-error: true
+
+  # ── Static analysis — Bandit (Python SAST) ──────────────────────────────────
+  bandit:
+    name: Bandit SAST
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Bandit
+        run: pip install bandit[toml]
+
+      - name: Scan backend
+        run: bandit -r packages/backend/app -ll -x packages/backend/app/alembic -f json -o bandit-backend.json
+        continue-on-error: true
+
+      - name: Scan bot
+        run: bandit -r packages/bot/app -ll -f json -o bandit-bot.json
+        continue-on-error: true
+
+      - name: Upload reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: bandit-reports
+          path: "bandit-*.json"
+
+  # ── Secret scanning — Gitleaks ───────────────────────────────────────────────
+  gitleaks:
+    name: Gitleaks secret scan
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # full history for accurate scan
+
+      - name: Run Gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # ── Container image scanning — Trivy ────────────────────────────────────────
+  trivy:
+    name: Trivy container scan
+    runs-on: ubuntu-latest
+    # Only scan on main branch to avoid noise on every PR
+    if: github.ref == 'refs/heads/main'
+
+    strategy:
+      matrix:
+        service: [backend, bot]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build image for scanning
+        run: docker build -t uzumbot-${{ matrix.service }}:scan ./packages/${{ matrix.service }}
+
+      - name: Scan with Trivy
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: uzumbot-${{ matrix.service }}:scan
+          format: sarif
+          output: trivy-${{ matrix.service }}.sarif
+          severity: CRITICAL,HIGH
+          exit-code: "0"   # don't fail the build, just report
+
+      - name: Upload Trivy SARIF
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: trivy-${{ matrix.service }}.sarif
+          category: trivy-${{ matrix.service }}

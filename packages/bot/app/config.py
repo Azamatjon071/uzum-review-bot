@@ -9,6 +9,8 @@ class Settings(BaseSettings):
     BOT_WEBHOOK_URL: str = ""
     BOT_WEBHOOK_SECRET: str = ""
     BOT_WEBHOOK_PATH: str = "/api/v1/webhook/telegram"
+    # Shared HMAC secret for signing bot→backend requests (must match backend BOT_API_HMAC_SECRET)
+    BOT_API_HMAC_SECRET: str = ""
 
     API_BASE_URL: str = "http://backend:8000"
     WEBAPP_URL: str = "http://localhost:5000"

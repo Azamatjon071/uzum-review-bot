@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -5,82 +7,94 @@
 @layer base {
   /* ============================================
      LIGHT THEME — Uzum Brand Admin
-     Primary: #7000FF, clean Uzum surfaces
+     Primary: #FF6B35 coral/orange
+     Secondary: #1A1D2E deep navy
      ============================================ */
   :root {
-    --background: 240 15% 97%;
-    --foreground: 240 15% 8%;
+    --background: 220 20% 97%;
+    --foreground: 224 30% 10%;
     --card: 0 0% 100%;
-    --card-foreground: 240 15% 8%;
+    --card-foreground: 224 30% 10%;
     --popover: 0 0% 100%;
-    --popover-foreground: 240 15% 8%;
-    --primary: 266 100% 50%;
+    --popover-foreground: 224 30% 10%;
+    /* Primary: #FF6B35 → hsl(18, 100%, 60%) */
+    --primary: 18 100% 60%;
     --primary-foreground: 0 0% 100%;
-    --secondary: 250 20% 95%;
-    --secondary-foreground: 250 12% 25%;
-    --muted: 240 10% 94%;
-    --muted-foreground: 240 8% 45%;
-    --accent: 266 50% 95%;
-    --accent-foreground: 266 70% 35%;
-    --destructive: 0 100% 50%;
+    /* Secondary: #1A1D2E → hsl(228, 27%, 14%) */
+    --secondary: 228 27% 14%;
+    --secondary-foreground: 0 0% 100%;
+    --muted: 220 15% 94%;
+    --muted-foreground: 220 10% 45%;
+    /* Accent: light coral tint */
+    --accent: 18 80% 95%;
+    --accent-foreground: 18 80% 35%;
+    /* Destructive: #EF4444 */
+    --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
-    --success: 152 100% 34%;
+    /* Success: #10B981 → hsl(160, 84%, 39%) */
+    --success: 160 84% 39%;
     --success-foreground: 0 0% 100%;
-    --warning: 32 100% 50%;
+    /* Warning: #F59E0B → hsl(38, 92%, 50%) */
+    --warning: 38 92% 50%;
     --warning-foreground: 0 0% 100%;
     --info: 219 100% 60%;
     --info-foreground: 0 0% 100%;
-    --border: 240 8% 90%;
-    --input: 240 8% 88%;
-    --ring: 266 100% 50%;
+    --border: 220 13% 90%;
+    --input: 220 13% 88%;
+    --ring: 18 100% 60%;
     --radius: 0.75rem;
-    --sidebar: 266 100% 50%;
+    /* Sidebar uses deep navy */
+    --sidebar: 228 27% 14%;
     --sidebar-foreground: 0 0% 100%;
-    --sidebar-border: 266 80% 45%;
-    --sidebar-muted: 266 80% 42%;
-    --sidebar-accent: 266 80% 58%;
+    --sidebar-border: 228 20% 20%;
+    --sidebar-muted: 228 20% 18%;
+    --sidebar-accent: 18 80% 55%;
 
-    --uzum-gradient-from: #7000ff;
-    --uzum-gradient-to: #e8007c;
+    --uzum-gradient-from: #FF6B35;
+    --uzum-gradient-to: #ff9a5c;
   }
 
   /* ============================================
-     DARK THEME
+     DARK THEME — base #0f1117
      ============================================ */
   .dark {
-    --background: 240 15% 6%;
-    --foreground: 0 0% 94%;
-    --card: 240 14% 9%;
-    --card-foreground: 0 0% 94%;
-    --popover: 240 14% 10%;
-    --popover-foreground: 0 0% 94%;
-    --primary: 266 100% 55%;
+    /* #0f1117 → hsl(228, 15%, 8%) */
+    --background: 228 15% 8%;
+    --foreground: 0 0% 93%;
+    /* card: slightly lighter than bg */
+    --card: 228 14% 11%;
+    --card-foreground: 0 0% 93%;
+    --popover: 228 14% 12%;
+    --popover-foreground: 0 0% 93%;
+    /* Primary coral slightly lighter in dark */
+    --primary: 18 100% 62%;
     --primary-foreground: 0 0% 100%;
-    --secondary: 240 12% 14%;
+    --secondary: 228 20% 18%;
     --secondary-foreground: 0 0% 88%;
-    --muted: 240 12% 13%;
-    --muted-foreground: 240 8% 52%;
-    --accent: 266 30% 16%;
-    --accent-foreground: 266 70% 78%;
-    --destructive: 0 90% 55%;
+    --muted: 228 14% 14%;
+    --muted-foreground: 228 8% 52%;
+    --accent: 18 40% 18%;
+    --accent-foreground: 18 80% 72%;
+    --destructive: 0 84% 58%;
     --destructive-foreground: 0 0% 100%;
-    --success: 152 80% 42%;
+    --success: 160 72% 44%;
     --success-foreground: 0 0% 100%;
-    --warning: 32 100% 55%;
+    --warning: 38 90% 52%;
     --warning-foreground: 0 0% 100%;
-    --info: 219 100% 65%;
+    --info: 219 90% 65%;
     --info-foreground: 0 0% 100%;
-    --border: 240 12% 16%;
-    --input: 240 12% 14%;
-    --ring: 266 100% 55%;
-    --sidebar: 240 14% 8%;
+    --border: 228 14% 18%;
+    --input: 228 14% 16%;
+    --ring: 18 100% 62%;
+    /* Sidebar: slightly darker than card in dark mode */
+    --sidebar: 228 18% 9%;
     --sidebar-foreground: 0 0% 90%;
-    --sidebar-border: 240 12% 14%;
-    --sidebar-muted: 240 12% 12%;
-    --sidebar-accent: 266 50% 25%;
+    --sidebar-border: 228 14% 15%;
+    --sidebar-muted: 228 14% 13%;
+    --sidebar-accent: 18 60% 28%;
 
-    --uzum-gradient-from: #8a2bff;
-    --uzum-gradient-to: #ff1a8c;
+    --uzum-gradient-from: #FF6B35;
+    --uzum-gradient-to: #ff9a5c;
   }
 
   * {
@@ -93,6 +107,10 @@
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     font-feature-settings: "rlig" 1, "calt" 1;
+  }
+
+  code, kbd, pre, .font-mono {
+    font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', ui-monospace, monospace;
   }
 }
 
@@ -137,4 +155,10 @@
   .dark .card-elevated {
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2), 0 4px 12px rgba(0, 0, 0, 0.12);
   }
+  /* Spacing helpers — 4px base unit */
+  .spacing-sm { border-radius: 4px; }
+  .spacing-md { border-radius: 8px; }
+  .spacing-lg { border-radius: 12px; }
+  .spacing-xl { border-radius: 16px; }
+  .spacing-2xl { border-radius: 24px; }
 }

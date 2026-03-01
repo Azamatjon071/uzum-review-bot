@@ -15,6 +15,14 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 128M
     networks:
       - uzumbot
 
@@ -29,6 +37,14 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+        reservations:
+          cpus: '0.1'
+          memory: 64M
     networks:
       - uzumbot
 
@@ -48,6 +64,14 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+        reservations:
+          cpus: '0.1'
+          memory: 128M
     networks:
       - uzumbot
 
@@ -71,6 +95,20 @@ services:
         condition: service_healthy
       minio:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 1G
+        reservations:
+          cpus: '0.25'
+          memory: 256M
     networks:
       - uzumbot
 
@@ -87,7 +125,24 @@ services:
       CELERY_BROKER_URL: redis://:${REDIS_PASSWORD:-changeme}@redis:6379/1
       MINIO_ENDPOINT: minio:9000
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "celery", "-A", "app.tasks.celery:celery_app", "inspect", "ping", "--timeout", "5"]
+      interval: 60s
+      timeout: 15s
+      retries: 3
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 1G
+        reservations:
+          cpus: '0.25'
+          memory: 256M
     networks:
       - uzumbot
 
@@ -103,7 +158,16 @@ services:
       REDIS_URL: redis://:${REDIS_PASSWORD:-changeme}@redis:6379/0
       CELERY_BROKER_URL: redis://:${REDIS_PASSWORD:-changeme}@redis:6379/1
     depends_on:
-      - redis
+      redis:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+        reservations:
+          cpus: '0.05'
+          memory: 64M
     networks:
       - uzumbot
 
@@ -117,8 +181,24 @@ services:
       API_BASE_URL: http://backend:8000
       REDIS_URL: redis://:${REDIS_PASSWORD:-changeme}@redis:6379/2
     depends_on:
-      - backend
-      - redis
+      backend:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8080/health', timeout=5)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+        reservations:
+          cpus: '0.1'
+          memory: 128M
     networks:
       - uzumbot
 
@@ -129,6 +209,19 @@ services:
     restart: unless-stopped
     ports:
       - "4000:80"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 128M
+        reservations:
+          cpus: '0.05'
+          memory: 32M
     networks:
       - uzumbot
 
@@ -136,9 +229,24 @@ services:
     build:
       context: ./packages/webapp
       dockerfile: Dockerfile
+      args:
+        VITE_BOT_USERNAME: ${BOT_USERNAME:-UzumReviewBot}
     restart: unless-stopped
     ports:
       - "5173:80"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 128M
+        reservations:
+          cpus: '0.05'
+          memory: 32M
     networks:
       - uzumbot
 
@@ -157,6 +265,19 @@ services:
       - backend
       - admin
       - webapp
+    healthcheck:
+      test: ["CMD", "caddy", "version"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 128M
+        reservations:
+          cpus: '0.05'
+          memory: 32M
     networks:
       - uzumbot
 
@@ -169,6 +290,19 @@ services:
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
       - '--storage.tsdb.retention.time=30d'
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:9090/-/healthy"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+        reservations:
+          cpus: '0.05'
+          memory: 128M
     networks:
       - uzumbot
 
@@ -180,6 +314,19 @@ services:
     volumes:
       - grafana_data:/var/lib/grafana
       - ./infra/grafana/dashboards:/etc/grafana/provisioning/dashboards:ro
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+        reservations:
+          cpus: '0.05'
+          memory: 64M
     networks:
       - uzumbot
 

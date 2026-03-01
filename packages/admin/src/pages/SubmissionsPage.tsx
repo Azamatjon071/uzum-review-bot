@@ -2,13 +2,13 @@ import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import {
-  getSubmissions, approveSubmission, rejectSubmission, bulkApprove, bulkReject,
+  getSubmissions, approveSubmission, rejectSubmission, deleteSubmission, bulkApprove, bulkReject,
 } from '@/api'
 import { cn, formatDate } from '@/lib/utils'
 import {
   CheckCircle2, XCircle, X, ChevronLeft, ChevronRight,
   Image as ImageIcon, Eye, ZoomIn, ArrowUpDown, FileCheck,
-  Clock, CheckCheck, Ban,
+  Clock, CheckCheck, Ban, Trash2, AlertTriangle,
 } from 'lucide-react'
 import { useViewPreferences, densityClasses } from '@/hooks/useViewPreferences'
 import type { ViewMode } from '@/hooks/useViewPreferences'
@@ -27,22 +27,22 @@ const PAGE_SIZE = 20
 
 const STATUS_FILTERS = [
   { key: '', label: 'All' },
-  { key: 'PENDING', label: 'Pending' },
-  { key: 'APPROVED', label: 'Approved' },
-  { key: 'REJECTED', label: 'Rejected' },
+  { key: 'pending', label: 'Pending' },
+  { key: 'approved', label: 'Approved' },
+  { key: 'rejected', label: 'Rejected' },
 ]
 
 const statusVariantMap: Record<string, 'warning' | 'success' | 'error' | 'neutral'> = {
-  PENDING: 'warning',
-  APPROVED: 'success',
-  REJECTED: 'error',
-  DUPLICATE: 'neutral',
+  pending: 'warning',
+  approved: 'success',
+  rejected: 'error',
+  duplicate: 'neutral',
 }
 
 const statusIconMap: Record<string, typeof Clock> = {
-  PENDING: Clock,
-  APPROVED: CheckCheck,
-  REJECTED: Ban,
+  pending: Clock,
+  approved: CheckCheck,
+  rejected: Ban,
 }
 
 // ── Helper: normalize images ─────────────────────────────────────────────────
@@ -251,7 +251,7 @@ function DetailDrawer({ sub, onClose, onApprove, onReject }: {
         </div>
 
         {/* Footer actions */}
-        {sub.status === 'PENDING' && (
+        {sub.status === 'pending' && (
           <div className="px-5 py-4 border-t border-border space-y-2.5 bg-card">
             {showReject ? (
               <div className="space-y-2.5">
@@ -317,6 +317,7 @@ export default function SubmissionsPage() {
   const [lightbox, setLightbox] = useState<{ images: string[]; index: number } | null>(null)
   const [sortField, setSortField] = useState<'created_at' | 'status'>('created_at')
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc')
+  const [deleteTarget, setDeleteTarget] = useState<any>(null)
 
   // For kanban we fetch all statuses; for table/card we use status filter
   const isKanban = view === 'kanban'
@@ -370,13 +371,23 @@ export default function SubmissionsPage() {
     onError: () => toast.error('Bulk reject failed'),
   })
 
+  const deleteMut = useMutation({
+    mutationFn: (id: string) => deleteSubmission(id),
+    onSuccess: () => {
+      toast.success('Submission deleted')
+      setDeleteTarget(null)
+      qc.invalidateQueries({ queryKey: ['submissions'] })
+    },
+    onError: (e: any) => toast.error(e?.response?.data?.detail ?? 'Failed to delete'),
+  })
+
   const submissions = data?.items ?? []
   const total = data?.total ?? 0
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
   const from = total === 0 ? 0 : (page - 1) * PAGE_SIZE + 1
   const to = Math.min(page * PAGE_SIZE, total)
 
-  const pendingCount = submissions.filter((s: any) => s.status === 'PENDING').length
+  const pendingCount = submissions.filter((s: any) => s.status === 'pending').length
 
   const toggle = (id: string) =>
     setSelected((prev) => prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id])
@@ -423,30 +434,30 @@ export default function SubmissionsPage() {
   // ── Kanban columns ──
   const kanbanColumns = [
     {
-      id: 'PENDING',
+      id: 'pending',
       title: 'Pending',
       color: 'bg-amber-500',
-      items: submissions.filter((s: any) => s.status === 'PENDING'),
+      items: submissions.filter((s: any) => s.status === 'pending'),
     },
     {
-      id: 'APPROVED',
+      id: 'approved',
       title: 'Approved',
       color: 'bg-emerald-500',
-      items: submissions.filter((s: any) => s.status === 'APPROVED'),
+      items: submissions.filter((s: any) => s.status === 'approved'),
     },
     {
-      id: 'REJECTED',
+      id: 'rejected',
       title: 'Rejected',
       color: 'bg-red-500',
-      items: submissions.filter((s: any) => s.status === 'REJECTED'),
+      items: submissions.filter((s: any) => s.status === 'rejected'),
     },
   ]
 
   const handleKanbanMove = (itemId: string, fromCol: string, toCol: string) => {
     if (fromCol === toCol) return
-    if (toCol === 'APPROVED') {
+    if (toCol === 'approved') {
       approveMut.mutate(itemId)
-    } else if (toCol === 'REJECTED') {
+    } else if (toCol === 'rejected') {
       const reason = window.prompt('Rejection reason (optional):')
       rejectMut.mutate({ id: itemId, reason: reason || undefined })
     }
@@ -474,6 +485,48 @@ export default function SubmissionsPage() {
           onApprove={handleApprove}
           onReject={handleReject}
         />
+      )}
+
+      {/* Delete confirm modal */}
+      {deleteTarget && (
+        <>
+          <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm animate-fade-in" onClick={() => setDeleteTarget(null)} />
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 pointer-events-none">
+            <div className="w-full max-w-sm rounded-2xl border border-border bg-card shadow-2xl shadow-black/20 pointer-events-auto animate-scale-in">
+              <div className="flex items-center justify-between px-5 py-4 border-b border-border">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-xl bg-destructive/10 flex items-center justify-center">
+                    <AlertTriangle className="w-4 h-4 text-destructive" />
+                  </div>
+                  <h3 className="text-sm font-semibold text-foreground">Delete submission?</h3>
+                </div>
+                <button onClick={() => setDeleteTarget(null)} className="p-1.5 rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted transition-colors">
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+              <div className="px-5 py-4">
+                <p className="text-sm text-muted-foreground">
+                  This will permanently delete the submission from <strong>{deleteTarget.user?.first_name ?? 'this user'}</strong>. This action cannot be undone.
+                </p>
+              </div>
+              <div className="flex gap-2 px-5 pb-5">
+                <button
+                  onClick={() => setDeleteTarget(null)}
+                  className="flex-1 py-2.5 rounded-xl border border-border text-sm font-medium text-foreground hover:bg-muted transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => deleteMut.mutate(deleteTarget.id)}
+                  disabled={deleteMut.isPending}
+                  className="flex-1 py-2.5 rounded-xl bg-destructive hover:bg-destructive/90 text-white text-sm font-semibold transition-colors shadow-sm disabled:opacity-50"
+                >
+                  {deleteMut.isPending ? 'Deleting…' : 'Delete'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </>
       )}
 
       <div className={dc.spacing}>
@@ -646,8 +699,8 @@ export default function SubmissionsPage() {
                                 <span className="text-muted-foreground text-xs">—</span>
                               )}
                             </td>
-                            <td className={dc.padding} onClick={(e) => e.stopPropagation()}>
-                              {s.status === 'PENDING' ? (
+                             <td className={dc.padding} onClick={(e) => e.stopPropagation()}>
+                              {s.status === 'pending' ? (
                                 <div className="flex items-center gap-1">
                                   <button
                                     onClick={() => handleApprove(s.id)}
@@ -675,15 +728,31 @@ export default function SubmissionsPage() {
                                   >
                                     <Eye className="w-4 h-4" />
                                   </button>
+                                  <button
+                                    onClick={() => setDeleteTarget(s)}
+                                    className="p-1.5 rounded-lg text-destructive/60 hover:bg-destructive/10 hover:text-destructive transition-colors"
+                                    title="Delete"
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </button>
                                 </div>
                               ) : (
-                                <button
-                                  onClick={() => setDrawerSub(s)}
-                                  className="p-1.5 rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
-                                  title="View"
-                                >
-                                  <Eye className="w-4 h-4" />
-                                </button>
+                                <div className="flex items-center gap-1">
+                                  <button
+                                    onClick={() => setDrawerSub(s)}
+                                    className="p-1.5 rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+                                    title="View"
+                                  >
+                                    <Eye className="w-4 h-4" />
+                                  </button>
+                                  <button
+                                    onClick={() => setDeleteTarget(s)}
+                                    className="p-1.5 rounded-lg text-destructive/60 hover:bg-destructive/10 hover:text-destructive transition-colors"
+                                    title="Delete"
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </button>
+                                </div>
                               )}
                             </td>
                           </tr>
@@ -756,26 +825,34 @@ export default function SubmissionsPage() {
                         </p>
                         <div className="flex items-center justify-between pt-3 border-t border-border/50">
                           <span className="text-[10px] text-muted-foreground font-medium">{formatDate(s.created_at)}</span>
-                          {s.status === 'PENDING' && (
-                            <div className="flex gap-1">
-                              <button
-                                onClick={(e) => { e.stopPropagation(); handleApprove(s.id) }}
-                                className="p-1.5 rounded-lg text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-500/10 transition-colors"
-                              >
-                                <CheckCircle2 className="w-4 h-4" />
-                              </button>
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation()
-                                  const reason = window.prompt('Rejection reason (optional):')
-                                  if (reason !== null) handleReject(s.id, reason || undefined)
-                                }}
-                                className="p-1.5 rounded-lg text-destructive hover:bg-destructive/10 transition-colors"
-                              >
-                                <XCircle className="w-4 h-4" />
-                              </button>
-                            </div>
-                          )}
+                          <div className="flex gap-1">
+                            {s.status === 'pending' && (
+                              <>
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); handleApprove(s.id) }}
+                                  className="p-1.5 rounded-lg text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-500/10 transition-colors"
+                                >
+                                  <CheckCircle2 className="w-4 h-4" />
+                                </button>
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    const reason = window.prompt('Rejection reason (optional):')
+                                    if (reason !== null) handleReject(s.id, reason || undefined)
+                                  }}
+                                  className="p-1.5 rounded-lg text-destructive hover:bg-destructive/10 transition-colors"
+                                >
+                                  <XCircle className="w-4 h-4" />
+                                </button>
+                              </>
+                            )}
+                            <button
+                              onClick={(e) => { e.stopPropagation(); setDeleteTarget(s) }}
+                              className="p-1.5 rounded-lg text-destructive/60 hover:bg-destructive/10 hover:text-destructive transition-colors"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
                         </div>
                       </div>
                     </DataCard>

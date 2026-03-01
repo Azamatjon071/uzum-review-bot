@@ -9,11 +9,12 @@ from sqlalchemy import select, and_, func, or_, desc
 from app.database import get_db
 from app.deps import get_current_admin, require_permission
 from app.models import (
-    Submission, SubmissionStatus, SubmissionImage, User,
+    Submission, SubmissionStatus, SubmissionImage, User, Product,
     Notification, NotificationType
 )
 from app.services.storage import StorageService
 from app.services.audit import AuditService
+from app.services.gamification import GamificationService
 from app.tasks.notifications import notify_submission_approved, notify_submission_rejected
 
 router = APIRouter(prefix="/admin/submissions", tags=["admin-submissions"])
@@ -25,7 +26,7 @@ class ApproveRequest(BaseModel):
 
 
 class RejectRequest(BaseModel):
-    reason: str
+    reason: Optional[str] = None
 
 
 class BulkActionRequest(BaseModel):
@@ -46,7 +47,8 @@ async def list_submissions(
     offset = (page - 1) * limit
     filters = []
     if status:
-        filters.append(Submission.status == status)
+        # Normalise to lowercase so "PENDING" from frontend matches enum values
+        filters.append(Submission.status == status.lower())
 
     query = select(Submission).order_by(desc(Submission.created_at)).offset(offset).limit(limit)
     if filters:
@@ -66,6 +68,8 @@ async def list_submissions(
         user = user_r.scalar_one_or_none()
         img_r = await db.execute(select(SubmissionImage).where(SubmissionImage.submission_id == s.id))
         imgs = img_r.scalars().all()
+        product_r = await db.execute(select(Product).where(Product.id == s.product_id))
+        product = product_r.scalar_one_or_none()
 
         items.append({
             "id": str(s.id),
@@ -83,6 +87,13 @@ async def list_submissions(
                 "username": user.username if user else None,
                 "approved_submissions": user.approved_submissions if user else 0,
             },
+            "product": {
+                "id": str(product.id) if product else None,
+                "name_uz": product.name_uz if product else None,
+                "name_ru": product.name_ru if product else None,
+                "name_en": product.name_en if product else None,
+                "image_url": product.image_url if product else None,
+            } if product else None,
             "images": [
                 {
                     "id": str(img.id),
@@ -123,6 +134,9 @@ async def approve_submission(
         user.approved_submissions += 1
         user.spin_count += 1   # grant 1 available spin
         user.total_spins += 1  # lifetime counter
+        # Gamification: award XP, update streak, check achievements
+        gam_svc = GamificationService(db)
+        await gam_svc.on_submission_approved(user.id)
 
     notif = Notification(
         user_id=sub.user_id,
@@ -174,14 +188,14 @@ async def reject_submission(
 
     before = {"status": sub.status.value}
     sub.status = SubmissionStatus.REJECTED
-    sub.rejection_reason = payload.reason
+    sub.rejection_reason = payload.reason or None
     sub.reviewed_by_admin_id = admin.id
     sub.reviewed_at = datetime.now(timezone.utc)
 
     notif = Notification(
         user_id=sub.user_id,
         notification_type=NotificationType.SUBMISSION_REJECTED,
-        payload={"submission_id": str(submission_id), "reason": payload.reason},
+        payload={"submission_id": str(submission_id), "reason": payload.reason or ""},
     )
     db.add(notif)
 
@@ -238,6 +252,8 @@ async def bulk_action(
                 user.approved_submissions += 1
                 user.spin_count += 1
                 user.total_spins += 1
+                gam_svc = GamificationService(db)
+                await gam_svc.on_submission_approved(user.id)
                 notifications_to_send.append(("approve", user, sub_id))
             db.add(Notification(
                 user_id=sub.user_id,
@@ -289,3 +305,38 @@ async def bulk_action(
             )
 
     return {"message": f"Bulk {payload.action} completed", "processed": processed}
+
+
+@router.delete("/{submission_id}", status_code=204)
+async def delete_submission(
+    submission_id: uuid.UUID,
+    request: Request,
+    admin=Depends(require_permission("submissions.write")),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(select(Submission).where(Submission.id == submission_id))
+    sub = result.scalar_one_or_none()
+    if not sub:
+        raise HTTPException(status_code=404, detail="Submission not found")
+
+    # Delete associated images first
+    await db.execute(
+        select(SubmissionImage).where(SubmissionImage.submission_id == submission_id)
+    )
+    img_r = await db.execute(select(SubmissionImage).where(SubmissionImage.submission_id == submission_id))
+    imgs = img_r.scalars().all()
+    for img in imgs:
+        await db.delete(img)
+
+    audit = AuditService(db)
+    await audit.log(
+        action="delete_submission",
+        resource_type="submission",
+        resource_id=str(submission_id),
+        admin_id=admin.id,
+        ip_address=request.client.host if request.client else None,
+        before_data={"status": sub.status.value},
+    )
+
+    await db.delete(sub)
+    await db.commit()

@@ -1,6 +1,9 @@
 """
 HTTP client for communicating with the backend API.
 All calls use JWT tokens obtained via Telegram initData auth.
+Bot-internal calls (/api/v1/bot/*) are additionally signed with
+HMAC-SHA256 using BOT_API_HMAC_SECRET so the shared secret is never
+transmitted in plaintext.
 """
 from __future__ import annotations
 
@@ -30,15 +33,50 @@ class APIError(Exception):
         super().__init__(f"API {status_code}: {detail}")
 
 
+# ── HMAC request signing ───────────────────────────────────────────────────────
+
+def _sign_bot_request(
+    method: str,
+    path: str,
+    body_bytes: bytes,
+    timestamp: str,
+    secret: str,
+) -> str:
+    """
+    Compute HMAC-SHA256 signature for a bot→backend request.
+    Signing string: "{METHOD}\n{path}\n{timestamp}\n{sha256(body)}"
+    """
+    body_hash = hashlib.sha256(body_bytes).hexdigest()
+    signing_string = f"{method.upper()}\n{path}\n{timestamp}\n{body_hash}"
+    return hmac.new(
+        secret.encode(),
+        signing_string.encode(),
+        hashlib.sha256,
+    ).hexdigest()
+
+
 async def _request(
     method: str,
     path: str,
     token: Optional[str] = None,
+    sign: bool = False,
     **kwargs: Any,
 ) -> Any:
     headers = kwargs.pop("headers", {})
     if token:
         headers["Authorization"] = f"Bearer {token}"
+
+    # Serialize body for signing (must be done before passing to httpx)
+    body_bytes = b""
+    if sign and settings.BOT_API_HMAC_SECRET:
+        if "json" in kwargs:
+            body_bytes = json.dumps(kwargs["json"], separators=(",", ":")).encode()
+        elif "data" in kwargs:
+            body_bytes = urllib.parse.urlencode(kwargs["data"]).encode() if isinstance(kwargs["data"], dict) else (kwargs["data"] or b"")
+        timestamp = str(int(time.time()))
+        sig = _sign_bot_request(method, path, body_bytes, timestamp, settings.BOT_API_HMAC_SECRET)
+        headers["X-Bot-Signature"] = sig
+        headers["X-Bot-Timestamp"] = timestamp
 
     async with httpx.AsyncClient(timeout=TIMEOUT) as client:
         resp = await client.request(method, f"{BASE}{path}", headers=headers, **kwargs)
@@ -143,6 +181,7 @@ async def bot_register_user(
     return await _request(
         "POST",
         "/api/v1/bot/register",
+        sign=True,
         json={
             "telegram_id": telegram_id,
             "first_name": first_name or "",
@@ -162,6 +201,7 @@ async def get_user_info(telegram_id: int, secret: str) -> dict:
     return await _request(
         "GET",
         f"/api/v1/bot/user/{telegram_id}",
+        sign=True,
         params={"secret": secret},
     )
 

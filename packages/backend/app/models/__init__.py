@@ -1,10 +1,10 @@
 import uuid
 import enum
-from datetime import datetime
+from datetime import datetime, date
 from typing import Optional, List
 from sqlalchemy import (
-    String, Integer, BigInteger, Boolean, Text, DateTime, Numeric,
-    ForeignKey, JSON, Enum as SAEnum, UniqueConstraint, Index
+    String, Integer, BigInteger, Boolean, Text, DateTime, Date, Numeric,
+    ForeignKey, JSON, Enum as SAEnum, UniqueConstraint, Index, Float
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
@@ -48,6 +48,43 @@ class NotificationType(str, enum.Enum):
     REWARD_EXPIRING = "reward_expiring"
     BROADCAST = "broadcast"
     REFERRAL_BONUS = "referral_bonus"
+    STREAK_WARNING = "streak_warning"
+    ACHIEVEMENT_EARNED = "achievement_earned"
+    LEADERBOARD_RESULT = "leaderboard_result"
+    WEEKLY_SUMMARY = "weekly_summary"
+    MISSION_COMPLETED = "mission_completed"
+    LEVEL_UP = "level_up"
+
+
+class AchievementRarity(str, enum.Enum):
+    COMMON = "common"
+    RARE = "rare"
+    EPIC = "epic"
+    LEGENDARY = "legendary"
+
+
+class LeaderboardType(str, enum.Enum):
+    WEEKLY = "weekly"
+    MONTHLY = "monthly"
+    ALLTIME = "alltime"
+    CHARITY = "charity"
+
+
+class MissionType(str, enum.Enum):
+    SUBMIT_REVIEWS = "submit_reviews"
+    REFER_FRIENDS = "refer_friends"
+    COMPLETE_PROFILE = "complete_profile"
+    SPIN_WHEEL = "spin_wheel"
+    CHARITY_DONATION = "charity_donation"
+
+
+class FraudSignalType(str, enum.Enum):
+    DUPLICATE_ORDER = "duplicate_order"
+    IMAGE_SIMILARITY = "image_similarity"
+    VELOCITY_LIMIT = "velocity_limit"
+    BOT_BEHAVIOR = "bot_behavior"
+    NEW_ACCOUNT = "new_account"
+    CLUSTER_MATCH = "cluster_match"
 
 
 # ─── Models ───────────────────────────────────────────────────────────────────
@@ -87,6 +124,10 @@ class User(Base):
     spins: Mapped[List["PrizeSpin"]] = relationship(back_populates="user")
     rewards: Mapped[List["Reward"]] = relationship(back_populates="user")
     donations: Mapped[List["CharityDonation"]] = relationship(back_populates="user")
+    streak: Mapped[Optional["UserStreak"]] = relationship(back_populates="user", uselist=False)
+    xp: Mapped[Optional["UserXP"]] = relationship(back_populates="user", uselist=False)
+    achievements: Mapped[List["UserAchievement"]] = relationship(back_populates="user")
+    mission_progress: Mapped[List["UserMissionProgress"]] = relationship(back_populates="user")
 
 
 class Product(Base):
@@ -322,3 +363,171 @@ class Notification(Base):
     sent_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
     error: Mapped[Optional[str]] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+# ─── Gamification Models ──────────────────────────────────────────────────────
+
+class Achievement(Base):
+    """Defines achievement types that users can earn."""
+    __tablename__ = "achievements"
+
+    id: Mapped[uuid.UUID] = mapped_column(default=uuid.uuid4, primary_key=True)
+    key: Mapped[str] = mapped_column(String(64), unique=True, nullable=False, index=True)
+    name_uz: Mapped[str] = mapped_column(String(128), nullable=False)
+    name_ru: Mapped[str] = mapped_column(String(128), nullable=False)
+    name_en: Mapped[str] = mapped_column(String(128), nullable=False)
+    description_uz: Mapped[Optional[str]] = mapped_column(Text)
+    description_ru: Mapped[Optional[str]] = mapped_column(Text)
+    description_en: Mapped[Optional[str]] = mapped_column(Text)
+    icon_emoji: Mapped[str] = mapped_column(String(8), default="🏆")
+    xp_reward: Mapped[int] = mapped_column(Integer, default=50)
+    rarity: Mapped[AchievementRarity] = mapped_column(SAEnum(AchievementRarity), default=AchievementRarity.COMMON)
+    # Target value for progressive achievements (e.g., 10 reviews)
+    target_value: Mapped[Optional[int]] = mapped_column(Integer)
+    # Extra spins granted when earned
+    spin_bonus: Mapped[int] = mapped_column(Integer, default=0)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    user_achievements: Mapped[List["UserAchievement"]] = relationship(back_populates="achievement")
+
+
+class UserAchievement(Base):
+    """Tracks which achievements each user has earned."""
+    __tablename__ = "user_achievements"
+
+    id: Mapped[uuid.UUID] = mapped_column(default=uuid.uuid4, primary_key=True)
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"), nullable=False, index=True)
+    achievement_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("achievements.id"), nullable=False)
+    earned_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    progress: Mapped[int] = mapped_column(Integer, default=0)  # for progressive achievements
+    is_new_flag: Mapped[bool] = mapped_column(Boolean, default=True)  # cleared after user sees it
+
+    user: Mapped["User"] = relationship(back_populates="achievements")
+    achievement: Mapped["Achievement"] = relationship(back_populates="user_achievements")
+
+    __table_args__ = (UniqueConstraint("user_id", "achievement_id", name="uq_user_achievement"),)
+
+
+class UserStreak(Base):
+    """Tracks daily submission streaks per user."""
+    __tablename__ = "user_streaks"
+
+    id: Mapped[uuid.UUID] = mapped_column(default=uuid.uuid4, primary_key=True)
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"), nullable=False, unique=True)
+    current_streak: Mapped[int] = mapped_column(Integer, default=0)
+    longest_streak: Mapped[int] = mapped_column(Integer, default=0)
+    last_submission_date: Mapped[Optional[date]] = mapped_column(Date)
+    # Total streak days in lifetime (for achievements)
+    total_days: Mapped[int] = mapped_column(Integer, default=0)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    user: Mapped["User"] = relationship(back_populates="streak")
+
+
+class UserXP(Base):
+    """Tracks XP and level for each user."""
+    __tablename__ = "user_xp"
+
+    id: Mapped[uuid.UUID] = mapped_column(default=uuid.uuid4, primary_key=True)
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"), nullable=False, unique=True)
+    total_xp: Mapped[int] = mapped_column(Integer, default=0)
+    current_level: Mapped[int] = mapped_column(Integer, default=1)
+    # JSONB history: [{date, amount, source, description}]
+    xp_history: Mapped[list] = mapped_column(JSON, default=list)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    user: Mapped["User"] = relationship(back_populates="xp")
+
+
+class DailyMission(Base):
+    """Defines missions generated each day."""
+    __tablename__ = "daily_missions"
+
+    id: Mapped[uuid.UUID] = mapped_column(default=uuid.uuid4, primary_key=True)
+    mission_type: Mapped[MissionType] = mapped_column(SAEnum(MissionType), nullable=False)
+    # {uz: "...", ru: "...", en: "..."}
+    description_i18n: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
+    target: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    reward_spins: Mapped[int] = mapped_column(Integer, default=1)
+    reward_xp: Mapped[int] = mapped_column(Integer, default=25)
+    active_date: Mapped[date] = mapped_column(Date, nullable=False, index=True)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    progress_entries: Mapped[List["UserMissionProgress"]] = relationship(back_populates="mission")
+
+
+class UserMissionProgress(Base):
+    """Tracks a user's progress on a daily mission."""
+    __tablename__ = "user_mission_progress"
+
+    id: Mapped[uuid.UUID] = mapped_column(default=uuid.uuid4, primary_key=True)
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"), nullable=False, index=True)
+    mission_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("daily_missions.id"), nullable=False)
+    progress: Mapped[int] = mapped_column(Integer, default=0)
+    completed_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    reward_claimed: Mapped[bool] = mapped_column(Boolean, default=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    user: Mapped["User"] = relationship(back_populates="mission_progress")
+    mission: Mapped["DailyMission"] = relationship(back_populates="progress_entries")
+
+    __table_args__ = (UniqueConstraint("user_id", "mission_id", name="uq_user_mission"),)
+
+
+class Leaderboard(Base):
+    """Leaderboard snapshots (recomputed periodically)."""
+    __tablename__ = "leaderboards"
+
+    id: Mapped[uuid.UUID] = mapped_column(default=uuid.uuid4, primary_key=True)
+    leaderboard_type: Mapped[LeaderboardType] = mapped_column(SAEnum(LeaderboardType), nullable=False)
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"), nullable=False)
+    score: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    rank: Mapped[int] = mapped_column(Integer, nullable=False)
+    previous_rank: Mapped[Optional[int]] = mapped_column(Integer)  # for rank change arrows
+    period_start: Mapped[date] = mapped_column(Date, nullable=False)
+    period_end: Mapped[Optional[date]] = mapped_column(Date)
+    computed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    user: Mapped["User"] = relationship()
+
+    __table_args__ = (
+        Index("ix_leaderboards_type_period", "leaderboard_type", "period_start"),
+        Index("ix_leaderboards_type_rank", "leaderboard_type", "rank"),
+    )
+
+
+class ShareCard(Base):
+    """Generated share cards for prize wins."""
+    __tablename__ = "share_cards"
+
+    id: Mapped[uuid.UUID] = mapped_column(default=uuid.uuid4, primary_key=True)
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"), nullable=False, index=True)
+    prize_spin_id: Mapped[Optional[uuid.UUID]] = mapped_column(ForeignKey("prize_spins.id"), nullable=True)
+    image_path: Mapped[str] = mapped_column(String(512), nullable=False)
+    clicks: Mapped[int] = mapped_column(Integer, default=0)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    user: Mapped["User"] = relationship()
+
+
+class FraudSignal(Base):
+    """Anti-fraud signals flagged per user."""
+    __tablename__ = "fraud_signals"
+
+    id: Mapped[uuid.UUID] = mapped_column(default=uuid.uuid4, primary_key=True)
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"), nullable=False, index=True)
+    signal_type: Mapped[FraudSignalType] = mapped_column(SAEnum(FraudSignalType), nullable=False)
+    # Score contribution (0-100 scale)
+    score: Mapped[int] = mapped_column(Integer, nullable=False, default=10)
+    # Evidence JSON (order numbers, image hashes, etc.)
+    evidence: Mapped[dict] = mapped_column(JSON, default=dict)
+    detected_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), index=True)
+    reviewed_by: Mapped[Optional[uuid.UUID]] = mapped_column(ForeignKey("admin_users.id"), nullable=True)
+    reviewed_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    is_false_positive: Mapped[bool] = mapped_column(Boolean, default=False)
+
+    user: Mapped["User"] = relationship()
+
+    __table_args__ = (Index("ix_fraud_signals_user_type", "user_id", "signal_type"),)

@@ -1,13 +1,15 @@
 import { useState, useEffect, useCallback } from 'react'
 import { Outlet, Navigate, useNavigate, useLocation } from 'react-router-dom'
+import { useQuery } from '@tanstack/react-query'
 import Sidebar from './Sidebar'
 import { useAuth } from '@/hooks/useAuth'
 import { useTheme } from '@/hooks/useTheme'
 import { useViewPreferences } from '@/hooks/useViewPreferences'
+import { getAnalyticsOverview } from '@/api'
 import {
-  Menu, Search, LogOut, X, ChevronRight,
+  Menu, Search, LogOut, X, ChevronRight, Bell,
   LayoutDashboard, FileCheck, Users, Package, Trophy, Heart,
-  Megaphone, BarChart3, ScrollText, ShieldCheck, Settings,
+  Megaphone, TrendingUp, ScrollText, ShieldCheck, Settings, ShieldAlert, Gift,
 } from 'lucide-react'
 import ThemeToggle from '@/components/ui/ThemeToggle'
 import { cn } from '@/lib/utils'
@@ -15,16 +17,18 @@ import { cn } from '@/lib/utils'
 /* ── Command palette items ── */
 const COMMAND_ITEMS = [
   { path: '/', label: 'Dashboard', icon: LayoutDashboard, section: 'Overview' },
-  { path: '/submissions', label: 'Submissions', icon: FileCheck, section: 'Management' },
-  { path: '/users', label: 'Users', icon: Users, section: 'Management' },
-  { path: '/products', label: 'Products', icon: Package, section: 'Management' },
-  { path: '/prizes', label: 'Prizes', icon: Trophy, section: 'Management' },
-  { path: '/charity', label: 'Charity', icon: Heart, section: 'Engagement' },
-  { path: '/broadcast', label: 'Broadcast', icon: Megaphone, section: 'Engagement' },
-  { path: '/reports', label: 'Reports', icon: BarChart3, section: 'System' },
-  { path: '/audit', label: 'Audit Log', icon: ScrollText, section: 'System' },
+  { path: '/submissions', label: 'Submissions', icon: FileCheck, section: 'Content' },
+  { path: '/products', label: 'Products', icon: Package, section: 'Content' },
+  { path: '/prizes', label: 'Prizes', icon: Trophy, section: 'Commerce' },
+  { path: '/reports', label: 'Rewards', icon: Gift, section: 'Commerce' },
+  { path: '/users', label: 'Users', icon: Users, section: 'Community' },
+  { path: '/charity', label: 'Charity', icon: Heart, section: 'Community' },
+  { path: '/broadcast', label: 'Broadcast', icon: Megaphone, section: 'Community' },
+  { path: '/analytics', label: 'Analytics', icon: TrendingUp, section: 'Analytics' },
   { path: '/admins', label: 'Admins', icon: ShieldCheck, section: 'System' },
   { path: '/settings', label: 'Settings', icon: Settings, section: 'System' },
+  { path: '/audit', label: 'Audit Log', icon: ScrollText, section: 'System' },
+  { path: '/fraud', label: 'Fraud Signals', icon: ShieldAlert, section: 'System' },
 ]
 
 const ROUTE_LABELS: Record<string, string> = {
@@ -33,12 +37,14 @@ const ROUTE_LABELS: Record<string, string> = {
   '/users': 'Users',
   '/products': 'Products',
   '/prizes': 'Prizes',
+  '/reports': 'Rewards',
   '/charity': 'Charity',
   '/broadcast': 'Broadcast',
-  '/reports': 'Reports',
+  '/analytics': 'Analytics',
   '/audit': 'Audit Log',
   '/admins': 'Admins',
   '/settings': 'Settings',
+  '/fraud': 'Fraud Signals',
 }
 
 /* ── Command Palette ── */
@@ -186,6 +192,17 @@ export default function AppLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [showPalette, setShowPalette] = useState(false)
   const [showUserMenu, setShowUserMenu] = useState(false)
+  const [showNotifications, setShowNotifications] = useState(false)
+
+  const { data: overview } = useQuery({
+    queryKey: ['analytics-overview'],
+    queryFn: () => getAnalyticsOverview().then((r) => r.data),
+    refetchInterval: 60_000,
+    staleTime: 30_000,
+  })
+
+  const notificationCount =
+    (overview?.pending_submissions ?? 0) + (overview?.fraud_review_count ?? 0)
 
   const currentPageLabel = ROUTE_LABELS[location.pathname] || 'Page'
 
@@ -202,6 +219,7 @@ export default function AppLayout() {
       if (e.key === 'Escape') {
         setShowPalette(false)
         setShowUserMenu(false)
+        setShowNotifications(false)
         return
       }
     },
@@ -213,13 +231,16 @@ export default function AppLayout() {
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [handleKeyDown])
 
-  // Close user menu on click outside
+  // Close menus on click outside
   useEffect(() => {
-    if (!showUserMenu) return
-    const handleClick = () => setShowUserMenu(false)
+    if (!showUserMenu && !showNotifications) return
+    const handleClick = () => {
+      setShowUserMenu(false)
+      setShowNotifications(false)
+    }
     window.addEventListener('click', handleClick)
     return () => window.removeEventListener('click', handleClick)
-  }, [showUserMenu])
+  }, [showUserMenu, showNotifications])
 
   if (!token) return <Navigate to="/login" replace />
 
@@ -248,7 +269,7 @@ export default function AppLayout() {
             </nav>
           </div>
 
-          {/* Right: search + theme + avatar */}
+          {/* Right: search + notifications + theme + avatar */}
           <div className="flex items-center gap-2">
             {/* Search trigger */}
             <button
@@ -263,6 +284,79 @@ export default function AppLayout() {
               </kbd>
             </button>
 
+            {/* Notifications bell */}
+            <div className="relative">
+              <button
+                onClick={(e) => {
+                  e.stopPropagation()
+                  setShowNotifications((s) => !s)
+                  setShowUserMenu(false)
+                }}
+                className="relative p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+                title="Notifications"
+              >
+                <Bell size={18} />
+                {notificationCount > 0 && (
+                  <span className="absolute top-1 right-1 w-4 h-4 rounded-full bg-orange-500 text-white text-[9px] font-bold flex items-center justify-center leading-none shadow-sm">
+                    {notificationCount > 9 ? '9+' : notificationCount}
+                  </span>
+                )}
+              </button>
+
+              {/* Notifications dropdown */}
+              {showNotifications && (
+                <div
+                  className="absolute right-0 top-full mt-2 w-72 bg-popover text-popover-foreground border border-border rounded-xl shadow-xl shadow-black/10 py-1 z-50 overflow-hidden"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <div className="px-4 py-2.5 border-b border-border flex items-center justify-between">
+                    <p className="text-sm font-semibold">Notifications</p>
+                    {notificationCount > 0 && (
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-orange-500/10 text-orange-500">
+                        {notificationCount} new
+                      </span>
+                    )}
+                  </div>
+                  <div className="py-1 max-h-64 overflow-y-auto">
+                    {(overview?.pending_submissions ?? 0) > 0 && (
+                      <button
+                        onClick={() => { navigate('/submissions'); setShowNotifications(false) }}
+                        className="w-full flex items-start gap-3 px-4 py-2.5 text-left hover:bg-accent transition-colors"
+                      >
+                        <span className="w-2 h-2 mt-1.5 rounded-full bg-orange-500 shrink-0" />
+                        <div>
+                          <p className="text-sm font-medium">
+                            {overview?.pending_submissions} pending submissions
+                          </p>
+                          <p className="text-xs text-muted-foreground">Awaiting review</p>
+                        </div>
+                      </button>
+                    )}
+                    {(overview?.fraud_review_count ?? 0) > 0 && (
+                      <button
+                        onClick={() => { navigate('/fraud'); setShowNotifications(false) }}
+                        className="w-full flex items-start gap-3 px-4 py-2.5 text-left hover:bg-accent transition-colors"
+                      >
+                        <span className="w-2 h-2 mt-1.5 rounded-full bg-red-500 shrink-0" />
+                        <div>
+                          <p className="text-sm font-medium">
+                            {overview?.fraud_review_count} fraud signals
+                          </p>
+                          <p className="text-xs text-muted-foreground">Require manual review</p>
+                        </div>
+                      </button>
+                    )}
+                    {notificationCount === 0 && (
+                      <div className="flex flex-col items-center py-6 gap-1.5">
+                        <Bell size={20} className="text-muted-foreground/30" />
+                        <p className="text-xs text-muted-foreground">All caught up</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+
             {/* Theme toggle — desktop */}
             <div className="hidden sm:block">
               <ThemeToggle />
@@ -274,6 +368,7 @@ export default function AppLayout() {
                 onClick={(e) => {
                   e.stopPropagation()
                   setShowUserMenu((s) => !s)
+                  setShowNotifications(false)
                 }}
                 className="relative w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold transition-all hover:scale-105 uzum-gradient text-white shadow-sm"
                 title="Account"
@@ -284,7 +379,7 @@ export default function AppLayout() {
               {/* Dropdown menu */}
               {showUserMenu && (
                 <div
-                  className="absolute right-0 top-full mt-2 w-52 bg-popover text-popover-foreground border border-border rounded-xl shadow-xl shadow-black/10 py-1 z-50 animate-scale-in overflow-hidden"
+                  className="absolute right-0 top-full mt-2 w-52 bg-popover text-popover-foreground border border-border rounded-xl shadow-xl shadow-black/10 py-1 z-50 overflow-hidden"
                   onClick={(e) => e.stopPropagation()}
                 >
                   {/* User info */}

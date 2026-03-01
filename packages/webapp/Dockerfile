@@ -1,6 +1,9 @@
 # Build stage
 FROM node:20-alpine AS builder
 
+ARG VITE_BOT_USERNAME=UzumReviewBot
+ENV VITE_BOT_USERNAME=$VITE_BOT_USERNAME
+
 WORKDIR /app
 COPY package.json ./
 RUN npm install --legacy-peer-deps
