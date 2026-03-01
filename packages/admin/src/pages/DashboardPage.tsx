@@ -2,10 +2,12 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+  LineChart, Line,
 } from 'recharts'
 import {
   Users, FileText, CheckCircle2, Dices, Gift, HeartHandshake,
   RefreshCw, ArrowRight, TrendingUp, TrendingDown, Activity,
+  Zap, Star, BarChart3, Clock, ChevronRight,
 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { getAnalyticsOverview, getAnalyticsChart, getSubmissions } from '@/api'
@@ -63,6 +65,27 @@ function AnimatedCounter({ value, duration = 1200, formatter }: {
   return <>{formatter ? formatter(display) : formatNumber(display)}</>
 }
 
+/* ── Sparkline (mini chart per KPI) ── */
+
+function Sparkline({ data, color }: { data: number[]; color: string }) {
+  if (!data || data.length < 2) return null
+  const chartData = data.map((v, i) => ({ i, v }))
+  return (
+    <ResponsiveContainer width="100%" height={40}>
+      <LineChart data={chartData} margin={{ top: 2, right: 2, left: 2, bottom: 2 }}>
+        <Line
+          type="monotone"
+          dataKey="v"
+          stroke={color}
+          strokeWidth={1.5}
+          dot={false}
+          activeDot={false}
+        />
+      </LineChart>
+    </ResponsiveContainer>
+  )
+}
+
 /* ── KPI Card ── */
 
 interface KpiCardProps {
@@ -70,36 +93,68 @@ interface KpiCardProps {
   value: number
   icon: React.ElementType
   accentColor: string
+  gradientFrom: string
+  gradientTo: string
   iconBg: string
   iconColor: string
   trend?: number
   formatter?: (n: number) => string
+  sparkData?: number[]
+  sparkColor?: string
+  onClick?: () => void
 }
 
-function KpiCard({ label, value, icon: Icon, accentColor, iconBg, iconColor, trend, formatter }: KpiCardProps) {
+function KpiCard({
+  label, value, icon: Icon, accentColor, gradientFrom, gradientTo,
+  iconBg, iconColor, trend, formatter, sparkData, sparkColor, onClick,
+}: KpiCardProps) {
   return (
-    <div className="relative group overflow-hidden rounded-xl border border-border bg-card transition-all duration-200 hover:shadow-card-hover hover:border-primary/15">
-      {/* Top accent line */}
-      <div className={cn('absolute top-0 left-0 right-0 h-[2px]', accentColor)} />
+    <div
+      className={cn(
+        'relative group overflow-hidden rounded-xl border border-border bg-card transition-all duration-300',
+        'hover:shadow-card-hover hover:border-primary/20 hover:-translate-y-0.5',
+        onClick && 'cursor-pointer',
+      )}
+      onClick={onClick}
+    >
+      {/* Gradient top accent */}
+      <div
+        className="absolute top-0 left-0 right-0 h-[3px]"
+        style={{ background: `linear-gradient(90deg, ${gradientFrom}, ${gradientTo})` }}
+      />
 
-      <div className="p-4 pt-5">
-        <div className="flex items-start justify-between">
-          <div className="space-y-1.5">
-            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{label}</p>
+      {/* Subtle gradient fill */}
+      <div
+        className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"
+        style={{ background: `radial-gradient(ellipse at top left, ${gradientFrom}08, transparent 70%)` }}
+      />
+
+      <div className="relative p-4 pt-5">
+        <div className="flex items-start justify-between mb-2">
+          <div className="space-y-1.5 min-w-0">
+            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide truncate">{label}</p>
             <p className="text-2xl font-bold tracking-tight text-foreground">
               <AnimatedCounter value={value} formatter={formatter} />
             </p>
           </div>
           <div className={cn(
-            'w-10 h-10 rounded-xl flex items-center justify-center shrink-0 transition-transform duration-200 group-hover:scale-110',
+            'w-10 h-10 rounded-xl flex items-center justify-center shrink-0 transition-all duration-300',
+            'group-hover:scale-110 group-hover:shadow-md',
             iconBg,
           )}>
             <Icon className={cn('w-5 h-5', iconColor)} />
           </div>
         </div>
+
+        {sparkData && sparkData.length > 1 && (
+          <div className="mt-1 -mx-1">
+            <Sparkline data={sparkData} color={sparkColor ?? gradientFrom} />
+          </div>
+        )}
+
         {trend !== undefined && (
           <div className={cn(
-            'flex items-center gap-1 mt-3 text-xs font-medium',
+            'flex items-center gap-1 mt-1.5 text-xs font-medium',
             trend >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400',
           )}>
             {trend >= 0 ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
@@ -129,6 +184,43 @@ function ChartTooltip({ active, payload, label }: any) {
   )
 }
 
+/* ── Quick Action Button ── */
+
+function QuickAction({ icon: Icon, label, sub, color, onClick }: {
+  icon: React.ElementType
+  label: string
+  sub?: string
+  color: string
+  onClick: () => void
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className="group flex items-center gap-3 rounded-xl border border-border bg-card px-4 py-3 text-left transition-all duration-200 hover:shadow-card-hover hover:border-primary/20 hover:-translate-y-0.5 w-full"
+    >
+      <div className={cn('w-9 h-9 rounded-lg flex items-center justify-center shrink-0 transition-transform duration-200 group-hover:scale-110', color)}>
+        <Icon className="w-4 h-4" />
+      </div>
+      <div className="min-w-0 flex-1">
+        <p className="text-sm font-medium text-foreground truncate">{label}</p>
+        {sub && <p className="text-xs text-muted-foreground truncate">{sub}</p>}
+      </div>
+      <ChevronRight className="w-4 h-4 text-muted-foreground/50 group-hover:text-primary group-hover:translate-x-0.5 transition-all duration-200 shrink-0" />
+    </button>
+  )
+}
+
+/* ── Live Pulse Dot ── */
+
+function PulseDot({ color = 'bg-emerald-500' }: { color?: string }) {
+  return (
+    <span className="relative flex h-2 w-2">
+      <span className={cn('animate-ping absolute inline-flex h-full w-full rounded-full opacity-75', color)} />
+      <span className={cn('relative inline-flex rounded-full h-2 w-2', color)} />
+    </span>
+  )
+}
+
 /* ── Status helpers ── */
 
 const statusVariantMap: Record<string, 'warning' | 'success' | 'error' | 'neutral'> = {
@@ -136,6 +228,21 @@ const statusVariantMap: Record<string, 'warning' | 'success' | 'error' | 'neutra
   APPROVED: 'success',
   REJECTED: 'error',
   DUPLICATE: 'neutral',
+}
+
+const avatarColors = [
+  'bg-violet-100 dark:bg-violet-500/20 text-violet-700 dark:text-violet-300',
+  'bg-blue-100 dark:bg-blue-500/20 text-blue-700 dark:text-blue-300',
+  'bg-emerald-100 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300',
+  'bg-amber-100 dark:bg-amber-500/20 text-amber-700 dark:text-amber-300',
+  'bg-pink-100 dark:bg-pink-500/20 text-pink-700 dark:text-pink-300',
+  'bg-teal-100 dark:bg-teal-500/20 text-teal-700 dark:text-teal-300',
+]
+
+function getAvatarColor(name: string) {
+  let hash = 0
+  for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash)
+  return avatarColors[Math.abs(hash) % avatarColors.length]
 }
 
 /* ── Dashboard Page ── */
@@ -146,8 +253,15 @@ export default function DashboardPage() {
   const dc = densityClasses[density]
   const view = getView('dashboard-activity', 'table')
   const [chartDays, setChartDays] = useState(30)
+  const [now, setNow] = useState(new Date())
 
-  const { data: overview, refetch: refetchOverview, isFetching } = useQuery({
+  // Keep a live clock for "last updated" display
+  useEffect(() => {
+    const id = setInterval(() => setNow(new Date()), 30_000)
+    return () => clearInterval(id)
+  }, [])
+
+  const { data: overview, refetch: refetchOverview, isFetching, dataUpdatedAt } = useQuery({
     queryKey: ['admin-overview'],
     queryFn: () => getAnalyticsOverview().then((r) => r.data),
     refetchInterval: 60_000,
@@ -165,6 +279,15 @@ export default function DashboardPage() {
 
   const chartData = chart?.daily ?? []
   const recentItems = recentSubs?.items ?? []
+  const pendingCount = recentItems.filter((s: any) => s.status === 'PENDING').length
+
+  // Build sparklines from chart data (last N values of each series)
+  const usersSpark = chartData.slice(-10).map((d: any) => d.total ?? 0)
+  const approvedSpark = chartData.slice(-10).map((d: any) => d.approved ?? 0)
+
+  const lastUpdated = dataUpdatedAt
+    ? new Date(dataUpdatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    : null
 
   const kpis: KpiCardProps[] = [
     {
@@ -172,30 +295,46 @@ export default function DashboardPage() {
       value: overview?.total_users ?? 0,
       icon: Users,
       accentColor: 'bg-blue-500',
+      gradientFrom: '#3b82f6',
+      gradientTo: '#06b6d4',
       iconBg: 'bg-blue-50 dark:bg-blue-500/10',
       iconColor: 'text-blue-600 dark:text-blue-400',
+      sparkData: usersSpark,
+      sparkColor: '#3b82f6',
+      onClick: () => navigate('/users'),
     },
     {
       label: 'Submissions',
       value: overview?.total_submissions ?? 0,
       icon: FileText,
       accentColor: 'bg-primary',
+      gradientFrom: '#7000FF',
+      gradientTo: '#e8007c',
       iconBg: 'bg-violet-50 dark:bg-violet-500/10',
       iconColor: 'text-violet-600 dark:text-violet-400',
+      sparkData: chartData.slice(-10).map((d: any) => d.total ?? 0),
+      sparkColor: '#7000FF',
+      onClick: () => navigate('/submissions'),
     },
     {
       label: 'Approved',
       value: overview?.approved_submissions ?? 0,
       icon: CheckCircle2,
       accentColor: 'bg-emerald-500',
+      gradientFrom: '#10b981',
+      gradientTo: '#06b6d4',
       iconBg: 'bg-emerald-50 dark:bg-emerald-500/10',
       iconColor: 'text-emerald-600 dark:text-emerald-400',
+      sparkData: approvedSpark,
+      sparkColor: '#10b981',
     },
     {
       label: 'Total Spins',
       value: overview?.total_spins ?? 0,
       icon: Dices,
       accentColor: 'bg-amber-500',
+      gradientFrom: '#f59e0b',
+      gradientTo: '#ef4444',
       iconBg: 'bg-amber-50 dark:bg-amber-500/10',
       iconColor: 'text-amber-600 dark:text-amber-400',
     },
@@ -204,17 +343,23 @@ export default function DashboardPage() {
       value: overview?.total_rewards ?? 0,
       icon: Gift,
       accentColor: 'bg-pink-500',
+      gradientFrom: '#e8007c',
+      gradientTo: '#7000FF',
       iconBg: 'bg-pink-50 dark:bg-pink-500/10',
       iconColor: 'text-pink-600 dark:text-pink-400',
+      onClick: () => navigate('/rewards'),
     },
     {
       label: 'Charity Donated',
       value: overview?.total_charity_amount ?? 0,
       icon: HeartHandshake,
       accentColor: 'bg-teal-500',
+      gradientFrom: '#14b8a6',
+      gradientTo: '#06b6d4',
       iconBg: 'bg-teal-50 dark:bg-teal-500/10',
       iconColor: 'text-teal-600 dark:text-teal-400',
       formatter: (n: number) => formatNumber(n) + ' UZS',
+      onClick: () => navigate('/charity'),
     },
   ]
 
@@ -226,26 +371,120 @@ export default function DashboardPage() {
         description="Overview of platform activity and key metrics"
         icon={<Activity className="w-5 h-5 text-primary" />}
         actions={
-          <button
-            onClick={() => refetchOverview()}
-            disabled={isFetching}
-            className={cn(
-              'inline-flex items-center gap-2 rounded-xl border border-border bg-card px-4 py-2 text-xs font-medium text-muted-foreground transition-all',
-              'hover:text-foreground hover:border-primary/30 hover:shadow-sm',
-              'disabled:opacity-50',
+          <div className="flex items-center gap-3">
+            {lastUpdated && (
+              <div className="hidden sm:flex items-center gap-1.5 text-xs text-muted-foreground">
+                <Clock className="w-3 h-3" />
+                Updated {lastUpdated}
+              </div>
             )}
-          >
-            <RefreshCw className={cn('w-3.5 h-3.5', isFetching && 'animate-spin')} />
-            Refresh
-          </button>
+            <button
+              onClick={() => refetchOverview()}
+              disabled={isFetching}
+              className={cn(
+                'inline-flex items-center gap-2 rounded-xl border border-border bg-card px-4 py-2 text-xs font-medium text-muted-foreground transition-all',
+                'hover:text-foreground hover:border-primary/30 hover:shadow-sm',
+                'disabled:opacity-50',
+              )}
+            >
+              <RefreshCw className={cn('w-3.5 h-3.5', isFetching && 'animate-spin')} />
+              Refresh
+            </button>
+          </div>
         }
       />
+
+      {/* Hero banner */}
+      <div className="relative overflow-hidden rounded-xl border border-border bg-card">
+        <div
+          className="absolute inset-0 opacity-[0.07]"
+          style={{ background: 'linear-gradient(135deg, #7000FF 0%, #e8007c 50%, #f59e0b 100%)' }}
+        />
+        <div className="absolute -top-8 -right-8 w-40 h-40 rounded-full opacity-10 blur-2xl"
+          style={{ background: 'radial-gradient(circle, #7000FF, transparent)' }} />
+        <div className="absolute -bottom-6 -left-6 w-32 h-32 rounded-full opacity-10 blur-2xl"
+          style={{ background: 'radial-gradient(circle, #e8007c, transparent)' }} />
+
+        <div className="relative px-5 py-4 flex items-center justify-between flex-wrap gap-4">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl uzum-gradient flex items-center justify-center shadow-md">
+              <Zap className="w-5 h-5 text-white" />
+            </div>
+            <div>
+              <h2 className="text-sm font-semibold text-foreground">Platform Live</h2>
+              <div className="flex items-center gap-2 mt-0.5">
+                <PulseDot color="bg-emerald-500" />
+                <span className="text-xs text-muted-foreground">All systems operational</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-6 flex-wrap">
+            <div className="text-center">
+              <p className="text-lg font-bold text-foreground">
+                {overview ? Math.round((overview.approved_submissions / Math.max(overview.total_submissions, 1)) * 100) : 0}%
+              </p>
+              <p className="text-[11px] text-muted-foreground">Approval rate</p>
+            </div>
+            <div className="text-center">
+              <p className="text-lg font-bold text-foreground">
+                {formatNumber(overview?.total_users ?? 0)}
+              </p>
+              <p className="text-[11px] text-muted-foreground">Total users</p>
+            </div>
+            <div className="text-center">
+              <p className="text-lg font-bold uzum-gradient-text">
+                {formatNumber(overview?.total_spins ?? 0)}
+              </p>
+              <p className="text-[11px] text-muted-foreground">Spins issued</p>
+            </div>
+          </div>
+        </div>
+      </div>
 
       {/* KPI Grid */}
       <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
         {kpis.map((kpi) => (
           <KpiCard key={kpi.label} {...kpi} />
         ))}
+      </div>
+
+      {/* Quick Actions */}
+      <div>
+        <div className="flex items-center gap-2 mb-3">
+          <Star className="w-4 h-4 text-primary" />
+          <h2 className="text-sm font-semibold text-foreground">Quick Actions</h2>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
+          <QuickAction
+            icon={FileText}
+            label="Review Submissions"
+            sub={pendingCount > 0 ? `${pendingCount} pending` : 'All caught up'}
+            color="bg-violet-100 dark:bg-violet-500/15 text-violet-600 dark:text-violet-400"
+            onClick={() => navigate('/submissions')}
+          />
+          <QuickAction
+            icon={Users}
+            label="Manage Users"
+            sub={`${formatNumber(overview?.total_users ?? 0)} registered`}
+            color="bg-blue-100 dark:bg-blue-500/15 text-blue-600 dark:text-blue-400"
+            onClick={() => navigate('/users')}
+          />
+          <QuickAction
+            icon={BarChart3}
+            label="Analytics"
+            sub="View detailed reports"
+            color="bg-amber-100 dark:bg-amber-500/15 text-amber-600 dark:text-amber-400"
+            onClick={() => navigate('/analytics')}
+          />
+          <QuickAction
+            icon={Gift}
+            label="Rewards"
+            sub={`${formatNumber(overview?.total_rewards ?? 0)} issued`}
+            color="bg-pink-100 dark:bg-pink-500/15 text-pink-600 dark:text-pink-400"
+            onClick={() => navigate('/rewards')}
+          />
+        </div>
       </div>
 
       {/* Chart Section */}
@@ -279,12 +518,17 @@ export default function DashboardPage() {
               <AreaChart data={chartData} margin={{ top: 5, right: 5, left: -15, bottom: 0 }}>
                 <defs>
                   <linearGradient id="gradTotal" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="hsl(266, 100%, 50%)" stopOpacity={0.2} />
-                    <stop offset="95%" stopColor="hsl(266, 100%, 50%)" stopOpacity={0} />
+                    <stop offset="0%" stopColor="#7000FF" stopOpacity={0.35} />
+                    <stop offset="60%" stopColor="#e8007c" stopOpacity={0.1} />
+                    <stop offset="100%" stopColor="#7000FF" stopOpacity={0} />
                   </linearGradient>
                   <linearGradient id="gradApproved" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#10b981" stopOpacity={0.2} />
-                    <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
+                    <stop offset="0%" stopColor="#10b981" stopOpacity={0.3} />
+                    <stop offset="100%" stopColor="#10b981" stopOpacity={0} />
+                  </linearGradient>
+                  <linearGradient id="strokeGradTotal" x1="0" y1="0" x2="1" y2="0">
+                    <stop offset="0%" stopColor="#7000FF" />
+                    <stop offset="100%" stopColor="#e8007c" />
                   </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
@@ -305,12 +549,12 @@ export default function DashboardPage() {
                 <Area
                   type="monotone"
                   dataKey="total"
-                  stroke="hsl(266, 100%, 50%)"
-                  strokeWidth={2}
+                  stroke="url(#strokeGradTotal)"
+                  strokeWidth={2.5}
                   fill="url(#gradTotal)"
                   name="Total"
                   dot={false}
-                  activeDot={{ r: 4, strokeWidth: 2 }}
+                  activeDot={{ r: 5, strokeWidth: 2, stroke: '#7000FF', fill: '#fff' }}
                 />
                 <Area
                   type="monotone"
@@ -320,7 +564,7 @@ export default function DashboardPage() {
                   fill="url(#gradApproved)"
                   name="Approved"
                   dot={false}
-                  activeDot={{ r: 4, strokeWidth: 2 }}
+                  activeDot={{ r: 4, strokeWidth: 2, stroke: '#10b981', fill: '#fff' }}
                 />
               </AreaChart>
             </ResponsiveContainer>
@@ -334,11 +578,11 @@ export default function DashboardPage() {
           {chartData.length > 0 && (
             <div className="flex items-center justify-center gap-6 mt-4 text-xs text-muted-foreground">
               <span className="flex items-center gap-2">
-                <span className="w-3 h-[3px] rounded-full bg-primary inline-block" />
-                Total
+                <span className="w-4 h-[3px] rounded-full inline-block" style={{ background: 'linear-gradient(90deg, #7000FF, #e8007c)' }} />
+                Total submissions
               </span>
               <span className="flex items-center gap-2">
-                <span className="w-3 h-[3px] rounded-full bg-emerald-500 inline-block" />
+                <span className="w-4 h-[3px] rounded-full bg-emerald-500 inline-block" />
                 Approved
               </span>
             </div>
@@ -349,9 +593,17 @@ export default function DashboardPage() {
       {/* Recent Activity */}
       <div className="rounded-xl border border-border bg-card overflow-hidden">
         <div className="flex items-center justify-between px-5 py-4 border-b border-border">
-          <div>
-            <h2 className="text-sm font-semibold text-foreground">Recent Activity</h2>
-            <p className="text-xs text-muted-foreground mt-0.5">Latest submission updates</p>
+          <div className="flex items-center gap-3">
+            <div>
+              <h2 className="text-sm font-semibold text-foreground">Recent Activity</h2>
+              <p className="text-xs text-muted-foreground mt-0.5">Latest submission updates</p>
+            </div>
+            {pendingCount > 0 && (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-amber-100 dark:bg-amber-500/15 text-amber-700 dark:text-amber-400">
+                <PulseDot color="bg-amber-500" />
+                {pendingCount} pending
+              </span>
+            )}
           </div>
           <div className="flex items-center gap-3">
             <ViewToggle
@@ -385,63 +637,73 @@ export default function DashboardPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
-                {recentItems.map((s: any) => (
-                  <tr
-                    key={s.id}
-                    className="hover:bg-muted/30 transition-colors cursor-pointer group"
-                    onClick={() => navigate('/submissions')}
-                  >
-                    <td className={dc.padding}>
-                      <div className="flex items-center gap-2.5">
-                        <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-xs font-bold text-primary shrink-0">
-                          {(s.user?.first_name ?? '?')[0].toUpperCase()}
+                {recentItems.map((s: any) => {
+                  const name = s.user?.first_name ?? '?'
+                  return (
+                    <tr
+                      key={s.id}
+                      className="hover:bg-muted/30 transition-colors cursor-pointer group"
+                      onClick={() => navigate('/submissions')}
+                    >
+                      <td className={dc.padding}>
+                        <div className="flex items-center gap-2.5">
+                          <div className={cn(
+                            'w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold shrink-0 transition-transform duration-200 group-hover:scale-110',
+                            getAvatarColor(name),
+                          )}>
+                            {name[0].toUpperCase()}
+                          </div>
+                          <span className="font-medium text-foreground truncate group-hover:text-primary transition-colors">
+                            {name} {s.user?.last_name ?? ''}
+                          </span>
                         </div>
-                        <span className="font-medium text-foreground truncate group-hover:text-primary transition-colors">
-                          {s.user?.first_name ?? 'User'} {s.user?.last_name ?? ''}
-                        </span>
-                      </div>
-                    </td>
-                    <td className={cn(dc.padding, 'text-muted-foreground')}>
-                      {s.product?.name_en ?? s.product?.name_uz ?? '—'}
-                    </td>
-                    <td className={dc.padding}>
-                      <StatusBadge variant={statusVariantMap[s.status] ?? 'neutral'} dot size="sm">
-                        {s.status}
-                      </StatusBadge>
-                    </td>
-                    <td className={cn(dc.padding, 'text-muted-foreground whitespace-nowrap')}>
-                      {formatDate(s.created_at)}
-                    </td>
-                  </tr>
-                ))}
+                      </td>
+                      <td className={cn(dc.padding, 'text-muted-foreground')}>
+                        {s.product?.name_en ?? s.product?.name_uz ?? '—'}
+                      </td>
+                      <td className={dc.padding}>
+                        <StatusBadge variant={statusVariantMap[s.status] ?? 'neutral'} dot size="sm">
+                          {s.status}
+                        </StatusBadge>
+                      </td>
+                      <td className={cn(dc.padding, 'text-muted-foreground whitespace-nowrap')}>
+                        {formatDate(s.created_at)}
+                      </td>
+                    </tr>
+                  )
+                })}
               </tbody>
             </table>
           </div>
         ) : (
           <div className={cn('p-4 grid gap-3', dc.gridCols)}>
-            {recentItems.map((s: any) => (
-              <DataCard key={s.id} onClick={() => navigate('/submissions')} padding="sm">
-                <div className="flex items-center gap-2.5 mb-3">
-                  <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-xs font-bold text-primary shrink-0">
-                    {(s.user?.first_name ?? '?')[0].toUpperCase()}
+            {recentItems.map((s: any) => {
+              const name = s.user?.first_name ?? '?'
+              return (
+                <DataCard key={s.id} onClick={() => navigate('/submissions')} padding="sm">
+                  <div className="flex items-center gap-2.5 mb-3">
+                    <div className={cn(
+                      'w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold shrink-0',
+                      getAvatarColor(name),
+                    )}>
+                      {name[0].toUpperCase()}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-foreground truncate">{name}</p>
+                      <p className="text-xs text-muted-foreground truncate">
+                        {s.product?.name_en ?? s.product?.name_uz ?? '—'}
+                      </p>
+                    </div>
                   </div>
-                  <div className="min-w-0">
-                    <p className="text-sm font-medium text-foreground truncate">
-                      {s.user?.first_name ?? 'User'}
-                    </p>
-                    <p className="text-xs text-muted-foreground truncate">
-                      {s.product?.name_en ?? s.product?.name_uz ?? '—'}
-                    </p>
+                  <div className="flex items-center justify-between">
+                    <StatusBadge variant={statusVariantMap[s.status] ?? 'neutral'} dot size="sm">
+                      {s.status}
+                    </StatusBadge>
+                    <span className="text-[11px] text-muted-foreground">{formatDate(s.created_at)}</span>
                   </div>
-                </div>
-                <div className="flex items-center justify-between">
-                  <StatusBadge variant={statusVariantMap[s.status] ?? 'neutral'} dot size="sm">
-                    {s.status}
-                  </StatusBadge>
-                  <span className="text-[11px] text-muted-foreground">{formatDate(s.created_at)}</span>
-                </div>
-              </DataCard>
-            ))}
+                </DataCard>
+              )
+            })}
           </div>
         )}
       </div>

@@ -76,8 +76,11 @@ async def cmd_start(message: Message, lang: str, bot: Bot):
         key = "start.welcome"
         text = t(key, lang, name=name)
     else:
-        key = "start.returning"
-        text = t(key, lang, name=name, spin_count=spin_count, approved=approved)
+        if spin_count > 0:
+            spin_cta = t("start.returning_spin_cta", lang, spin_count=spin_count)
+        else:
+            spin_cta = t("start.returning_no_spin_cta", lang)
+        text = t("start.returning", lang, name=name, spin_count=spin_count, approved=approved, spin_cta=spin_cta)
 
     await message.answer(
         text,

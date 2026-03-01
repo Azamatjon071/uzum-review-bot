@@ -10,117 +10,172 @@ STRINGS: dict[str, dict[str, str]] = {
     # ── /start ──────────────────────────────────────────────────────────────
     "start.welcome": {
         "uz": (
-            "Assalomu alaykum, <b>{name}</b>! 👋\n\n"
-            "Uzum Market'dagi xaridlaringizdan sharh yozing va ajoyib sovrinlar yuting! 🎁\n\n"
-            "🔗 Do'stlaringizni taklif qiling — har bir taklif uchun qo'shimcha aylanish oling!\n"
-            "Taklif havolangiz: /referral\n\n"
-            "Boshlash uchun quyidagi tugmani bosing:"
+            "╔══════════════════════╗\n"
+            "  Xush kelibsiz, <b>{name}</b>! 🎉\n"
+            "╚══════════════════════╝\n\n"
+            "🛍 <b>Uzum Market</b> sharhlar botiga xush kelibsiz!\n\n"
+            "━━━━━━━━━━━━━━━━━━━━━━\n"
+            "📝 Xaridingiz haqida sharh yozing\n"
+            "🎡 Sovrin g'ildiragini aylantiring\n"
+            "🏆 Ajoyib mukofotlar yuting!\n"
+            "━━━━━━━━━━━━━━━━━━━━━━\n\n"
+            "🔗 Do'stlaringizni taklif qiling — har bir taklif uchun\n"
+            "<b>+1 ta qo'shimcha aylanish</b> oling!\n\n"
+            "👇 <b>Boshlash uchun quyidagi tugmani bosing!</b>"
         ),
         "ru": (
-            "Привет, <b>{name}</b>! 👋\n\n"
-            "Оставляйте отзывы о покупках на Uzum Market и выигрывайте призы! 🎁\n\n"
-            "🔗 Приглашайте друзей — за каждого получайте бонусное вращение!\n"
-            "Ваша ссылка: /referral\n\n"
-            "Нажмите кнопку ниже, чтобы начать:"
+            "╔══════════════════════╗\n"
+            "  Добро пожаловать, <b>{name}</b>! 🎉\n"
+            "╚══════════════════════╝\n\n"
+            "🛍 Вы в боте отзывов <b>Uzum Market</b>!\n\n"
+            "━━━━━━━━━━━━━━━━━━━━━━\n"
+            "📝 Оставьте отзыв о покупке\n"
+            "🎡 Крутите колесо призов\n"
+            "🏆 Выигрывайте крутые награды!\n"
+            "━━━━━━━━━━━━━━━━━━━━━━\n\n"
+            "🔗 Приглашайте друзей — за каждого\n"
+            "<b>+1 бонусное вращение</b>!\n\n"
+            "👇 <b>Нажмите кнопку ниже, чтобы начать!</b>"
         ),
         "en": (
-            "Hello, <b>{name}</b>! 👋\n\n"
-            "Share your Uzum Market purchase reviews and win amazing prizes! 🎁\n\n"
-            "🔗 Invite friends — earn a bonus spin for each referral!\n"
-            "Your link: /referral\n\n"
-            "Press the button below to get started:"
+            "╔══════════════════════╗\n"
+            "  Welcome, <b>{name}</b>! 🎉\n"
+            "╚══════════════════════╝\n\n"
+            "🛍 You're in the <b>Uzum Market</b> reviews bot!\n\n"
+            "━━━━━━━━━━━━━━━━━━━━━━\n"
+            "📝 Write a review about your purchase\n"
+            "🎡 Spin the prize wheel\n"
+            "🏆 Win amazing rewards!\n"
+            "━━━━━━━━━━━━━━━━━━━━━━\n\n"
+            "🔗 Invite friends — earn\n"
+            "<b>+1 bonus spin</b> per referral!\n\n"
+            "👇 <b>Press the button below to get started!</b>"
         ),
     },
     "start.returning": {
         "uz": (
-            "Xush kelibsiz qaytib, <b>{name}</b>! 👋\n\n"
-            "Mavjud aylanishlar: <b>{spin_count}</b> 🎡\n"
-            "Tasdiqlangan sharhlar: <b>{approved}</b> ✅\n\n"
-            "Yangi sharh yuborish: /submit\n"
-            "Sharhlar holati: /status"
+            "👋 Xush kelibsiz qaytib, <b>{name}</b>!\n\n"
+            "━━━━━━━━━━━━━━━━━━━━━━\n"
+            "🎡 Mavjud aylanishlar: <b>{spin_count}</b>\n"
+            "✅ Tasdiqlangan sharhlar: <b>{approved}</b>\n"
+            "━━━━━━━━━━━━━━━━━━━━━━\n\n"
+            "{spin_cta}\n\n"
+            "📝 Yangi sharh: /submit\n"
+            "📋 Sharhlar holati: /status"
         ),
         "ru": (
-            "С возвращением, <b>{name}</b>! 👋\n\n"
-            "Доступно вращений: <b>{spin_count}</b> 🎡\n"
-            "Одобренных отзывов: <b>{approved}</b> ✅\n\n"
-            "Отправить новый отзыв: /submit\n"
-            "Статус отзывов: /status"
+            "👋 С возвращением, <b>{name}</b>!\n\n"
+            "━━━━━━━━━━━━━━━━━━━━━━\n"
+            "🎡 Доступно вращений: <b>{spin_count}</b>\n"
+            "✅ Одобренных отзывов: <b>{approved}</b>\n"
+            "━━━━━━━━━━━━━━━━━━━━━━\n\n"
+            "{spin_cta}\n\n"
+            "📝 Новый отзыв: /submit\n"
+            "📋 Статус отзывов: /status"
         ),
         "en": (
-            "Welcome back, <b>{name}</b>! 👋\n\n"
-            "Available spins: <b>{spin_count}</b> 🎡\n"
-            "Approved reviews: <b>{approved}</b> ✅\n\n"
-            "Submit a new review: /submit\n"
-            "Review status: /status"
+            "👋 Welcome back, <b>{name}</b>!\n\n"
+            "━━━━━━━━━━━━━━━━━━━━━━\n"
+            "🎡 Available spins: <b>{spin_count}</b>\n"
+            "✅ Approved reviews: <b>{approved}</b>\n"
+            "━━━━━━━━━━━━━━━━━━━━━━\n\n"
+            "{spin_cta}\n\n"
+            "📝 New review: /submit\n"
+            "📋 Review status: /status"
         ),
+    },
+    "start.returning_spin_cta": {
+        "uz": "🔥 Sizda <b>{spin_count} ta aylanish</b> kutmoqda — hoziroq aylantiring!",
+        "ru": "🔥 У вас <b>{spin_count} вращений</b> ждут — крутите прямо сейчас!",
+        "en": "🔥 You have <b>{spin_count} spin(s)</b> waiting — spin now!",
+    },
+    "start.returning_no_spin_cta": {
+        "uz": "💡 Sharh yuboring va sovrin yutish imkoniyatiga ega bo'ling!",
+        "ru": "💡 Отправьте отзыв и получите шанс выиграть приз!",
+        "en": "💡 Submit a review to earn your chance to win a prize!",
     },
 
     # ── Language selection ───────────────────────────────────────────────────
     "lang.choose": {
-        "uz": "Tilni tanlang / Выберите язык / Choose language:",
-        "ru": "Tilni tanlang / Выберите язык / Choose language:",
-        "en": "Tilni tanlang / Выберите язык / Choose language:",
+        "uz": "🌐 Tilni tanlang / Выберите язык / Choose language:",
+        "ru": "🌐 Tilni tanlang / Выберите язык / Choose language:",
+        "en": "🌐 Tilni tanlang / Выберите язык / Choose language:",
     },
     "lang.changed": {
-        "uz": "Til o'zgartirildi: O'zbek 🇺🇿",
-        "ru": "Язык изменён: Русский 🇷🇺",
-        "en": "Language changed: English 🇬🇧",
+        "uz": "✅ Til o'zgartirildi: O'zbek 🇺🇿",
+        "ru": "✅ Язык изменён: Русский 🇷🇺",
+        "en": "✅ Language changed: English 🇬🇧",
     },
 
     # ── /help ────────────────────────────────────────────────────────────────
     "help.text": {
         "uz": (
-            "<b>📋 Yordam</b>\n\n"
-            "/start — Bosh menyu\n"
-            "/submit — Sharh yuborish\n"
-            "/status — Mening sharhlarim va holati\n"
-            "/myspins — Mavjud aylanishlarim\n"
-            "/referral — Taklif havolam\n"
-            "/wallet — Mening mukofotlarim\n"
-            "/charity — Xayriya\n"
-            "/language — Tilni o'zgartirish\n"
-            "/help — Yordam\n\n"
-            "<b>Qanday ishlaydi?</b>\n"
+            "╔══════════════════════╗\n"
+            "  📋 Yordam markazi\n"
+            "╚══════════════════════╝\n\n"
+            "<b>Buyruqlar:</b>\n"
+            "▸ /start — Bosh menyu\n"
+            "▸ /submit — Sharh yuborish\n"
+            "▸ /status — Sharhlarim holati\n"
+            "▸ /myspins — Mavjud aylanishlarim\n"
+            "▸ /referral — Taklif havolam\n"
+            "▸ /wallet — Mukofotlarim\n"
+            "▸ /charity — Xayriya\n"
+            "▸ /language — Tilni o'zgartirish\n\n"
+            "━━━━━━━━━━━━━━━━━━━━━━\n"
+            "<b>🚀 Qanday ishlaydi?</b>\n\n"
             "1️⃣ Uzum Market'dan xarid qiling\n"
             "2️⃣ Mahsulot sahifasida sharh qoldiring\n"
             "3️⃣ Sharh skrinshotini /submit orqali yuboring\n"
-            "4️⃣ Tasdiqlangandan so'ng sovrin g'ildiragini aylantiring!\n\n"
+            "4️⃣ Tasdiqlangandan so'ng g'ildirakni aylantiring! 🎡\n"
+            "5️⃣ Ajoyib sovrinlar yuting! 🏆\n"
+            "━━━━━━━━━━━━━━━━━━━━━━\n\n"
             "<i>Savollar bo'lsa @{support} ga murojaat qiling.</i>"
         ),
         "ru": (
-            "<b>📋 Помощь</b>\n\n"
-            "/start — Главное меню\n"
-            "/submit — Отправить отзыв\n"
-            "/status — Мои отзывы и статус\n"
-            "/myspins — Доступные вращения\n"
-            "/referral — Моя реферальная ссылка\n"
-            "/wallet — Мои награды\n"
-            "/charity — Благотворительность\n"
-            "/language — Сменить язык\n"
-            "/help — Помощь\n\n"
-            "<b>Как это работает?</b>\n"
+            "╔══════════════════════╗\n"
+            "  📋 Центр помощи\n"
+            "╚══════════════════════╝\n\n"
+            "<b>Команды:</b>\n"
+            "▸ /start — Главное меню\n"
+            "▸ /submit — Отправить отзыв\n"
+            "▸ /status — Статус отзывов\n"
+            "▸ /myspins — Мои вращения\n"
+            "▸ /referral — Реферальная ссылка\n"
+            "▸ /wallet — Мои награды\n"
+            "▸ /charity — Благотворительность\n"
+            "▸ /language — Сменить язык\n\n"
+            "━━━━━━━━━━━━━━━━━━━━━━\n"
+            "<b>🚀 Как это работает?</b>\n\n"
             "1️⃣ Сделайте покупку на Uzum Market\n"
             "2️⃣ Оставьте отзыв на странице товара\n"
             "3️⃣ Отправьте скриншот отзыва через /submit\n"
-            "4️⃣ После одобрения — крутите колесо призов!\n\n"
+            "4️⃣ После одобрения — крутите колесо! 🎡\n"
+            "5️⃣ Выигрывайте крутые призы! 🏆\n"
+            "━━━━━━━━━━━━━━━━━━━━━━\n\n"
             "<i>По вопросам обращайтесь к @{support}.</i>"
         ),
         "en": (
-            "<b>📋 Help</b>\n\n"
-            "/start — Main menu\n"
-            "/submit — Submit a review\n"
-            "/status — My reviews and status\n"
-            "/myspins — Available spins\n"
-            "/referral — My referral link\n"
-            "/wallet — My rewards\n"
-            "/charity — Charity\n"
-            "/language — Change language\n"
-            "/help — Help\n\n"
-            "<b>How it works?</b>\n"
+            "╔══════════════════════╗\n"
+            "  📋 Help Center\n"
+            "╚══════════════════════╝\n\n"
+            "<b>Commands:</b>\n"
+            "▸ /start — Main menu\n"
+            "▸ /submit — Submit a review\n"
+            "▸ /status — Review status\n"
+            "▸ /myspins — Available spins\n"
+            "▸ /referral — My referral link\n"
+            "▸ /wallet — My rewards\n"
+            "▸ /charity — Charity\n"
+            "▸ /language — Change language\n\n"
+            "━━━━━━━━━━━━━━━━━━━━━━\n"
+            "<b>🚀 How it works?</b>\n\n"
             "1️⃣ Make a purchase on Uzum Market\n"
             "2️⃣ Leave a review on the product page\n"
             "3️⃣ Send a screenshot via /submit\n"
-            "4️⃣ After approval — spin the prize wheel!\n\n"
+            "4️⃣ After approval — spin the wheel! 🎡\n"
+            "5️⃣ Win amazing prizes! 🏆\n"
+            "━━━━━━━━━━━━━━━━━━━━━━\n\n"
             "<i>For questions contact @{support}.</i>"
         ),
     },
@@ -130,12 +185,12 @@ STRINGS: dict[str, dict[str, str]] = {
         "uz": (
             "📦 <b>Sharh yuborish</b>\n\n"
             "Qaysi mahsulot uchun sharh yozgansiz?\n"
-            "Ro'yxatdan tanlang yoki qidirish uchun mahsulot nomini yozing:"
+            "Ro'yxatdan tanlang yoki mahsulot nomini yozing:"
         ),
         "ru": (
             "📦 <b>Отправить отзыв</b>\n\n"
             "На какой товар вы написали отзыв?\n"
-            "Выберите из списка или напишите название для поиска:"
+            "Выберите из списка или напишите название:"
         ),
         "en": (
             "📦 <b>Submit a review</b>\n\n"
@@ -232,22 +287,34 @@ STRINGS: dict[str, dict[str, str]] = {
     },
     "submit.success": {
         "uz": (
-            "🎉 <b>Sharh yuborildi!</b>\n\n"
-            "Sharh raqami: <code>{submission_id}</code>\n"
-            "Natija 24 soat ichida ma'lum qilinadi.\n\n"
-            "Holat: /status"
+            "🎉 <b>Sharh muvaffaqiyatli yuborildi!</b>\n\n"
+            "━━━━━━━━━━━━━━━━━━━━━━\n"
+            "🔖 Sharh raqami: <code>{submission_id}</code>\n"
+            "⏱ Ko'rib chiqish: 24 soat ichida\n"
+            "━━━━━━━━━━━━━━━━━━━━━━\n\n"
+            "✅ Tasdiqlangandan so'ng sizga xabar beramiz\n"
+            "va g'ildirakni aylantirish imkoniyatini olasiz! 🎡\n\n"
+            "📋 Holat: /status"
         ),
         "ru": (
-            "🎉 <b>Отзыв отправлен!</b>\n\n"
-            "Номер отзыва: <code>{submission_id}</code>\n"
-            "Результат будет сообщён в течение 24 часов.\n\n"
-            "Статус: /status"
+            "🎉 <b>Отзыв успешно отправлен!</b>\n\n"
+            "━━━━━━━━━━━━━━━━━━━━━━\n"
+            "🔖 Номер отзыва: <code>{submission_id}</code>\n"
+            "⏱ Рассмотрение: в течение 24 часов\n"
+            "━━━━━━━━━━━━━━━━━━━━━━\n\n"
+            "✅ После одобрения вы получите уведомление\n"
+            "и возможность крутить колесо! 🎡\n\n"
+            "📋 Статус: /status"
         ),
         "en": (
-            "🎉 <b>Review submitted!</b>\n\n"
-            "Review ID: <code>{submission_id}</code>\n"
-            "You will be notified within 24 hours.\n\n"
-            "Status: /status"
+            "🎉 <b>Review submitted successfully!</b>\n\n"
+            "━━━━━━━━━━━━━━━━━━━━━━\n"
+            "🔖 Review ID: <code>{submission_id}</code>\n"
+            "⏱ Review time: within 24 hours\n"
+            "━━━━━━━━━━━━━━━━━━━━━━\n\n"
+            "✅ After approval you'll be notified\n"
+            "and can spin the wheel! 🎡\n\n"
+            "📋 Status: /status"
         ),
     },
     "submit.error": {
@@ -278,28 +345,49 @@ STRINGS: dict[str, dict[str, str]] = {
         "en": "📋 <b>My reviews:</b>",
     },
     "status.empty": {
-        "uz": "Hali sharh yubormagansiz.\n\n/submit buyrug'idan foydalaning.",
-        "ru": "Вы ещё не отправляли отзывы.\n\nИспользуйте /submit.",
-        "en": "You haven't submitted any reviews yet.\n\nUse /submit.",
+        "uz": (
+            "📭 Hali sharh yubormagansiz.\n\n"
+            "💡 Birinchi sharhingizni yuboring va aylanish yuting!\n"
+            "/submit"
+        ),
+        "ru": (
+            "📭 Вы ещё не отправляли отзывы.\n\n"
+            "💡 Отправьте первый отзыв и выиграйте вращение!\n"
+            "/submit"
+        ),
+        "en": (
+            "📭 You haven't submitted any reviews yet.\n\n"
+            "💡 Submit your first review to earn a spin!\n"
+            "/submit"
+        ),
     },
     "status.summary": {
         "uz": (
-            "📊 <b>Umumiy:</b> {total} ta sharh\n"
-            "✅ Tasdiqlangan: {approved}\n"
-            "⏳ Kutilayotgan: {pending}\n"
-            "❌ Rad etilgan: {rejected}\n\n"
+            "━━━━━━━━━━━━━━━━━━━━━━\n"
+            "📊 <b>Umumiy natijalar:</b>\n\n"
+            "📁 Jami: <b>{total}</b> ta sharh\n"
+            "✅ Tasdiqlangan: <b>{approved}</b>\n"
+            "⏳ Kutilayotgan: <b>{pending}</b>\n"
+            "❌ Rad etilgan: <b>{rejected}</b>\n"
+            "━━━━━━━━━━━━━━━━━━━━━━\n\n"
         ),
         "ru": (
-            "📊 <b>Итого:</b> {total} отзывов\n"
-            "✅ Одобрено: {approved}\n"
-            "⏳ На проверке: {pending}\n"
-            "❌ Отклонено: {rejected}\n\n"
+            "━━━━━━━━━━━━━━━━━━━━━━\n"
+            "📊 <b>Общие результаты:</b>\n\n"
+            "📁 Всего: <b>{total}</b> отзывов\n"
+            "✅ Одобрено: <b>{approved}</b>\n"
+            "⏳ На проверке: <b>{pending}</b>\n"
+            "❌ Отклонено: <b>{rejected}</b>\n"
+            "━━━━━━━━━━━━━━━━━━━━━━\n\n"
         ),
         "en": (
-            "📊 <b>Total:</b> {total} reviews\n"
-            "✅ Approved: {approved}\n"
-            "⏳ Pending: {pending}\n"
-            "❌ Rejected: {rejected}\n\n"
+            "━━━━━━━━━━━━━━━━━━━━━━\n"
+            "📊 <b>Summary:</b>\n\n"
+            "📁 Total: <b>{total}</b> reviews\n"
+            "✅ Approved: <b>{approved}</b>\n"
+            "⏳ Pending: <b>{pending}</b>\n"
+            "❌ Rejected: <b>{rejected}</b>\n"
+            "━━━━━━━━━━━━━━━━━━━━━━\n\n"
         ),
     },
     "status.item": {
@@ -330,66 +418,96 @@ STRINGS: dict[str, dict[str, str]] = {
     # ── My Spins ─────────────────────────────────────────────────────────────
     "myspins.text": {
         "uz": (
-            "🎡 <b>Mening aylanishlarim</b>\n\n"
-            "Mavjud aylanishlar: <b>{spin_count}</b>\n"
-            "Jami aylanishlar: <b>{total_spins}</b>\n"
-            "Tasdiqlangan sharhlar: <b>{approved}</b>\n\n"
+            "╔══════════════════════╗\n"
+            "  🎡 Mening aylanishlarim\n"
+            "╚══════════════════════╝\n\n"
+            "━━━━━━━━━━━━━━━━━━━━━━\n"
+            "🎡 Mavjud aylanishlar: <b>{spin_count}</b>\n"
+            "🔄 Jami aylanishlar: <b>{total_spins}</b>\n"
+            "✅ Tasdiqlangan sharhlar: <b>{approved}</b>\n"
+            "━━━━━━━━━━━━━━━━━━━━━━\n\n"
             "{spin_note}"
         ),
         "ru": (
-            "🎡 <b>Мои вращения</b>\n\n"
-            "Доступно вращений: <b>{spin_count}</b>\n"
-            "Всего вращений: <b>{total_spins}</b>\n"
-            "Одобренных отзывов: <b>{approved}</b>\n\n"
+            "╔══════════════════════╗\n"
+            "  🎡 Мои вращения\n"
+            "╚══════════════════════╝\n\n"
+            "━━━━━━━━━━━━━━━━━━━━━━\n"
+            "🎡 Доступно вращений: <b>{spin_count}</b>\n"
+            "🔄 Всего вращений: <b>{total_spins}</b>\n"
+            "✅ Одобренных отзывов: <b>{approved}</b>\n"
+            "━━━━━━━━━━━━━━━━━━━━━━\n\n"
             "{spin_note}"
         ),
         "en": (
-            "🎡 <b>My Spins</b>\n\n"
-            "Available spins: <b>{spin_count}</b>\n"
-            "Total spins: <b>{total_spins}</b>\n"
-            "Approved reviews: <b>{approved}</b>\n\n"
+            "╔══════════════════════╗\n"
+            "  🎡 My Spins\n"
+            "╚══════════════════════╝\n\n"
+            "━━━━━━━━━━━━━━━━━━━━━━\n"
+            "🎡 Available spins: <b>{spin_count}</b>\n"
+            "🔄 Total spins: <b>{total_spins}</b>\n"
+            "✅ Approved reviews: <b>{approved}</b>\n"
+            "━━━━━━━━━━━━━━━━━━━━━━\n\n"
             "{spin_note}"
         ),
     },
     "myspins.has_spins": {
-        "uz": "🎉 Aylanish uchun Mini Ilovani oching!",
-        "ru": "🎉 Откройте мини-приложение для вращения!",
-        "en": "🎉 Open the Mini App to spin!",
+        "uz": "🔥 Sizda <b>{spin_count} ta aylanish</b> kutmoqda!\nHoziroq Mini Ilovani oching va aylantiring! 👇",
+        "ru": "🔥 У вас <b>{spin_count} вращений</b> ждут!\nОткройте мини-приложение прямо сейчас! 👇",
+        "en": "🔥 You have <b>{spin_count} spin(s)</b> waiting!\nOpen the Mini App right now! 👇",
     },
     "myspins.no_spins": {
-        "uz": "Hozircha aylanish yo'q. Sharh yuboring va tasdiqlashni kuting!",
-        "ru": "Пока вращений нет. Отправьте отзыв и дождитесь одобрения!",
-        "en": "No spins yet. Submit a review and wait for approval!",
+        "uz": "💡 Hozircha aylanish yo'q.\nSharh yuboring va tasdiqlashni kuting — keyin g'ildirak sizniki! 🎡",
+        "ru": "💡 Пока вращений нет.\nОтправьте отзыв и дождитесь одобрения — колесо ваше! 🎡",
+        "en": "💡 No spins yet.\nSubmit a review and wait for approval — the wheel awaits! 🎡",
     },
 
     # ── Referral ─────────────────────────────────────────────────────────────
     "referral.text": {
         "uz": (
-            "🔗 <b>Mening taklif havolam</b>\n\n"
-            "Taklif kodingiz: <code>{code}</code>\n"
-            "Havola:\n<code>https://t.me/{bot_username}?start={code}</code>\n\n"
-            "Takliflar: <b>{count}</b> ta do'st\n"
-            "Bonus aylanishlar: <b>{bonus}</b>\n\n"
-            "Do'stlaringizni taklif qiling — har bir ro'yxatdan o'tish uchun <b>1 ta qo'shimcha aylanish</b> oling! 🎡\n\n"
-            "<i>Bu halol bonus tizimi — hech qanday to'lov talab qilinmaydi.</i>"
+            "╔══════════════════════╗\n"
+            "  🔗 Taklif tizimi\n"
+            "╚══════════════════════╝\n\n"
+            "📌 Taklif kodingiz: <code>{code}</code>\n"
+            "🔗 Havola:\n<code>https://t.me/{bot_username}?start={code}</code>\n\n"
+            "━━━━━━━━━━━━━━━━━━━━━━\n"
+            "👥 Takliflar: <b>{count}</b> ta do'st\n"
+            "🎡 Bonus aylanishlar: <b>{bonus}</b>\n"
+            "━━━━━━━━━━━━━━━━━━━━━━\n\n"
+            "🎁 Har bir do'stingiz ro'yxatdan o'tsa,\n"
+            "siz <b>+1 ta qo'shimcha aylanish</b> olasiz!\n\n"
+            "👇 <b>Ulashish tugmasini bosing!</b>\n\n"
+            "<i>Halol bonus tizimi — hech qanday to'lov talab qilinmaydi.</i>"
         ),
         "ru": (
-            "🔗 <b>Моя реферальная ссылка</b>\n\n"
-            "Ваш код: <code>{code}</code>\n"
-            "Ссылка:\n<code>https://t.me/{bot_username}?start={code}</code>\n\n"
-            "Приглашено: <b>{count}</b> друзей\n"
-            "Бонусных вращений: <b>{bonus}</b>\n\n"
-            "Приглашайте друзей — за каждую регистрацию получайте <b>1 вращение</b>! 🎡\n\n"
-            "<i>Это честная бонусная система — никаких платежей не требуется.</i>"
+            "╔══════════════════════╗\n"
+            "  🔗 Реферальная система\n"
+            "╚══════════════════════╝\n\n"
+            "📌 Ваш код: <code>{code}</code>\n"
+            "🔗 Ссылка:\n<code>https://t.me/{bot_username}?start={code}</code>\n\n"
+            "━━━━━━━━━━━━━━━━━━━━━━\n"
+            "👥 Приглашено: <b>{count}</b> друзей\n"
+            "🎡 Бонусных вращений: <b>{bonus}</b>\n"
+            "━━━━━━━━━━━━━━━━━━━━━━\n\n"
+            "🎁 За каждого зарегистрировавшегося друга\n"
+            "вы получаете <b>+1 вращение</b>!\n\n"
+            "👇 <b>Нажмите кнопку, чтобы поделиться!</b>\n\n"
+            "<i>Честная бонусная система — никаких платежей.</i>"
         ),
         "en": (
-            "🔗 <b>My Referral Link</b>\n\n"
-            "Your code: <code>{code}</code>\n"
-            "Link:\n<code>https://t.me/{bot_username}?start={code}</code>\n\n"
-            "Invited: <b>{count}</b> friends\n"
-            "Bonus spins earned: <b>{bonus}</b>\n\n"
-            "Invite friends — earn <b>1 extra spin</b> for each sign-up! 🎡\n\n"
-            "<i>This is a halal bonus system — no payments required.</i>"
+            "╔══════════════════════╗\n"
+            "  🔗 Referral System\n"
+            "╚══════════════════════╝\n\n"
+            "📌 Your code: <code>{code}</code>\n"
+            "🔗 Link:\n<code>https://t.me/{bot_username}?start={code}</code>\n\n"
+            "━━━━━━━━━━━━━━━━━━━━━━\n"
+            "👥 Invited: <b>{count}</b> friends\n"
+            "🎡 Bonus spins earned: <b>{bonus}</b>\n"
+            "━━━━━━━━━━━━━━━━━━━━━━\n\n"
+            "🎁 For every friend who signs up\n"
+            "you earn <b>+1 bonus spin</b>!\n\n"
+            "👇 <b>Press the button to share!</b>\n\n"
+            "<i>Halal bonus system — no payments required.</i>"
         ),
     },
 
@@ -400,14 +518,26 @@ STRINGS: dict[str, dict[str, str]] = {
         "en": "💼 <b>My rewards:</b>",
     },
     "wallet.empty": {
-        "uz": "Hali mukofot yo'q. Sharh yuborib, g'ildiraklarni aylantiring!",
-        "ru": "Пока наград нет. Отправляйте отзывы и крутите колесо!",
-        "en": "No rewards yet. Submit reviews and spin the wheel!",
+        "uz": (
+            "📭 Hali mukofot yo'q.\n\n"
+            "💡 Sharh yuborib, g'ildirakni aylantiring\n"
+            "va ajoyib sovrinlar yuting! 🎡🏆"
+        ),
+        "ru": (
+            "📭 Пока наград нет.\n\n"
+            "💡 Отправляйте отзывы, крутите колесо\n"
+            "и выигрывайте крутые призы! 🎡🏆"
+        ),
+        "en": (
+            "📭 No rewards yet.\n\n"
+            "💡 Submit reviews, spin the wheel\n"
+            "and win amazing prizes! 🎡🏆"
+        ),
     },
     "wallet.open_app": {
-        "uz": "Mini Ilovani ochish uchun quyidagi tugmani bosing:",
-        "ru": "Нажмите кнопку ниже, чтобы открыть мини-приложение:",
-        "en": "Press the button below to open the Mini App:",
+        "uz": "👇 Mini Ilovani ochish uchun quyidagi tugmani bosing:",
+        "ru": "👇 Нажмите кнопку ниже, чтобы открыть мини-приложение:",
+        "en": "👇 Press the button below to open the Mini App:",
     },
     "wallet.claimed": {
         "uz": "Olindi",
@@ -441,54 +571,69 @@ STRINGS: dict[str, dict[str, str]] = {
     "engage.spin_available": {
         "uz": (
             "🎡 <b>Sizda {spin_count} ta aylanish mavjud!</b>\n\n"
-            "Mini Ilovani oching va sovrin yutib oling 🎁\n"
-            "Har bir aylanish yangi imkoniyat!"
+            "━━━━━━━━━━━━━━━━━━━━━━\n"
+            "Mini Ilovani oching va sovrin yutib oling! 🎁\n"
+            "Har bir aylanish — yangi imkoniyat!\n"
+            "━━━━━━━━━━━━━━━━━━━━━━"
         ),
         "ru": (
             "🎡 <b>У вас {spin_count} вращений ждут!</b>\n\n"
-            "Откройте мини-приложение и выиграйте приз 🎁\n"
-            "Каждое вращение — новый шанс!"
+            "━━━━━━━━━━━━━━━━━━━━━━\n"
+            "Откройте мини-приложение и выиграйте приз! 🎁\n"
+            "Каждое вращение — новый шанс!\n"
+            "━━━━━━━━━━━━━━━━━━━━━━"
         ),
         "en": (
             "🎡 <b>You have {spin_count} spin(s) waiting!</b>\n\n"
-            "Open the Mini App and win a prize 🎁\n"
-            "Every spin is a new chance!"
+            "━━━━━━━━━━━━━━━━━━━━━━\n"
+            "Open the Mini App and win a prize! 🎁\n"
+            "Every spin is a new chance!\n"
+            "━━━━━━━━━━━━━━━━━━━━━━"
         ),
     },
     "engage.review_approved": {
         "uz": (
             "🎉 <b>Sharhingiz tasdiqlandi!</b>\n\n"
-            "Tabriklaymiz! Endi sovrin g'ildiragini aylantiring 🎡\n"
-            "Mavjud aylanishlar: <b>{spin_count}</b>\n\n"
-            "Mini Ilovani oching va o'z omadingizni sinab ko'ring!"
+            "━━━━━━━━━━━━━━━━━━━━━━\n"
+            "Tabriklaymiz! 🏆\n"
+            "Mavjud aylanishlar: <b>{spin_count}</b> 🎡\n"
+            "━━━━━━━━━━━━━━━━━━━━━━\n\n"
+            "💥 Hoziroq Mini Ilovani oching va omadingizni sinab ko'ring!"
         ),
         "ru": (
             "🎉 <b>Ваш отзыв одобрен!</b>\n\n"
-            "Поздравляем! Теперь крутите колесо призов 🎡\n"
-            "Доступных вращений: <b>{spin_count}</b>\n\n"
-            "Откройте мини-приложение и испытайте удачу!"
+            "━━━━━━━━━━━━━━━━━━━━━━\n"
+            "Поздравляем! 🏆\n"
+            "Доступных вращений: <b>{spin_count}</b> 🎡\n"
+            "━━━━━━━━━━━━━━━━━━━━━━\n\n"
+            "💥 Откройте мини-приложение прямо сейчас и испытайте удачу!"
         ),
         "en": (
             "🎉 <b>Your review was approved!</b>\n\n"
-            "Congratulations! Now spin the prize wheel 🎡\n"
-            "Available spins: <b>{spin_count}</b>\n\n"
-            "Open the Mini App and try your luck!"
+            "━━━━━━━━━━━━━━━━━━━━━━\n"
+            "Congratulations! 🏆\n"
+            "Available spins: <b>{spin_count}</b> 🎡\n"
+            "━━━━━━━━━━━━━━━━━━━━━━\n\n"
+            "💥 Open the Mini App right now and try your luck!"
         ),
     },
     "engage.streak_reminder": {
         "uz": (
             "🔥 <b>{streak} kunlik ketma-ketlik!</b>\n\n"
-            "Zo'r! Har kuni sharh yuboring va bonus spinlar yuting.\n"
+            "Zo'r natija! Har kuni sharh yuboring\n"
+            "va bonus spinlar yuting.\n\n"
             "Bugun ham sharh yubordingizmi? /submit"
         ),
         "ru": (
             "🔥 <b>{streak}-дневная серия!</b>\n\n"
-            "Отлично! Отправляйте отзыв каждый день и выигрывайте бонусные спины.\n"
+            "Отличный результат! Отправляйте отзыв каждый день\n"
+            "и выигрывайте бонусные спины.\n\n"
             "Вы уже отправили отзыв сегодня? /submit"
         ),
         "en": (
             "🔥 <b>{streak}-day streak!</b>\n\n"
-            "Great! Submit a review every day and earn bonus spins.\n"
+            "Great result! Submit a review every day\n"
+            "and earn bonus spins.\n\n"
             "Have you submitted a review today? /submit"
         ),
     },
@@ -512,29 +657,29 @@ STRINGS: dict[str, dict[str, str]] = {
 
     # ── Smart Review Tips (Feature 1) ────────────────────────────────────────
     "tip.1": {
-        "uz": "💡 Maslahat: Mahsulotning aniq, yorug' rasmlarini oling.",
-        "ru": "💡 Совет: Делайте чёткие, хорошо освещённые фото товара.",
-        "en": "💡 Tip: Take clear, well-lit photos of the product.",
+        "uz": "💡 <b>Maslahat:</b> Mahsulotning aniq, yorug' rasmlarini oling.",
+        "ru": "💡 <b>Совет:</b> Делайте чёткие, хорошо освещённые фото товара.",
+        "en": "💡 <b>Tip:</b> Take clear, well-lit photos of the product.",
     },
     "tip.2": {
-        "uz": "💡 Maslahat: Kamida bitta rasmda mahsulot qadoqlanishini ko'rsating.",
-        "ru": "💡 Совет: Покажите упаковку товара хотя бы на одном фото.",
-        "en": "💡 Tip: Include the product packaging in at least one photo.",
+        "uz": "💡 <b>Maslahat:</b> Kamida bitta rasmda mahsulot qadoqlanishini ko'rsating.",
+        "ru": "💡 <b>Совет:</b> Покажите упаковку товара хотя бы на одном фото.",
+        "en": "💡 <b>Tip:</b> Include the product packaging in at least one photo.",
     },
     "tip.3": {
-        "uz": "💡 Maslahat: Uzum buyurtma raqami ko'rinishiga ishonch hosil qiling.",
-        "ru": "💡 Совет: Убедитесь, что номер заказа Uzum виден на фото.",
-        "en": "💡 Tip: Make sure the Uzum order number is visible.",
+        "uz": "💡 <b>Maslahat:</b> Uzum buyurtma raqami ko'rinishiga ishonch hosil qiling.",
+        "ru": "💡 <b>Совет:</b> Убедитесь, что номер заказа Uzum виден на фото.",
+        "en": "💡 <b>Tip:</b> Make sure the Uzum order number is visible.",
     },
     "tip.4": {
-        "uz": "💡 Maslahat: Yetkazilgandan keyin 24 soat ichida yuboring — tezroq tasdiqlanadi.",
-        "ru": "💡 Совет: Отправьте в течение 24 часов после доставки — одобрят быстрее.",
-        "en": "💡 Tip: Submit within 24 hours of delivery for faster approval.",
+        "uz": "💡 <b>Maslahat:</b> Yetkazilgandan keyin 24 soat ichida yuboring — tezroq tasdiqlanadi.",
+        "ru": "💡 <b>Совет:</b> Отправьте в течение 24 часов после доставки — одобрят быстрее.",
+        "en": "💡 <b>Tip:</b> Submit within 24 hours of delivery for faster approval.",
     },
     "tip.5": {
-        "uz": "💡 Maslahat: Har bir mahsulot uchun bitta sharh — takroriy sharhlar rad etiladi.",
-        "ru": "💡 Совет: Один отзыв на товар — дубликаты будут отклонены.",
-        "en": "💡 Tip: One review per product — duplicates will be rejected.",
+        "uz": "💡 <b>Maslahat:</b> Har bir mahsulot uchun bitta sharh — takroriy sharhlar rad etiladi.",
+        "ru": "💡 <b>Совет:</b> Один отзыв на товар — дубликаты будут отклонены.",
+        "en": "💡 <b>Tip:</b> One review per product — duplicates will be rejected.",
     },
 
     # ── Mini Stats Footer (Feature 2) ────────────────────────────────────────
@@ -546,46 +691,46 @@ STRINGS: dict[str, dict[str, str]] = {
 
     # ── Referral Milestone Messages (Feature 3) ──────────────────────────────
     "milestone_1": {
-        "uz": "🎉 Birinchi taklifingiz! Siz bonus aylanish yutdingiz!",
-        "ru": "🎉 Ваш первый реферал! Вы заработали бонусное вращение!",
-        "en": "🎉 Your first referral! You earned a bonus spin!",
+        "uz": "🎉 <b>Birinchi taklifingiz!</b>\nTabriklaymiz — siz bonus aylanish yutdingiz! 🎡",
+        "ru": "🎉 <b>Ваш первый реферал!</b>\nПоздравляем — вы заработали бонусное вращение! 🎡",
+        "en": "🎉 <b>Your first referral!</b>\nCongratulations — you earned a bonus spin! 🎡",
     },
     "milestone_5": {
-        "uz": "🌟 5 ta taklif! Siz yulduz tashviqotchi bo'lyapsiz!",
-        "ru": "🌟 5 рефералов! Вы становитесь звёздным рекрутером!",
-        "en": "🌟 5 referrals! You're becoming a star recruiter!",
+        "uz": "🌟 <b>5 ta taklif!</b>\nSiz yulduz tashviqotchi bo'lyapsiz — davom eting! 💪",
+        "ru": "🌟 <b>5 рефералов!</b>\nВы становитесь звёздным рекрутером — продолжайте! 💪",
+        "en": "🌟 <b>5 referrals!</b>\nYou're becoming a star recruiter — keep going! 💪",
     },
     "milestone_10": {
-        "uz": "🏆 10 ta taklif! Ajoyib elchi maqomi!",
-        "ru": "🏆 10 рефералов! Потрясающий статус посла!",
-        "en": "🏆 10 referrals! Amazing ambassador status!",
+        "uz": "🏆 <b>10 ta taklif!</b>\nAjoyib elchi maqomi! Siz zo'rsiz! 🔥",
+        "ru": "🏆 <b>10 рефералов!</b>\nПотрясающий статус посла! Вы невероятны! 🔥",
+        "en": "🏆 <b>10 referrals!</b>\nAmazing ambassador status! You're incredible! 🔥",
     },
     "milestone_25": {
-        "uz": "💎 25 ta taklif! Olmos darajadagi tashviqotchi!",
-        "ru": "💎 25 рефералов! Алмазный уровень рекрутера!",
-        "en": "💎 25 referrals! Diamond level recruiter!",
+        "uz": "💎 <b>25 ta taklif!</b>\nOlmos darajadagi tashviqotchi! 👑",
+        "ru": "💎 <b>25 рефералов!</b>\nАлмазный уровень рекрутера! 👑",
+        "en": "💎 <b>25 referrals!</b>\nDiamond level recruiter! 👑",
     },
     "milestone_50": {
-        "uz": "👑 50 ta taklif! Afsonaviy maqom ochildi!",
-        "ru": "👑 50 рефералов! Легендарный статус разблокирован!",
-        "en": "👑 50 referrals! Legendary status unlocked!",
+        "uz": "👑 <b>50 ta taklif!</b>\nAfsonaviy maqom ochildi! Siz efsona! 🏅",
+        "ru": "👑 <b>50 рефералов!</b>\nЛегендарный статус разблокирован! Вы легенда! 🏅",
+        "en": "👑 <b>50 referrals!</b>\nLegendary status unlocked! You're a legend! 🏅",
     },
 
     # ── Engagement Nudges (Feature 4) ────────────────────────────────────────
     "nudge_has_spins": {
-        "uz": "🎡 Sizda {n} ta aylanish kutmoqda! Ilovani oching va aylantiring!",
-        "ru": "🎡 У вас {n} вращений ждут! Откройте приложение и крутите!",
-        "en": "🎡 You have {n} spins waiting! Open the app to spin!",
+        "uz": "🎡 Sizda <b>{n} ta aylanish</b> kutmoqda!\n👇 Ilovani oching va aylantiring — sovrin yutishingiz mumkin!",
+        "ru": "🎡 У вас <b>{n} вращений</b> ждут!\n👇 Откройте приложение и крутите — вы можете выиграть приз!",
+        "en": "🎡 You have <b>{n} spin(s)</b> waiting!\n👇 Open the app to spin — you could win a prize!",
     },
     "nudge_check_spins": {
-        "uz": "✅ Sharhlaringiz tasdiqlangan! Yangi aylanishlar bormi tekshiring.",
-        "ru": "✅ Ваши отзывы одобрены! Проверьте, есть ли новые вращения.",
-        "en": "✅ Your reviews are approved! Check if you have new spins.",
+        "uz": "✅ Sharhlaringiz tasdiqlangan!\nYangi aylanishlar bormi — tekshiring! /myspins",
+        "ru": "✅ Ваши отзывы одобрены!\nПроверьте, есть ли новые вращения! /myspins",
+        "en": "✅ Your reviews are approved!\nCheck if you have new spins! /myspins",
     },
     "nudge_first_review": {
-        "uz": "📝 Birinchi sharhingizni yuboring va aylanish yuting!",
-        "ru": "📝 Отправьте свой первый отзыв и получите вращение!",
-        "en": "📝 Submit your first review to earn a spin!",
+        "uz": "📝 Birinchi sharhingizni yuboring va aylanish yuting!\n👉 /submit",
+        "ru": "📝 Отправьте свой первый отзыв и получите вращение!\n👉 /submit",
+        "en": "📝 Submit your first review to earn a spin!\n👉 /submit",
     },
 }
 
