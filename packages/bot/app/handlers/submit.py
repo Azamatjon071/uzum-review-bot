@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import io
 import logging
+import random
 from typing import Any
 
 from aiogram import Router, F, Bot
@@ -24,9 +25,9 @@ from app.i18n import t
 from app.keyboards import cancel_keyboard, done_cancel_keyboard, main_menu
 from app.states import SubmitStates
 from app.services.api import (
-    auth_telegram,
-    create_submission,
+    get_auth_token,
     get_products,
+    _request,
     APIError,
 )
 
@@ -36,6 +37,8 @@ settings = get_settings()
 
 MAX_PHOTOS = 5
 PAGE_SIZE = 8   # products shown per page
+
+TIP_KEYS = ["tip.1", "tip.2", "tip.3", "tip.4", "tip.5"]
 
 
 def _product_name(product: dict, lang: str) -> str:
@@ -197,6 +200,9 @@ async def inline_product_selected(callback: CallbackQuery, state: FSMContext, la
         t("submit.product_selected", lang, name=name),
         parse_mode="HTML",
     )
+    # Smart Review Tip — send a random helpful tip before asking for photos
+    tip_key = random.choice(TIP_KEYS)
+    await callback.message.answer(t(tip_key, lang))
     await callback.message.answer(
         t("submit.ask_screenshots", lang),
         reply_markup=done_cancel_keyboard(lang),
@@ -239,36 +245,13 @@ async def process_done(message: Message, state: FSMContext, lang: str, bot: Bot)
         return
 
     await message.answer(t("submit.sending", lang))
-    await state.clear()
 
-    # Build JWT via Telegram initData
+    # Get JWT via shared helper (no more duplicated HMAC code)
     tg_user = message.from_user
-    import hashlib, hmac, json, time, urllib.parse
-
-    user_json = json.dumps({
-        "id": tg_user.id,
-        "first_name": tg_user.first_name or "",
-        "last_name": tg_user.last_name or "",
-        "username": tg_user.username or "",
-        "language_code": tg_user.language_code or lang,
-    }, separators=(",", ":"))
-
-    auth_date = str(int(time.time()))
-    data_check_string = f"auth_date={auth_date}\nuser={user_json}"
-    secret_key = hmac.new(b"WebAppData", settings.BOT_TOKEN.encode(), hashlib.sha256).digest()
-    hash_val = hmac.new(secret_key, data_check_string.encode(), hashlib.sha256).hexdigest()
-
-    init_data = urllib.parse.urlencode({
-        "auth_date": auth_date,
-        "user": user_json,
-        "hash": hash_val,
-    })
-
-    try:
-        auth_resp = await auth_telegram(init_data)
-        token = auth_resp["access_token"]
-    except APIError as e:
-        log.error("Auth failed for user %s: %s", tg_user.id, e)
+    token = await get_auth_token(tg_user, lang)
+    if not token:
+        log.error("Auth failed for user %s", tg_user.id)
+        await state.clear()
         await message.answer(t("submit.error", lang), reply_markup=main_menu(lang, settings.WEBAPP_URL))
         return
 
@@ -282,7 +265,6 @@ async def process_done(message: Message, state: FSMContext, lang: str, bot: Bot)
 
     try:
         # Always submit with product_id (UUID)
-        from app.services.api import _request
         files = [
             ("images", (fname, data_bytes, "image/jpeg"))
             for data_bytes, fname in photo_bytes_list
@@ -290,6 +272,8 @@ async def process_done(message: Message, state: FSMContext, lang: str, bot: Bot)
         form_data = {"product_id": product_id} if product_id else {}
         resp = await _request("POST", "/api/v1/submissions", token=token, data=form_data, files=files)
         submission_id = resp.get("id", "?")
+        # Only clear state AFTER successful upload
+        await state.clear()
         await message.answer(
             t("submit.success", lang, submission_id=submission_id),
             reply_markup=main_menu(lang, settings.WEBAPP_URL),
@@ -297,9 +281,13 @@ async def process_done(message: Message, state: FSMContext, lang: str, bot: Bot)
         )
     except APIError as e:
         log.error("Submit failed: %s", e)
+        # Clear state on known terminal errors, keep state on transient failures
+        if e.status_code in (429, 409, 400):
+            await state.clear()
         if e.status_code == 429:
             await message.answer(t("submit.daily_limit", lang), reply_markup=main_menu(lang, settings.WEBAPP_URL))
         elif e.status_code == 409:
             await message.answer(t("submit.duplicate", lang), reply_markup=main_menu(lang, settings.WEBAPP_URL))
         else:
+            await state.clear()
             await message.answer(t("submit.error", lang), reply_markup=main_menu(lang, settings.WEBAPP_URL))

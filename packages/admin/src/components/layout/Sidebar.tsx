@@ -1,14 +1,17 @@
-import React, { useState } from 'react'
+import { useState } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import {
-  LayoutDashboard, FileText, Users, Trophy, Heart,
-  ScrollText, ShieldCheck, Settings, Megaphone,
-  Package, BarChart3, LogOut, X, ChevronLeft, ChevronRight,
+  LayoutDashboard, FileCheck, Users, Package, Trophy, Heart,
+  Megaphone, BarChart3, ScrollText, ShieldCheck, Settings,
+  LogOut, X, PanelLeftClose, PanelLeft,
 } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
+import { useViewPreferences } from '@/hooks/useViewPreferences'
 import { getAnalyticsOverview } from '@/api'
 import { cn } from '@/lib/utils'
+import ThemeToggle from '@/components/ui/ThemeToggle'
+import DensityToggle from '@/components/ui/DensityToggle'
 
 type NavItem = {
   to: string
@@ -18,43 +21,37 @@ type NavItem = {
 }
 
 type NavSection = {
-  label: string
+  title: string
   items: NavItem[]
 }
 
-// Nav sections with dividers
 const NAV_SECTIONS: NavSection[] = [
   {
-    label: 'Overview',
+    title: 'Overview',
     items: [
       { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
     ],
   },
   {
-    label: 'Moderation',
+    title: 'Management',
     items: [
-      { to: '/submissions', icon: FileText, label: 'Submissions', badgeKey: 'pending_submissions' },
-      { to: '/users', icon: Users, label: 'Users', badgeKey: 'total_users_today' },
-    ],
-  },
-  {
-    label: 'Content',
-    items: [
-      { to: '/prizes', icon: Trophy, label: 'Prizes' },
+      { to: '/submissions', icon: FileCheck, label: 'Submissions', badgeKey: 'pending_submissions' },
+      { to: '/users', icon: Users, label: 'Users' },
       { to: '/products', icon: Package, label: 'Products' },
+      { to: '/prizes', icon: Trophy, label: 'Prizes' },
+    ],
+  },
+  {
+    title: 'Engagement',
+    items: [
       { to: '/charity', icon: Heart, label: 'Charity' },
-    ],
-  },
-  {
-    label: 'Engage',
-    items: [
       { to: '/broadcast', icon: Megaphone, label: 'Broadcast' },
-      { to: '/reports', icon: BarChart3, label: 'Reports' },
     ],
   },
   {
-    label: 'System',
+    title: 'System',
     items: [
+      { to: '/reports', icon: BarChart3, label: 'Reports' },
       { to: '/audit', icon: ScrollText, label: 'Audit Log' },
       { to: '/admins', icon: ShieldCheck, label: 'Admins' },
       { to: '/settings', icon: Settings, label: 'Settings' },
@@ -80,8 +77,8 @@ function SidebarContent({
 }) {
   const navigate = useNavigate()
   const logout = useAuth((s) => s.logout)
+  const { density, setDensity } = useViewPreferences()
 
-  // Fetch badge counts
   const { data: overview } = useQuery({
     queryKey: ['analytics-overview'],
     queryFn: () => getAnalyticsOverview().then((r) => r.data),
@@ -94,78 +91,57 @@ function SidebarContent({
   }
 
   return (
-    <aside className={cn(
-      'flex flex-col h-full bg-gradient-to-b from-slate-900 via-slate-900 to-slate-800 text-slate-100 transition-all duration-300',
-      collapsed ? 'w-16' : 'w-64',
-    )}>
-      {/* Logo + collapse/close */}
-      <div className={cn(
-        'flex items-center border-b border-slate-700/60 shrink-0 h-14',
-        collapsed ? 'justify-center px-2' : 'justify-between px-4',
-      )}>
+    <aside
+      className={cn(
+        'flex flex-col h-full bg-sidebar text-sidebar-foreground border-r border-sidebar-border transition-all duration-200',
+        collapsed ? 'w-16' : 'w-64',
+      )}
+    >
+      {/* Header */}
+      <div
+        className={cn(
+          'flex items-center shrink-0 h-14 border-b border-sidebar-border',
+          collapsed ? 'justify-center px-2' : 'justify-between px-4',
+        )}
+      >
         {!collapsed && (
           <div className="flex items-center gap-2.5 min-w-0">
-            <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-blue-500 to-violet-600 flex items-center justify-center shrink-0 shadow-lg shadow-blue-900/40">
-              <span className="text-white text-sm font-black">U</span>
+            <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center shrink-0">
+              <span className="text-primary-foreground text-sm font-bold">U</span>
             </div>
             <div className="min-w-0">
-              <p className="text-sm font-black leading-tight tracking-tight text-white truncate">UzumBot</p>
-              <p className="text-[10px] text-slate-400 leading-tight">Admin Panel</p>
+              <p className="text-sm font-semibold leading-tight truncate">Admin Panel</p>
+              <p className="text-[10px] text-muted-foreground leading-tight">UzumBot</p>
             </div>
           </div>
         )}
         {collapsed && (
-          <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-blue-500 to-violet-600 flex items-center justify-center shadow-lg shadow-blue-900/40">
-            <span className="text-white text-sm font-black">U</span>
+          <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
+            <span className="text-primary-foreground text-sm font-bold">U</span>
           </div>
         )}
-        {/* Mobile close */}
         {onClose && !showCollapseBtn && (
           <button
             onClick={onClose}
-            className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-700 transition-colors"
+            className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
           >
             <X size={18} />
           </button>
         )}
-        {/* Desktop collapse toggle */}
-        {showCollapseBtn && !collapsed && (
-          <button
-            onClick={onToggleCollapse}
-            className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-700 transition-colors"
-            title="Collapse sidebar"
-          >
-            <ChevronLeft size={16} />
-          </button>
-        )}
       </div>
 
-      {/* Expand button when collapsed */}
-      {collapsed && showCollapseBtn && (
-        <button
-          onClick={onToggleCollapse}
-          className="flex items-center justify-center py-2 text-slate-400 hover:text-white hover:bg-slate-700/60 transition-colors"
-          title="Expand sidebar"
-        >
-          <ChevronRight size={16} />
-        </button>
-      )}
-
-      {/* Nav with sections */}
-      <nav className={cn('flex-1 py-3 overflow-y-auto overflow-x-hidden', collapsed ? 'px-2' : 'px-3')}>
+      {/* Navigation */}
+      <nav className={cn('flex-1 py-4 overflow-y-auto overflow-x-hidden', collapsed ? 'px-2' : 'px-3')}>
         {NAV_SECTIONS.map((section, si) => (
-          <div key={section.label} className={si > 0 ? 'mt-1' : ''}>
-            {/* Section label — only when expanded */}
+          <div key={section.title} className={si > 0 ? 'mt-6' : ''}>
             {!collapsed && (
-              <div className={cn('px-2 mb-1', si > 0 && 'mt-4 pt-3 border-t border-slate-700/50')}>
-                <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest">{section.label}</p>
-              </div>
+              <p className="px-3 mb-1.5 text-[11px] font-medium text-muted-foreground uppercase tracking-wider">
+                {section.title}
+              </p>
             )}
-            {/* Collapsed divider */}
             {collapsed && si > 0 && (
-              <div className="my-2 mx-1 border-t border-slate-700/50" />
+              <div className="my-2 mx-1.5 border-t border-sidebar-border" />
             )}
-
             <div className="space-y-0.5">
               {section.items.map(({ to, icon: Icon, label, badgeKey }) => {
                 const badgeCount = badgeKey ? (badges[badgeKey] ?? 0) : 0
@@ -178,36 +154,41 @@ function SidebarContent({
                     title={collapsed ? label : undefined}
                     className={({ isActive }) =>
                       cn(
-                        'flex items-center rounded-xl text-sm transition-all duration-150 group relative',
-                        collapsed ? 'justify-center w-10 h-10 mx-auto' : 'gap-3 px-3 py-2.5',
+                        'flex items-center rounded-md text-sm transition-all duration-150 relative',
+                        collapsed ? 'justify-center w-10 h-10 mx-auto' : 'gap-3 px-3 py-2',
                         isActive
-                          ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg shadow-blue-900/40'
-                          : 'text-slate-400 hover:bg-slate-700/50 hover:text-slate-100'
+                          ? 'bg-primary/10 text-primary font-medium'
+                          : 'text-muted-foreground hover:bg-accent hover:text-foreground',
                       )
                     }
                   >
                     {({ isActive }) => (
                       <>
+                        {/* Active left accent */}
+                        {isActive && !collapsed && (
+                          <span className="absolute left-0 top-1.5 bottom-1.5 w-[3px] rounded-r-full bg-primary" />
+                        )}
+                        {isActive && collapsed && (
+                          <span className="absolute left-0 top-2 bottom-2 w-[3px] rounded-r-full bg-primary" />
+                        )}
                         <Icon size={collapsed ? 18 : 16} className="shrink-0" />
                         {!collapsed && (
-                          <span className="truncate font-medium flex-1">{label}</span>
+                          <span className="truncate flex-1">{label}</span>
                         )}
-                        {/* Badge */}
                         {badgeCount > 0 && !collapsed && (
-                          <span className={cn(
-                            'ml-auto text-[10px] font-black px-1.5 py-0.5 rounded-full leading-none',
-                            isActive ? 'bg-white/20 text-white' : 'bg-amber-500 text-white'
-                          )}>
+                          <span
+                            className={cn(
+                              'ml-auto text-[10px] font-semibold px-1.5 py-0.5 rounded-full leading-none',
+                              isActive
+                                ? 'bg-primary/20 text-primary'
+                                : 'bg-destructive/10 text-destructive',
+                            )}
+                          >
                             {badgeCount > 99 ? '99+' : badgeCount}
                           </span>
                         )}
-                        {/* Collapsed badge dot */}
                         {badgeCount > 0 && collapsed && (
-                          <span className="absolute top-0.5 right-0.5 w-2 h-2 bg-amber-500 rounded-full border border-slate-800" />
-                        )}
-                        {/* Active indicator dot (collapsed mode) */}
-                        {collapsed && isActive && (
-                          <span className="absolute right-0.5 top-1/2 -translate-y-1/2 w-1 h-4 bg-blue-400 rounded-full" />
+                          <span className="absolute top-0.5 right-0.5 w-2 h-2 bg-destructive rounded-full" />
                         )}
                       </>
                     )}
@@ -219,34 +200,52 @@ function SidebarContent({
         ))}
       </nav>
 
-      {/* User + Logout */}
-      <div className={cn('border-t border-slate-700/60 pt-3 pb-4 shrink-0', collapsed ? 'px-2' : 'px-3')}>
-        {/* User card (expanded mode) */}
+      {/* Bottom section */}
+      <div className={cn('border-t border-sidebar-border shrink-0', collapsed ? 'px-2 py-3' : 'px-3 py-3')}>
+        {/* Theme and density toggles — expanded mode */}
         {!collapsed && (
-          <div className="flex items-center gap-3 px-3 py-2.5 mb-1 bg-slate-800/60 rounded-xl border border-slate-700/40">
-            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-400 to-blue-500 flex items-center justify-center text-white text-xs font-black shrink-0 shadow-md">
-              A
+          <div className="space-y-2 mb-3">
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">Theme</span>
+              <ThemeToggle />
             </div>
-            <div className="min-w-0 flex-1">
-              <p className="text-sm font-bold text-white truncate leading-tight">Superadmin</p>
-              <p className="text-[10px] text-slate-400 truncate leading-tight">admin@uzumbot.dev</p>
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">Density</span>
+              <DensityToggle current={density} onChange={setDensity} />
             </div>
-            {/* Online indicator */}
-            <div className="w-2 h-2 rounded-full bg-emerald-400 flex-shrink-0 shadow-sm shadow-emerald-400/50" />
           </div>
+        )}
+
+        {/* Collapse toggle */}
+        {showCollapseBtn && (
+          <button
+            onClick={onToggleCollapse}
+            title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            className={cn(
+              'flex items-center rounded-md text-sm text-muted-foreground hover:bg-accent hover:text-foreground transition-colors w-full',
+              collapsed ? 'justify-center w-10 h-10 mx-auto' : 'gap-3 px-3 py-2',
+            )}
+          >
+            {collapsed ? <PanelLeft size={18} /> : <PanelLeftClose size={16} />}
+            {!collapsed && <span>Collapse</span>}
+          </button>
         )}
 
         {/* Logout */}
         <button
-          onClick={() => { logout(); navigate('/login'); onClose?.() }}
+          onClick={() => {
+            logout()
+            navigate('/login')
+            onClose?.()
+          }}
           title={collapsed ? 'Logout' : undefined}
           className={cn(
-            'flex items-center rounded-xl text-sm text-slate-400 hover:bg-red-600/20 hover:text-red-400 transition-all w-full font-medium',
-            collapsed ? 'justify-center w-10 h-10 mx-auto' : 'gap-3 px-3 py-2.5',
+            'flex items-center rounded-md text-sm text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors w-full',
+            collapsed ? 'justify-center w-10 h-10 mx-auto' : 'gap-3 px-3 py-2',
           )}
         >
           <LogOut size={collapsed ? 18 : 16} className="shrink-0" />
-          {!collapsed && 'Logout'}
+          {!collapsed && <span>Logout</span>}
         </button>
       </div>
     </aside>
@@ -267,20 +266,20 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
         />
       </div>
 
-      {/* Mobile drawer */}
+      {/* Mobile overlay drawer */}
       {open !== undefined && (
         <>
           <div
             className={cn(
-              'fixed inset-0 bg-black/60 backdrop-blur-sm z-40 lg:hidden transition-opacity duration-300',
-              open ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
+              'fixed inset-0 bg-black/50 backdrop-blur-sm z-40 lg:hidden transition-opacity duration-200',
+              open ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none',
             )}
             onClick={onClose}
           />
           <div
             className={cn(
-              'fixed top-0 left-0 h-full z-50 lg:hidden transition-transform duration-300 ease-in-out',
-              open ? 'translate-x-0' : '-translate-x-full'
+              'fixed top-0 left-0 h-full z-50 lg:hidden transition-transform duration-200 ease-out',
+              open ? 'translate-x-0' : '-translate-x-full',
             )}
           >
             <SidebarContent collapsed={false} onClose={onClose} />

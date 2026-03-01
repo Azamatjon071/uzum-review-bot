@@ -9,17 +9,19 @@
     "preview": "vite preview --port 5173"
   },
   "dependencies": {
+    "@tanstack/react-query": "^5.28.0",
+    "@telegram-apps/sdk": "^2.0.0",
+    "@telegram-apps/sdk-react": "^2.0.0",
+    "axios": "^1.6.8",
+    "clsx": "^2.1.0",
+    "date-fns": "^3.6.0",
+    "framer-motion": "^11.1.7",
+    "lucide-react": "^0.575.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-router-dom": "^6.22.3",
-    "@telegram-apps/sdk-react": "^2.0.0",
-    "@telegram-apps/sdk": "^2.0.0",
-    "@tanstack/react-query": "^5.28.0",
-    "axios": "^1.6.8",
-    "framer-motion": "^11.1.7",
-    "zustand": "^4.5.2",
-    "clsx": "^2.1.0",
-    "date-fns": "^3.6.0"
+    "tailwind-merge": "^3.5.0",
+    "zustand": "^4.5.2"
   },
   "devDependencies": {
     "@types/react": "^19.0.0",

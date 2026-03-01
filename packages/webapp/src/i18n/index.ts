@@ -135,6 +135,33 @@ const strings = {
     cancel: 'Bekor qilish',
     copy_success: 'Nusxalandi!',
     share_link: 'Havolani ulashish',
+
+    // Rarity labels
+    rarity_common: 'Oddiy',
+    rarity_uncommon: 'Noodatiy',
+    rarity_rare: 'Nodir',
+    rarity_epic: 'Epik',
+    rarity_legendary: 'Afsonaviy',
+
+    // Live feed
+    live_someone_won: '🎉 Kimdir hozirgina {prize} yutib oldi!',
+    live_prizes_today: '⭐ Bugun {count} ta sovg\'a yutildi!',
+    live_spinning_now: '🔥 Hozir {count} kishi aylantirmoqda!',
+
+    // Charity quotes
+    charity_quote_title: 'Hikmatli so\'z',
+
+    // Achievement badges
+    achievements_title: 'Yutuqlar',
+    achievements_count: '{unlocked}/{total} ochilgan',
+    badge_first_review: 'Birinchi sharh',
+    badge_review_pro: 'Sharh ustasi',
+    badge_lucky_spinner: 'Omadli o\'yinchi',
+    badge_spin_master: 'Spin ustasi',
+    badge_social_butterfly: 'Ijtimoiy kapalak',
+    badge_ambassador: 'Elchi',
+    badge_generous_heart: 'Saxiy qalb',
+    badge_streak_king: 'Ketma-ket shoh',
   },
   ru: {
     tab_spin: 'Крутить',
@@ -258,6 +285,33 @@ const strings = {
     cancel: 'Отмена',
     copy_success: 'Скопировано!',
     share_link: 'Поделиться ссылкой',
+
+    // Rarity labels
+    rarity_common: 'Обычный',
+    rarity_uncommon: 'Необычный',
+    rarity_rare: 'Редкий',
+    rarity_epic: 'Эпический',
+    rarity_legendary: 'Легендарный',
+
+    // Live feed
+    live_someone_won: '🎉 Кто-то только что выиграл {prize}!',
+    live_prizes_today: '⭐ Сегодня выиграно {count} призов!',
+    live_spinning_now: '🔥 {count} человек крутят прямо сейчас!',
+
+    // Charity quotes
+    charity_quote_title: 'Мудрость',
+
+    // Achievement badges
+    achievements_title: 'Достижения',
+    achievements_count: '{unlocked}/{total} открыто',
+    badge_first_review: 'Первый отзыв',
+    badge_review_pro: 'Профи отзывов',
+    badge_lucky_spinner: 'Удачливый игрок',
+    badge_spin_master: 'Мастер спинов',
+    badge_social_butterfly: 'Социальная бабочка',
+    badge_ambassador: 'Посол',
+    badge_generous_heart: 'Щедрое сердце',
+    badge_streak_king: 'Король серии',
   },
   en: {
     tab_spin: 'Spin',
@@ -381,6 +435,33 @@ const strings = {
     cancel: 'Cancel',
     copy_success: 'Copied!',
     share_link: 'Share link',
+
+    // Rarity labels
+    rarity_common: 'Common',
+    rarity_uncommon: 'Uncommon',
+    rarity_rare: 'Rare',
+    rarity_epic: 'Epic',
+    rarity_legendary: 'Legendary',
+
+    // Live feed
+    live_someone_won: '🎉 Someone just won {prize}!',
+    live_prizes_today: '⭐ {count} prizes won today!',
+    live_spinning_now: '🔥 {count} people spinning right now!',
+
+    // Charity quotes
+    charity_quote_title: 'Wisdom',
+
+    // Achievement badges
+    achievements_title: 'Achievements',
+    achievements_count: '{unlocked}/{total} unlocked',
+    badge_first_review: 'First Review',
+    badge_review_pro: 'Review Pro',
+    badge_lucky_spinner: 'Lucky Spinner',
+    badge_spin_master: 'Spin Master',
+    badge_social_butterfly: 'Social Butterfly',
+    badge_ambassador: 'Ambassador',
+    badge_generous_heart: 'Generous Heart',
+    badge_streak_king: 'Streak King',
   },
 } as const
 

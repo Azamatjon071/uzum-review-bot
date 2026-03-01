@@ -509,6 +509,84 @@ STRINGS: dict[str, dict[str, str]] = {
     "btn.lang_ru": {"uz": "🇷🇺 Русский", "ru": "🇷🇺 Русский", "en": "🇷🇺 Русский"},
     "btn.lang_en": {"uz": "🇬🇧 English", "ru": "🇬🇧 English", "en": "🇬🇧 English"},
     "btn.copy_referral": {"uz": "🔗 Havolani ko'chirish", "ru": "🔗 Скопировать ссылку", "en": "🔗 Copy link"},
+
+    # ── Smart Review Tips (Feature 1) ────────────────────────────────────────
+    "tip.1": {
+        "uz": "💡 Maslahat: Mahsulotning aniq, yorug' rasmlarini oling.",
+        "ru": "💡 Совет: Делайте чёткие, хорошо освещённые фото товара.",
+        "en": "💡 Tip: Take clear, well-lit photos of the product.",
+    },
+    "tip.2": {
+        "uz": "💡 Maslahat: Kamida bitta rasmda mahsulot qadoqlanishini ko'rsating.",
+        "ru": "💡 Совет: Покажите упаковку товара хотя бы на одном фото.",
+        "en": "💡 Tip: Include the product packaging in at least one photo.",
+    },
+    "tip.3": {
+        "uz": "💡 Maslahat: Uzum buyurtma raqami ko'rinishiga ishonch hosil qiling.",
+        "ru": "💡 Совет: Убедитесь, что номер заказа Uzum виден на фото.",
+        "en": "💡 Tip: Make sure the Uzum order number is visible.",
+    },
+    "tip.4": {
+        "uz": "💡 Maslahat: Yetkazilgandan keyin 24 soat ichida yuboring — tezroq tasdiqlanadi.",
+        "ru": "💡 Совет: Отправьте в течение 24 часов после доставки — одобрят быстрее.",
+        "en": "💡 Tip: Submit within 24 hours of delivery for faster approval.",
+    },
+    "tip.5": {
+        "uz": "💡 Maslahat: Har bir mahsulot uchun bitta sharh — takroriy sharhlar rad etiladi.",
+        "ru": "💡 Совет: Один отзыв на товар — дубликаты будут отклонены.",
+        "en": "💡 Tip: One review per product — duplicates will be rejected.",
+    },
+
+    # ── Mini Stats Footer (Feature 2) ────────────────────────────────────────
+    "footer_stats": {
+        "uz": "\n📊 Sizning statistika: {reviews} ta sharh • {spins} ta aylanish • {referrals} ta taklif",
+        "ru": "\n📊 Ваша статистика: {reviews} отзывов • {spins} вращений • {referrals} рефералов",
+        "en": "\n📊 Your stats: {reviews} reviews • {spins} spins • {referrals} referrals",
+    },
+
+    # ── Referral Milestone Messages (Feature 3) ──────────────────────────────
+    "milestone_1": {
+        "uz": "🎉 Birinchi taklifingiz! Siz bonus aylanish yutdingiz!",
+        "ru": "🎉 Ваш первый реферал! Вы заработали бонусное вращение!",
+        "en": "🎉 Your first referral! You earned a bonus spin!",
+    },
+    "milestone_5": {
+        "uz": "🌟 5 ta taklif! Siz yulduz tashviqotchi bo'lyapsiz!",
+        "ru": "🌟 5 рефералов! Вы становитесь звёздным рекрутером!",
+        "en": "🌟 5 referrals! You're becoming a star recruiter!",
+    },
+    "milestone_10": {
+        "uz": "🏆 10 ta taklif! Ajoyib elchi maqomi!",
+        "ru": "🏆 10 рефералов! Потрясающий статус посла!",
+        "en": "🏆 10 referrals! Amazing ambassador status!",
+    },
+    "milestone_25": {
+        "uz": "💎 25 ta taklif! Olmos darajadagi tashviqotchi!",
+        "ru": "💎 25 рефералов! Алмазный уровень рекрутера!",
+        "en": "💎 25 referrals! Diamond level recruiter!",
+    },
+    "milestone_50": {
+        "uz": "👑 50 ta taklif! Afsonaviy maqom ochildi!",
+        "ru": "👑 50 рефералов! Легендарный статус разблокирован!",
+        "en": "👑 50 referrals! Legendary status unlocked!",
+    },
+
+    # ── Engagement Nudges (Feature 4) ────────────────────────────────────────
+    "nudge_has_spins": {
+        "uz": "🎡 Sizda {n} ta aylanish kutmoqda! Ilovani oching va aylantiring!",
+        "ru": "🎡 У вас {n} вращений ждут! Откройте приложение и крутите!",
+        "en": "🎡 You have {n} spins waiting! Open the app to spin!",
+    },
+    "nudge_check_spins": {
+        "uz": "✅ Sharhlaringiz tasdiqlangan! Yangi aylanishlar bormi tekshiring.",
+        "ru": "✅ Ваши отзывы одобрены! Проверьте, есть ли новые вращения.",
+        "en": "✅ Your reviews are approved! Check if you have new spins.",
+    },
+    "nudge_first_review": {
+        "uz": "📝 Birinchi sharhingizni yuboring va aylanish yuting!",
+        "ru": "📝 Отправьте свой первый отзыв и получите вращение!",
+        "en": "📝 Submit your first review to earn a spin!",
+    },
 }
 
 FALLBACK_LANG = "uz"

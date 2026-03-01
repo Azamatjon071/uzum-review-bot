@@ -1,120 +1,31 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
+import { Eye, EyeOff, Loader2, Lock, Mail } from 'lucide-react'
 import { adminLogin, adminVerify2FA } from '@/api'
 import { useAuth } from '@/hooks/useAuth'
-
-// Animated orb component
-function Orb({ className, style }: { className?: string; style?: React.CSSProperties }) {
-  return <div className={`absolute rounded-full pointer-events-none ${className}`} style={style} />
-}
-
-// Floating label input
-function FloatingInput({
-  name,
-  type: propType = 'text',
-  label,
-  autoComplete,
-  required,
-  autoFocus,
-  maxLength,
-  showToggle,
-}: {
-  name: string
-  type?: string
-  label: string
-  autoComplete?: string
-  required?: boolean
-  autoFocus?: boolean
-  maxLength?: number
-  showToggle?: boolean
-}) {
-  const [focused, setFocused] = useState(false)
-  const [value, setValue] = useState('')
-  const [show, setShow] = useState(false)
-  const inputType = showToggle ? (show ? 'text' : 'password') : propType
-
-  return (
-    <div className="relative">
-      <input
-        name={name}
-        type={inputType}
-        value={value}
-        onChange={(e) => setValue(e.target.value)}
-        onFocus={() => setFocused(true)}
-        onBlur={() => setFocused(false)}
-        required={required}
-        autoComplete={autoComplete}
-        autoFocus={autoFocus}
-        maxLength={maxLength}
-        placeholder=" "
-        className="w-full bg-white/10 border text-white placeholder-transparent rounded-xl px-4 pt-5 pb-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all peer pr-12"
-        style={{
-          borderColor: focused ? 'rgba(59,130,246,0.7)' : 'rgba(255,255,255,0.1)',
-        }}
-      />
-      <label
-        className="absolute left-4 text-slate-400 text-xs font-medium transition-all pointer-events-none"
-        style={{
-          top: focused || value ? '8px' : '50%',
-          transform: focused || value ? 'translateY(0)' : 'translateY(-50%)',
-          fontSize: focused || value ? '10px' : '13px',
-          color: focused ? '#60a5fa' : 'rgba(148,163,184,0.8)',
-        }}
-      >
-        {label}
-      </label>
-      {showToggle && (
-        <button
-          type="button"
-          onClick={() => setShow((s) => !s)}
-          tabIndex={-1}
-          className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200 transition-colors text-sm"
-        >
-          {show ? '🙈' : '👁️'}
-        </button>
-      )}
-    </div>
-  )
-}
+import { cn } from '@/lib/utils'
 
 export default function LoginPage() {
   const navigate = useNavigate()
   const setToken = useAuth((s) => s.setToken)
+
   const [step, setStep] = useState<'login' | 'totp'>('login')
   const [tempToken, setTempToken] = useState('')
   const [loading, setLoading] = useState(false)
-  const cardRef = useRef<HTMLDivElement>(null)
+  const [error, setError] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
 
-  // Subtle card tilt on mouse move
-  useEffect(() => {
-    const el = cardRef.current
-    if (!el) return
-    const handleMove = (e: MouseEvent) => {
-      const rect = el.getBoundingClientRect()
-      const cx = rect.left + rect.width / 2
-      const cy = rect.top + rect.height / 2
-      const dx = (e.clientX - cx) / rect.width
-      const dy = (e.clientY - cy) / rect.height
-      el.style.transform = `perspective(800px) rotateY(${dx * 4}deg) rotateX(${-dy * 4}deg)`
-    }
-    const handleLeave = () => {
-      el.style.transform = 'perspective(800px) rotateY(0deg) rotateX(0deg)'
-    }
-    window.addEventListener('mousemove', handleMove)
-    window.addEventListener('mouseleave', handleLeave)
-    return () => {
-      window.removeEventListener('mousemove', handleMove)
-      window.removeEventListener('mouseleave', handleLeave)
-    }
-  }, [])
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [totpCode, setTotpCode] = useState('')
 
   async function handleLogin(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
-    const fd = new FormData(e.currentTarget)
+    setError('')
     setLoading(true)
     try {
-      const res = await adminLogin(fd.get('email') as string, fd.get('password') as string)
+      const res = await adminLogin(email, password)
       if (res.data.requires_2fa) {
         setTempToken(res.data.temp_token)
         setStep('totp')
@@ -123,6 +34,7 @@ export default function LoginPage() {
         navigate('/')
       }
     } catch {
+      setError('Invalid email or password. Please try again.')
       toast.error('Invalid credentials')
     } finally {
       setLoading(false)
@@ -131,13 +43,14 @@ export default function LoginPage() {
 
   async function handleTotp(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
-    const fd = new FormData(e.currentTarget)
+    setError('')
     setLoading(true)
     try {
-      const res = await adminVerify2FA(tempToken, fd.get('code') as string)
+      const res = await adminVerify2FA(tempToken, totpCode)
       setToken(res.data.access_token)
       navigate('/')
     } catch {
+      setError('Invalid verification code. Please try again.')
       toast.error('Invalid 2FA code')
     } finally {
       setLoading(false)
@@ -145,158 +58,193 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-4 overflow-hidden">
-      {/* Animated orbs */}
-      <Orb
-        className="w-[500px] h-[500px] animate-pulse"
-        style={{
-          top: '-15%',
-          right: '-10%',
-          background: 'radial-gradient(circle, rgba(59,130,246,0.15) 0%, transparent 70%)',
-          filter: 'blur(40px)',
-          animationDuration: '4s',
-        }}
-      />
-      <Orb
-        className="w-[400px] h-[400px]"
-        style={{
-          bottom: '-15%',
-          left: '-10%',
-          background: 'radial-gradient(circle, rgba(139,92,246,0.12) 0%, transparent 70%)',
-          filter: 'blur(35px)',
-          animation: 'pulse 5s ease-in-out infinite',
-        }}
-      />
-      <Orb
-        className="w-[250px] h-[250px]"
-        style={{
-          top: '40%',
-          left: '15%',
-          background: 'radial-gradient(circle, rgba(99,102,241,0.08) 0%, transparent 70%)',
-          filter: 'blur(25px)',
-          animation: 'pulse 6s ease-in-out infinite reverse',
-        }}
-      />
+    <div className="min-h-screen flex flex-col lg:flex-row bg-background">
+      {/* Left branding panel */}
+      <div className="lg:w-1/2 bg-gradient-to-br from-violet-600 to-indigo-800 flex flex-col items-center justify-center px-8 py-12 lg:py-0 relative overflow-hidden">
+        {/* Decorative circles */}
+        <div className="absolute top-[-10%] right-[-10%] w-[400px] h-[400px] rounded-full bg-white/5 blur-3xl pointer-events-none" />
+        <div className="absolute bottom-[-15%] left-[-5%] w-[350px] h-[350px] rounded-full bg-white/5 blur-3xl pointer-events-none" />
 
-      <div className="relative w-full max-w-sm">
-        {/* Header */}
-        <div className="text-center mb-8">
-          <div
-            className="inline-flex w-16 h-16 rounded-2xl items-center justify-center mb-4 shadow-2xl shadow-blue-900/50"
-            style={{ background: 'linear-gradient(135deg, #3b82f6, #7c3aed)' }}
-          >
-            <span className="text-white text-2xl font-black">U</span>
+        <div className="relative z-10 text-center max-w-md">
+          {/* Logo */}
+          <div className="w-16 h-16 lg:w-20 lg:h-20 rounded-2xl bg-white/15 backdrop-blur-sm border border-white/20 flex items-center justify-center mx-auto mb-6">
+            <span className="text-white text-3xl lg:text-4xl font-bold">U</span>
           </div>
-          <h1 className="text-2xl font-black text-white tracking-tight">UzumBot Admin</h1>
-          <p className="text-slate-400 text-sm mt-1">
-            {step === 'login' ? 'Sign in to your account' : 'Two-factor authentication'}
+          <h1 className="text-3xl lg:text-4xl font-bold text-white tracking-tight mb-3">
+            UzumBot Admin
+          </h1>
+          <p className="text-violet-200 text-sm lg:text-base leading-relaxed hidden lg:block">
+            Manage submissions, users, prizes, and everything in between. Your centralized control panel for the entire platform.
           </p>
         </div>
+      </div>
 
-        {/* Card */}
-        <div
-          ref={cardRef}
-          className="bg-white/[0.06] backdrop-blur-xl border border-white/10 rounded-2xl p-6 shadow-2xl transition-transform duration-100 ease-out"
-          style={{ willChange: 'transform' }}
-        >
+      {/* Right form panel */}
+      <div className="flex-1 flex items-center justify-center px-6 py-12 lg:px-12 bg-background">
+        <div className="w-full max-w-sm">
           {step === 'login' ? (
-            <form onSubmit={handleLogin} className="space-y-4">
-              <FloatingInput
-                name="email"
-                type="email"
-                label="Email address"
-                autoComplete="email"
-                required
-              />
-              <FloatingInput
-                name="password"
-                type="password"
-                label="Password"
-                autoComplete="current-password"
-                required
-                showToggle
-              />
-
-              {/* Forgot password link */}
-              <div className="text-right">
-                <span className="text-xs text-slate-500 cursor-default">
-                  Contact superadmin to reset password
-                </span>
+            <>
+              <div className="mb-8">
+                <h2 className="text-2xl font-bold text-foreground tracking-tight">
+                  Welcome back
+                </h2>
+                <p className="text-muted-foreground text-sm mt-1">
+                  Sign in to your admin account
+                </p>
               </div>
 
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full text-white rounded-xl py-3 text-sm font-semibold transition-all shadow-lg disabled:opacity-60 disabled:cursor-not-allowed mt-1 hover:opacity-90 active:scale-[0.98]"
-                style={{ background: 'linear-gradient(90deg, #3b82f6, #6366f1)', boxShadow: '0 8px 25px rgba(99,102,241,0.35)' }}
-              >
-                {loading ? (
-                  <span className="flex items-center justify-center gap-2">
-                    <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                    Signing in…
-                  </span>
-                ) : (
-                  'Sign in →'
-                )}
-              </button>
-            </form>
-          ) : (
-            <form onSubmit={handleTotp} className="space-y-5">
-              <div className="text-center mb-2">
-                <div
-                  className="inline-flex w-14 h-14 rounded-2xl items-center justify-center mb-3"
-                  style={{ background: 'rgba(59,130,246,0.15)', border: '1px solid rgba(59,130,246,0.3)' }}
-                >
-                  <span className="text-3xl">🔐</span>
+              {/* Error alert */}
+              {error && (
+                <div className="mb-4 px-4 py-3 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-sm">
+                  {error}
                 </div>
-                <p className="text-sm text-slate-300 leading-relaxed">
+              )}
+
+              <form onSubmit={handleLogin} className="space-y-4">
+                {/* Email */}
+                <div>
+                  <label htmlFor="email" className="block text-sm font-medium text-foreground mb-1.5">
+                    Email
+                  </label>
+                  <div className="relative">
+                    <Mail size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                    <input
+                      id="email"
+                      type="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      required
+                      autoComplete="email"
+                      placeholder="admin@example.com"
+                      className="w-full rounded-lg border border-input bg-background pl-10 pr-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition-all"
+                    />
+                  </div>
+                </div>
+
+                {/* Password */}
+                <div>
+                  <label htmlFor="password" className="block text-sm font-medium text-foreground mb-1.5">
+                    Password
+                  </label>
+                  <div className="relative">
+                    <Lock size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                    <input
+                      id="password"
+                      type={showPassword ? 'text' : 'password'}
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      required
+                      autoComplete="current-password"
+                      placeholder="Enter your password"
+                      className="w-full rounded-lg border border-input bg-background pl-10 pr-10 py-2.5 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition-all"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword((s) => !s)}
+                      tabIndex={-1}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                    >
+                      {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Submit */}
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className={cn(
+                    'w-full flex items-center justify-center gap-2 rounded-lg bg-primary text-primary-foreground py-2.5 text-sm font-medium transition-all',
+                    'hover:opacity-90 active:scale-[0.99]',
+                    'disabled:opacity-50 disabled:cursor-not-allowed',
+                  )}
+                >
+                  {loading ? (
+                    <>
+                      <Loader2 size={16} className="animate-spin" />
+                      Signing in...
+                    </>
+                  ) : (
+                    'Sign in'
+                  )}
+                </button>
+              </form>
+
+              <p className="text-center text-xs text-muted-foreground mt-6">
+                Contact a superadmin if you need to reset your password.
+              </p>
+            </>
+          ) : (
+            <>
+              <div className="mb-8">
+                <h2 className="text-2xl font-bold text-foreground tracking-tight">
+                  Two-factor authentication
+                </h2>
+                <p className="text-muted-foreground text-sm mt-1">
                   Enter the 6-digit code from your authenticator app
                 </p>
               </div>
 
-              {/* TOTP code input */}
-              <div>
-                <input
-                  name="code"
-                  placeholder="000 000"
-                  required
-                  maxLength={6}
-                  autoFocus
-                  className="w-full bg-white/10 border border-white/10 text-white placeholder-slate-500 rounded-xl px-4 py-3 text-2xl text-center tracking-[0.5em] font-mono focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
-                />
-              </div>
+              {error && (
+                <div className="mb-4 px-4 py-3 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-sm">
+                  {error}
+                </div>
+              )}
 
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full text-white rounded-xl py-3 text-sm font-semibold transition-all shadow-lg disabled:opacity-60 hover:opacity-90 active:scale-[0.98]"
-                style={{ background: 'linear-gradient(90deg, #3b82f6, #6366f1)', boxShadow: '0 8px 25px rgba(99,102,241,0.35)' }}
-              >
-                {loading ? (
-                  <span className="flex items-center justify-center gap-2">
-                    <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                    Verifying…
-                  </span>
-                ) : (
-                  'Verify Code'
-                )}
-              </button>
+              <form onSubmit={handleTotp} className="space-y-4">
+                <div>
+                  <label htmlFor="totp" className="block text-sm font-medium text-foreground mb-1.5">
+                    Verification code
+                  </label>
+                  <input
+                    id="totp"
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    value={totpCode}
+                    onChange={(e) => setTotpCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                    required
+                    maxLength={6}
+                    autoFocus
+                    placeholder="000000"
+                    className="w-full rounded-lg border border-input bg-background px-4 py-3 text-center text-2xl font-mono tracking-[0.4em] text-foreground placeholder:text-muted-foreground outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition-all"
+                  />
+                </div>
 
-              <button
-                type="button"
-                onClick={() => setStep('login')}
-                className="w-full text-slate-400 text-sm hover:text-slate-200 transition-colors py-1"
-              >
-                ← Back to login
-              </button>
-            </form>
+                <button
+                  type="submit"
+                  disabled={loading || totpCode.length < 6}
+                  className={cn(
+                    'w-full flex items-center justify-center gap-2 rounded-lg bg-primary text-primary-foreground py-2.5 text-sm font-medium transition-all',
+                    'hover:opacity-90 active:scale-[0.99]',
+                    'disabled:opacity-50 disabled:cursor-not-allowed',
+                  )}
+                >
+                  {loading ? (
+                    <>
+                      <Loader2 size={16} className="animate-spin" />
+                      Verifying...
+                    </>
+                  ) : (
+                    'Verify code'
+                  )}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setStep('login')
+                    setError('')
+                    setTotpCode('')
+                  }}
+                  className="w-full text-sm text-muted-foreground hover:text-foreground transition-colors py-1"
+                >
+                  Back to login
+                </button>
+              </form>
+            </>
           )}
         </div>
-
-        {/* Footer */}
-        <p className="text-center text-slate-600 text-xs mt-6">
-          UzumBot Admin Panel · Secure Access
-        </p>
       </div>
     </div>
   )

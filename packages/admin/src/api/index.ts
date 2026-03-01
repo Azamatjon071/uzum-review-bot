@@ -94,11 +94,13 @@ export const sendBroadcast = (
   message: string,
   language?: string,
   image?: File | null,
+  scheduled_at?: string,
 ) => {
   const form = new FormData()
   form.append('message', message)
   if (language) form.append('language', language)
   if (image) form.append('image', image)
+  if (scheduled_at) form.append('scheduled_at', scheduled_at)
   return api.post('/admin/broadcast', form, {
     headers: { 'Content-Type': 'multipart/form-data' },
   })

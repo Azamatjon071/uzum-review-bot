@@ -11,6 +11,20 @@ api.interceptors.request.use((config) => {
   return config
 })
 
+// Auto-logout on 401 — expired or invalid JWT
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      localStorage.removeItem('webapp_token')
+      localStorage.removeItem('webapp_user')
+      // Re-trigger Telegram auth on next page load
+      window.location.reload()
+    }
+    return Promise.reject(error)
+  },
+)
+
 // ── Auth ─────────────────────────────────────────────────────────────────────
 export const authWithTelegram = (initData: string) =>
   api.post('/auth/telegram', { init_data: initData })
@@ -31,9 +45,10 @@ export const donateReward = (rewardId: string, campaignId?: string) =>
 
 // ── Charity ───────────────────────────────────────────────────────────────────
 export const getPublicCampaigns = () => api.get('/charity/campaigns')
-export const donateToCapmaign = (campaign_id: string, amount: number) =>
+export const donateToCampaign = (campaign_id: string, amount: number) =>
   api.post('/charity/donate', { campaign_id, amount })
-export const donateToCampaign = donateToCapmaign
+/** @deprecated Use donateToCampaign instead */
+export const donateToCapmaign = donateToCampaign
 export const giveSadaqa = (amount: number) =>
   api.post('/charity/donate', { amount })
 export const getCharityLeaderboard = () => api.get('/charity/leaderboard')

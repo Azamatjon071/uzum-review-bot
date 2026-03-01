@@ -1,15 +1,16 @@
 import { NavLink } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { useQuery } from '@tanstack/react-query'
+import { Disc3, Wallet, FileText, Heart, User } from 'lucide-react'
 import { t } from '@/i18n'
 import { getMyRewards } from '@/api'
 
-const TABS = [
-  { to: '/', icon: '🎡', labelKey: 'tab_spin' as const },
-  { to: '/wallet', icon: '👛', labelKey: 'tab_wallet' as const },
-  { to: '/reviews', icon: '📝', labelKey: 'tab_reviews' as const },
-  { to: '/charity', icon: '🤲', labelKey: 'tab_charity' as const },
-  { to: '/profile', icon: '👤', labelKey: 'tab_profile' as const },
+const TABS: { to: string; icon: React.ComponentType<{ className?: string }>; labelKey: 'tab_spin' | 'tab_wallet' | 'tab_reviews' | 'tab_charity' | 'tab_profile' }[] = [
+  { to: '/', icon: Disc3, labelKey: 'tab_spin' },
+  { to: '/wallet', icon: Wallet, labelKey: 'tab_wallet' },
+  { to: '/reviews', icon: FileText, labelKey: 'tab_reviews' },
+  { to: '/charity', icon: Heart, labelKey: 'tab_charity' },
+  { to: '/profile', icon: User, labelKey: 'tab_profile' },
 ]
 
 export default function BottomNav() {
@@ -25,11 +26,11 @@ export default function BottomNav() {
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-20 safe-area-inset-bottom">
-      {/* Blur backdrop */}
-      <div className="absolute inset-0 bg-[#0f0f1a]/85 backdrop-blur-xl border-t border-white/10" />
+      {/* Glass morphism backdrop */}
+      <div className="absolute inset-0 bg-card/80 backdrop-blur-xl border-t border-border/50" />
 
       <div className="relative flex">
-        {TABS.map(({ to, icon, labelKey }) => {
+        {TABS.map(({ to, icon: Icon, labelKey }) => {
           const isWallet = to === '/wallet'
           return (
             <NavLink
@@ -39,7 +40,7 @@ export default function BottomNav() {
               className={({ isActive }) =>
                 [
                   'flex-1 flex flex-col items-center justify-center py-3 text-xs transition-all duration-200 relative',
-                  isActive ? 'text-white' : 'text-white/40',
+                  isActive ? 'text-primary' : 'text-muted-foreground',
                 ].join(' ')
               }
             >
@@ -49,8 +50,7 @@ export default function BottomNav() {
                   {isActive && (
                     <motion.span
                       layoutId="nav-indicator"
-                      className="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-0.5 rounded-full"
-                      style={{ background: 'linear-gradient(90deg, #6c63ff, #8b5cf6)' }}
+                      className="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-0.5 rounded-full bg-primary"
                       transition={{ type: 'spring', stiffness: 400, damping: 30 }}
                     />
                   )}
@@ -59,20 +59,17 @@ export default function BottomNav() {
                   <motion.span
                     animate={isActive ? { y: [0, -3, 0], scale: [1, 1.15, 1.1] } : { scale: 1 }}
                     transition={{ duration: 0.3, type: 'spring' }}
-                    className="text-2xl leading-none mb-1 relative"
+                    className="leading-none mb-1 relative"
                   >
-                    {icon}
+                    <Icon className="w-5 h-5" />
                     {/* Wallet pending badge */}
                     {isWallet && pendingCount > 0 && (
                       <motion.span
                         initial={{ scale: 0 }}
                         animate={{ scale: 1 }}
-                        className="absolute -top-1.5 -right-2 w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-bold text-white"
-                        style={{
-                          background: 'linear-gradient(135deg, #ef4444, #f87171)',
-                          boxShadow: '0 2px 8px rgba(239,68,68,0.5)',
-                          minWidth: pendingCount > 9 ? '18px' : '16px',
-                        }}
+                        className={`absolute -top-1.5 -right-2 h-4 rounded-full flex items-center justify-center text-[9px] font-bold text-destructive-foreground bg-destructive shadow-lg shadow-destructive/50 ${
+                          pendingCount > 9 ? 'min-w-[18px] px-0.5' : 'w-4'
+                        }`}
                       >
                         {pendingCount > 9 ? '9+' : pendingCount}
                       </motion.span>
@@ -82,7 +79,7 @@ export default function BottomNav() {
                   <span
                     className={[
                       'font-medium tracking-wide text-[10px] transition-colors',
-                      isActive ? 'text-violet-300' : '',
+                      isActive ? 'text-primary' : '',
                     ].join(' ')}
                   >
                     {t(labelKey)}

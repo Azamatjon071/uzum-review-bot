@@ -1,165 +1,151 @@
 import { useState } from 'react'
-import { useMutation } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { downloadExport } from '@/api'
 import { downloadBlob } from '@/lib/utils'
+import { densityClasses, useViewPreferences } from '@/hooks/useViewPreferences'
+import { clsx } from 'clsx'
 import {
-  FileText, Users, RefreshCw, Heart, Download, Clock, CheckCircle, ChevronRight,
+  FileCheck, Users, Dice5, Gift, Heart, Download, Loader2,
 } from 'lucide-react'
+import PageHeader from '@/components/ui/PageHeader'
+import DataCard from '@/components/ui/DataCard'
 
-interface ExportCard {
-  type: 'submissions' | 'users' | 'spins' | 'donations'
-  label: string
+/* ── Report definitions ─────────────────────────────────── */
+
+interface ReportType {
+  key: 'submissions' | 'users' | 'spins' | 'rewards' | 'charity'
+  title: string
   description: string
   icon: React.ElementType
-  gradient: string
-  iconBg: string
-  lastExported?: string
-  rowEstimate: string
+  accentBg: string
+  accentText: string
+  accentRing: string
 }
 
-const EXPORTS: ExportCard[] = [
+const REPORTS: ReportType[] = [
   {
-    type: 'submissions',
-    label: 'Submissions',
-    description: 'All review submissions with status, user info, order numbers and timestamps.',
-    icon: FileText,
-    gradient: 'from-blue-500 to-indigo-600',
-    iconBg: 'bg-blue-400/30',
-    rowEstimate: '~10k max rows',
+    key: 'submissions',
+    title: 'Submissions Report',
+    description: 'Export all review submissions with statuses, user info, and timestamps.',
+    icon: FileCheck,
+    accentBg: 'bg-violet-100 dark:bg-violet-500/15',
+    accentText: 'text-violet-600 dark:text-violet-400',
+    accentRing: 'ring-violet-200 dark:ring-violet-500/20',
   },
   {
-    type: 'users',
-    label: 'Users',
-    description: 'Full user registry with registration date, language, ban status and submission counts.',
+    key: 'users',
+    title: 'Users Report',
+    description: 'Full user registry with registration date, language, and activity.',
     icon: Users,
-    gradient: 'from-violet-500 to-purple-600',
-    iconBg: 'bg-violet-400/30',
-    rowEstimate: '~10k max rows',
+    accentBg: 'bg-blue-100 dark:bg-blue-500/15',
+    accentText: 'text-blue-600 dark:text-blue-400',
+    accentRing: 'ring-blue-200 dark:ring-blue-500/20',
   },
   {
-    type: 'spins',
-    label: 'Spin History',
-    description: 'Prize wheel spin log — who won what, when, and provably fair HMAC commitments.',
-    icon: RefreshCw,
-    gradient: 'from-emerald-500 to-teal-600',
-    iconBg: 'bg-emerald-400/30',
-    rowEstimate: '~10k max rows',
+    key: 'spins',
+    title: 'Spins Report',
+    description: 'Prize wheel spin log with winners, prizes, and fair commitments.',
+    icon: Dice5,
+    accentBg: 'bg-amber-100 dark:bg-amber-500/15',
+    accentText: 'text-amber-600 dark:text-amber-400',
+    accentRing: 'ring-amber-200 dark:ring-amber-500/20',
   },
   {
-    type: 'donations',
-    label: 'Charity Donations',
-    description: 'All sadaqa donations by campaign with user attribution and amounts.',
+    key: 'rewards',
+    title: 'Rewards Report',
+    description: 'All rewards issued, redeemed, and pending across the platform.',
+    icon: Gift,
+    accentBg: 'bg-emerald-100 dark:bg-emerald-500/15',
+    accentText: 'text-emerald-600 dark:text-emerald-400',
+    accentRing: 'ring-emerald-200 dark:ring-emerald-500/20',
+  },
+  {
+    key: 'charity',
+    title: 'Charity Report',
+    description: 'Donation records by campaign with user attribution and amounts.',
     icon: Heart,
-    gradient: 'from-pink-500 to-rose-600',
-    iconBg: 'bg-pink-400/30',
-    rowEstimate: '~10k max rows',
+    accentBg: 'bg-pink-100 dark:bg-pink-500/15',
+    accentText: 'text-pink-600 dark:text-pink-400',
+    accentRing: 'ring-pink-200 dark:ring-pink-500/20',
   },
 ]
 
-export default function ReportsPage() {
-  const [downloading, setDownloading] = useState<string | null>(null)
-  const [exported, setExported] = useState<Record<string, string>>({})
+/* ── Main Page ──────────────────────────────────────────── */
 
-  const mutate = (type: string) => {
-    setDownloading(type)
-    downloadExport(type)
+export default function ReportsPage() {
+  const { density } = useViewPreferences()
+  const dc = densityClasses[density]
+  const [loading, setLoading] = useState<string | null>(null)
+
+  function handleExport(key: string) {
+    setLoading(key)
+    downloadExport(key)
       .then((res) => {
-        downloadBlob(res.data, `${type}_export.csv`)
-        toast.success(`${type} export downloaded`)
-        setExported((e) => ({ ...e, [type]: new Date().toISOString() }))
+        downloadBlob(res.data, `${key}_export.csv`)
+        toast.success(`${key.charAt(0).toUpperCase() + key.slice(1)} report exported`)
       })
-      .catch(() => toast.error('Export failed'))
-      .finally(() => setDownloading(null))
+      .catch(() => toast.error('Export failed. Please try again.'))
+      .finally(() => setLoading(null))
   }
 
   return (
-    <div className="space-y-6 max-w-4xl">
-      <div>
-        <h1 className="text-2xl font-extrabold text-slate-900">Reports & Exports</h1>
-        <p className="text-sm text-slate-500 mt-0.5">Download platform data as CSV files for analysis</p>
-      </div>
+    <div className={clsx('space-y-6', dc.spacing)}>
+      <PageHeader
+        title="Reports & Export"
+        description="Download platform data as CSV reports"
+      />
 
-      {/* Export cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        {EXPORTS.map((ex) => {
-          const Icon = ex.icon
-          const isLoading = downloading === ex.type
-          const lastTs = exported[ex.type] ?? ex.lastExported
+      <div className={clsx('grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3', dc.gap)}>
+        {REPORTS.map((report) => {
+          const Icon = report.icon
+          const isLoading = loading === report.key
 
           return (
-            <div
-              key={ex.type}
-              className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden hover:shadow-md transition-shadow group"
-            >
-              {/* Card header */}
-              <div className={`bg-gradient-to-br ${ex.gradient} p-5 relative overflow-hidden`}>
-                <div className={`w-10 h-10 rounded-xl ${ex.iconBg} flex items-center justify-center mb-3`}>
-                  <Icon size={20} className="text-white" />
+            <DataCard key={report.key}>
+              <div className="flex items-start gap-3">
+                <div
+                  className={clsx(
+                    'flex items-center justify-center w-10 h-10 rounded-lg ring-1 shrink-0',
+                    report.accentBg,
+                    report.accentRing,
+                  )}
+                >
+                  <Icon className={clsx('w-5 h-5', report.accentText)} />
                 </div>
-                <h3 className="text-white font-bold text-base leading-tight">{ex.label}</h3>
-                <p className="text-white/70 text-xs mt-1 leading-relaxed">{ex.description}</p>
-                {/* decorative blob */}
-                <div className="absolute -bottom-4 -right-4 w-20 h-20 rounded-full bg-white/10" />
+                <div className="min-w-0 flex-1">
+                  <h3 className="text-sm font-semibold text-foreground">{report.title}</h3>
+                  <p className="mt-1 text-xs text-muted-foreground leading-relaxed">
+                    {report.description}
+                  </p>
+                </div>
               </div>
 
-              {/* Card footer */}
-              <div className="px-5 py-4 flex items-center justify-between">
-                <div className="text-xs text-slate-500 space-y-0.5">
-                  <div className="flex items-center gap-1.5">
-                    <FileText size={11} className="text-slate-400" />
-                    <span>{ex.rowEstimate}</span>
-                  </div>
-                  {lastTs ? (
-                    <div className="flex items-center gap-1.5 text-emerald-600">
-                      <CheckCircle size={11} />
-                      <span>Last: {new Date(lastTs).toLocaleDateString()}</span>
-                    </div>
-                  ) : (
-                    <div className="flex items-center gap-1.5 text-slate-400">
-                      <Clock size={11} />
-                      <span>Never exported</span>
-                    </div>
-                  )}
-                </div>
-
+              <div className="mt-4 pt-4 border-t border-border">
                 <button
-                  onClick={() => mutate(ex.type)}
+                  onClick={() => handleExport(report.key)}
                   disabled={isLoading}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all
-                    bg-gradient-to-r ${ex.gradient} text-white shadow-sm hover:shadow-md hover:scale-105 active:scale-100 disabled:opacity-60 disabled:scale-100`}
+                  className={clsx(
+                    'w-full inline-flex items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
+                    'bg-secondary text-secondary-foreground hover:bg-secondary/80',
+                    'disabled:opacity-50',
+                  )}
                 >
                   {isLoading ? (
                     <>
-                      <div className="w-3.5 h-3.5 border-2 border-white/40 border-t-white rounded-full animate-spin" />
-                      Generating
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Generating...
                     </>
                   ) : (
                     <>
-                      <Download size={14} />
+                      <Download className="w-4 h-4" />
                       Export CSV
                     </>
                   )}
                 </button>
               </div>
-            </div>
+            </DataCard>
           )
         })}
-      </div>
-
-      {/* Info box */}
-      <div className="bg-slate-50 border border-slate-200 rounded-2xl p-5 flex gap-4">
-        <div className="w-10 h-10 rounded-xl bg-slate-200 flex items-center justify-center shrink-0">
-          <ChevronRight size={18} className="text-slate-500" />
-        </div>
-        <div>
-          <h3 className="font-semibold text-slate-700 text-sm">About Exports</h3>
-          <p className="text-xs text-slate-500 mt-1 leading-relaxed">
-            Exports are generated in real time and include all data up to the moment of download.
-            Files contain up to 50,000 rows. For larger datasets, contact the system administrator
-            to configure a scheduled export job.
-          </p>
-        </div>
       </div>
     </div>
   )

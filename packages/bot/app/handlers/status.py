@@ -8,35 +8,10 @@ from aiogram.types import Message
 from app.config import get_settings
 from app.i18n import t, status_label, status_emoji
 from app.keyboards import main_menu, open_webapp_keyboard, referral_keyboard
-from app.services.api import get_my_submissions, get_user_info, get_my_rewards, auth_telegram, APIError
-import hashlib, hmac, json, time, urllib.parse
+from app.services.api import get_my_submissions, get_user_info, get_my_rewards, get_auth_token, APIError
 
 router = Router(name="status")
 settings = get_settings()
-
-
-# ---------------------------------------------------------------------------
-# Internal helpers
-# ---------------------------------------------------------------------------
-
-async def _get_token(tg_user, lang: str) -> str | None:
-    """Generate a valid Telegram initData HMAC and exchange it for a JWT."""
-    user_json = json.dumps({
-        "id": tg_user.id,
-        "first_name": tg_user.first_name or "",
-        "username": tg_user.username or "",
-        "language_code": lang,
-    }, separators=(",", ":"))
-    auth_date = str(int(time.time()))
-    data_check_string = f"auth_date={auth_date}\nuser={user_json}"
-    secret_key = hmac.new(b"WebAppData", settings.BOT_TOKEN.encode(), hashlib.sha256).digest()
-    hash_val = hmac.new(secret_key, data_check_string.encode(), hashlib.sha256).hexdigest()
-    init_data = urllib.parse.urlencode({"auth_date": auth_date, "user": user_json, "hash": hash_val})
-    try:
-        resp = await auth_telegram(init_data)
-        return resp["access_token"]
-    except APIError:
-        return None
 
 
 # ---------------------------------------------------------------------------
@@ -45,7 +20,7 @@ async def _get_token(tg_user, lang: str) -> str | None:
 
 @router.message(Command("status"))
 async def cmd_status(message: Message, lang: str):
-    token = await _get_token(message.from_user, lang)
+    token = await get_auth_token(message.from_user, lang)
     if not token:
         await message.answer(t("submit.error", lang))
         return
@@ -126,6 +101,13 @@ async def cmd_myspins(message: Message, lang: str):
              approved=approved,
              spin_note=spin_note)
 
+    # Mini Stats Footer
+    referred_count = info.get("referred_count", 0)
+    text += t("footer_stats", lang,
+              reviews=approved,
+              spins=total_spins,
+              referrals=referred_count)
+
     if spin_count > 0:
         await message.answer(
             text,
@@ -159,6 +141,14 @@ async def cmd_referral(message: Message, lang: str):
              count=referred_count,
              bonus=bonus_spins)
 
+    # Mini Stats Footer
+    approved = info.get("approved_submissions", 0)
+    total_spins = info.get("total_spins", 0)
+    text += t("footer_stats", lang,
+              reviews=approved,
+              spins=total_spins,
+              referrals=referred_count)
+
     await message.answer(
         text,
         reply_markup=referral_keyboard(
@@ -178,7 +168,7 @@ async def cmd_referral(message: Message, lang: str):
 @router.message(Command("wallet"))
 @router.message(F.text.in_({"💼 Mukofotlarim", "💼 Мои награды", "💼 My rewards"}))
 async def cmd_wallet(message: Message, lang: str):
-    token = await _get_token(message.from_user, lang)
+    token = await get_auth_token(message.from_user, lang)
     if not token:
         await message.answer(t("submit.error", lang))
         return
@@ -253,4 +243,16 @@ async def cmd_charity(message: Message, lang: str):
                        raised=f"{int(c.get('raised_amount', 0)):,}",
                        goal=f"{int(c.get('goal_amount', 1)):,}",
                        pct=c.get("progress_pct", 0)))
+
+    # Mini Stats Footer
+    try:
+        info = await get_user_info(message.from_user.id, settings.BOT_WEBHOOK_SECRET)
+        footer = t("footer_stats", lang,
+                    reviews=info.get("approved_submissions", 0),
+                    spins=info.get("total_spins", 0),
+                    referrals=info.get("referred_count", 0))
+        lines.append(footer)
+    except APIError:
+        pass  # non-critical; skip footer if API fails
+
     await message.answer("\n".join(lines), parse_mode="HTML")

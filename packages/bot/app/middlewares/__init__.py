@@ -5,13 +5,11 @@ from __future__ import annotations
 
 from typing import Any, Awaitable, Callable
 
-import httpx
 import structlog
 from aiogram import BaseMiddleware
 from aiogram.types import TelegramObject, Update, User as TgUser
 
 from app.config import get_settings
-from app.services.api import get_me, APIError
 
 log = structlog.get_logger()
 settings = get_settings()

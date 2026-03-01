@@ -6,3 +6,4 @@ pydantic==2.8.2
 pydantic-settings==2.3.4
 python-dotenv==1.0.1
 structlog==24.2.0
+redis>=5.0.0

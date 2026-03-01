@@ -7,7 +7,7 @@ from aiogram.types import Message
 
 from app.config import get_settings
 from app.i18n import t
-from app.keyboards import main_menu, language_keyboard
+from app.keyboards import main_menu, language_keyboard, open_webapp_keyboard
 from app.services.api import bot_register_user, get_user_info, APIError
 
 router = Router(name="common")
@@ -44,6 +44,8 @@ async def cmd_start(message: Message, lang: str, bot: Bot):
     is_new = True
     spin_count = 0
     approved = 0
+    referred_count = 0
+    total_submissions = 0
     try:
         result = await bot_register_user(
             telegram_id=tg_user.id,
@@ -63,6 +65,8 @@ async def cmd_start(message: Message, lang: str, bot: Bot):
                 info = await get_user_info(tg_user.id, settings.BOT_WEBHOOK_SECRET)
                 approved = info.get("approved_submissions", 0)
                 spin_count = info.get("spin_count", spin_count)
+                referred_count = info.get("referred_count", 0)
+                total_submissions = info.get("total_submissions", 0)
             except APIError:
                 pass  # non-critical; spin_count from register is still shown
     except APIError:
@@ -80,6 +84,32 @@ async def cmd_start(message: Message, lang: str, bot: Bot):
         reply_markup=main_menu(lang, settings.WEBAPP_URL),
         parse_mode="HTML",
     )
+
+    # ── Features for RETURNING users only ────────────────────────────────
+    if not is_new:
+        # Feature 3: Referral Milestone Messages
+        MILESTONES = {50: "milestone_50", 25: "milestone_25", 10: "milestone_10", 5: "milestone_5", 1: "milestone_1"}
+        for threshold, key in MILESTONES.items():
+            if referred_count >= threshold:
+                await message.answer(t(key, lang))
+                break
+
+        # Feature 4: Engagement Nudges (prioritised — only show one)
+        if spin_count > 0:
+            await message.answer(
+                t("nudge_has_spins", lang, n=spin_count),
+                reply_markup=open_webapp_keyboard(lang, settings.WEBAPP_URL),
+            )
+        elif approved > 0:
+            await message.answer(
+                t("nudge_check_spins", lang),
+                reply_markup=open_webapp_keyboard(lang, settings.WEBAPP_URL),
+            )
+        elif total_submissions == 0:
+            await message.answer(
+                t("nudge_first_review", lang),
+                reply_markup=main_menu(lang, settings.WEBAPP_URL),
+            )
 
 
 @router.message(Command("help"))

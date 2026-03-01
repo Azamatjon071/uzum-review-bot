@@ -21,8 +21,9 @@ export function useTelegramAuth() {
 
     const initData = window.Telegram?.WebApp?.initData
     if (!initData) {
-      // Dev mode: skip auth
+      // Dev mode: set a placeholder auth so API calls work with interceptor
       if (import.meta.env.DEV) {
+        setAuth('dev-token', { id: 'dev', first_name: 'Developer' })
         setReady(true)
         return
       }

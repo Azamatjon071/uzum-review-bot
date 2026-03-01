@@ -12,6 +12,7 @@ class Settings(BaseSettings):
 
     API_BASE_URL: str = "http://backend:8000"
     WEBAPP_URL: str = "http://localhost:5000"
+    REDIS_URL: str = "redis://redis:6379/2"
 
     ENVIRONMENT: str = "development"
     LOG_LEVEL: str = "INFO"

@@ -1,24 +1,102 @@
-import { useState, useRef } from 'react'
+import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { getProducts, createProduct, updateProduct, deleteProduct } from '@/api'
-import { Package, Plus, X, Upload, ExternalLink, Search, ToggleLeft, ToggleRight, FileText } from 'lucide-react'
+import { Package, Plus, X, ExternalLink, Pencil, Trash2 } from 'lucide-react'
+import { clsx } from 'clsx'
+import PageHeader from '@/components/ui/PageHeader'
+import StatusBadge from '@/components/ui/StatusBadge'
+import FilterBar from '@/components/ui/FilterBar'
+import ViewToggle from '@/components/ui/ViewToggle'
+import DensityToggle from '@/components/ui/DensityToggle'
+import DataCard from '@/components/ui/DataCard'
+import EmptyState from '@/components/ui/EmptyState'
+import { useViewPreferences, densityClasses } from '@/hooks/useViewPreferences'
+import type { ViewMode } from '@/hooks/useViewPreferences'
+
+// ── Types ────────────────────────────────────────────────────────────────────
+
+interface Product {
+  id: string
+  name_uz: string
+  name_ru: string
+  name_en: string
+  uzum_product_url?: string | null
+  image_url?: string | null
+  is_active: boolean
+  created_at?: string
+}
+
+interface ProductsResponse {
+  items: Product[]
+  total: number
+  page: number
+  page_size: number
+}
+
+// ── Toggle switch ────────────────────────────────────────────────────────────
 
 function ToggleSwitch({ checked, onChange, disabled }: { checked: boolean; onChange: () => void; disabled?: boolean }) {
   return (
     <button
       type="button"
-      onClick={onChange}
+      onClick={(e) => { e.stopPropagation(); onChange() }}
       disabled={disabled}
-      className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors duration-200 focus:outline-none disabled:opacity-50 ${
-        checked ? 'bg-emerald-500' : 'bg-slate-300'
-      }`}
+      className={clsx(
+        'relative inline-flex h-5 w-9 items-center rounded-full transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-ring/30 disabled:opacity-50',
+        checked ? 'bg-emerald-500 dark:bg-emerald-600' : 'bg-muted-foreground/30'
+      )}
     >
       <span
-        className="inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform duration-200"
-        style={{ transform: checked ? 'translateX(18px)' : 'translateX(2px)' }}
+        className={clsx(
+          'inline-block h-3.5 w-3.5 rounded-full bg-white shadow-sm transition-transform duration-200',
+          checked ? 'translate-x-[18px]' : 'translate-x-[2px]'
+        )}
       />
     </button>
+  )
+}
+
+// ── Delete confirmation dialog ───────────────────────────────────────────────
+
+function ConfirmDialog({
+  title,
+  message,
+  onConfirm,
+  onCancel,
+  isPending,
+}: {
+  title: string
+  message: string
+  onConfirm: () => void
+  onCancel: () => void
+  isPending?: boolean
+}) {
+  return (
+    <>
+      <div className="fixed inset-0 bg-black/40 z-50" onClick={onCancel} />
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div className="bg-card border border-border rounded-lg shadow-lg w-full max-w-sm p-5 animate-fade-in">
+          <h3 className="text-sm font-semibold text-foreground">{title}</h3>
+          <p className="mt-1.5 text-sm text-muted-foreground">{message}</p>
+          <div className="flex gap-2 mt-4 justify-end">
+            <button
+              onClick={onCancel}
+              className="px-3 py-1.5 text-sm font-medium rounded-md border border-border bg-background text-foreground hover:bg-muted transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={onConfirm}
+              disabled={isPending}
+              className="px-3 py-1.5 text-sm font-medium rounded-md bg-destructive text-destructive-foreground hover:bg-destructive/90 transition-colors disabled:opacity-50"
+            >
+              {isPending ? 'Deleting...' : 'Delete'}
+            </button>
+          </div>
+        </div>
+      </div>
+    </>
   )
 }
 
@@ -31,12 +109,14 @@ function ProductFormDrawer({
   onUpdate,
   isPending,
 }: {
-  editing: any
+  editing: Product | null
   onClose: () => void
-  onCreate: (data: any) => void
-  onUpdate: (data: any) => void
+  onCreate: (data: Record<string, unknown>) => void
+  onUpdate: (data: { id: string; data: Record<string, unknown> }) => void
   isPending: boolean
 }) {
+  const [isActive, setIsActive] = useState(editing?.is_active ?? true)
+
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
     const fd = new FormData(e.currentTarget)
@@ -46,192 +126,93 @@ function ProductFormDrawer({
       name_en: (fd.get('name_en') as string) || '',
       uzum_product_url: (fd.get('uzum_product_url') as string) || null,
       image_url: (fd.get('image_url') as string) || null,
-      is_active: true,
+      is_active: isActive,
     }
-    editing ? onUpdate({ id: editing.id, data: payload }) : onCreate(payload)
+    if (editing) {
+      onUpdate({ id: editing.id, data: payload })
+    } else {
+      onCreate(payload)
+    }
   }
 
   return (
     <>
       <div className="fixed inset-0 bg-black/40 z-40" onClick={onClose} />
-      <div className="fixed inset-y-0 right-0 w-full max-w-md bg-white shadow-2xl z-50 flex flex-col">
-        <div className="flex items-center justify-between px-6 py-4 border-b bg-slate-50">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center">
-              <Package size={14} className="text-white" />
-            </div>
-            <h2 className="text-lg font-bold text-slate-800">{editing ? 'Edit Product' : 'New Product'}</h2>
-          </div>
-          <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-200 text-slate-500">
-            <X size={16} />
+      <div className="fixed inset-y-0 right-0 w-full max-w-md bg-card border-l border-border shadow-lg z-50 flex flex-col animate-slide-in-right">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-border">
+          <h2 className="text-sm font-semibold text-foreground">
+            {editing ? 'Edit Product' : 'New Product'}
+          </h2>
+          <button
+            onClick={onClose}
+            className="w-7 h-7 flex items-center justify-center rounded-md hover:bg-muted text-muted-foreground transition-colors"
+          >
+            <X className="w-4 h-4" />
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-6 space-y-4">
+        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-5 space-y-4">
           {[
-            { name: 'name_uz', label: "Name (O'zbek)", placeholder: 'Mahsulot nomi', required: true, defaultKey: 'name_uz' },
-            { name: 'name_ru', label: 'Name (Русский)', placeholder: 'Название товара', required: true, defaultKey: 'name_ru' },
-            { name: 'name_en', label: 'Name (English)', placeholder: 'Product name', required: true, defaultKey: 'name_en' },
-          ].map(({ name, label, placeholder, required, defaultKey }) => (
+            { name: 'name_uz', label: 'Name (UZ)', placeholder: 'Mahsulot nomi', defaultKey: 'name_uz' as const },
+            { name: 'name_ru', label: 'Name (RU)', placeholder: 'Название товара', defaultKey: 'name_ru' as const },
+            { name: 'name_en', label: 'Name (EN)', placeholder: 'Product name', defaultKey: 'name_en' as const },
+          ].map(({ name, label, placeholder, defaultKey }) => (
             <div key={name}>
-              <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">{label}</label>
+              <label className="block text-xs font-medium text-muted-foreground mb-1.5">{label}</label>
               <input
                 name={name}
                 placeholder={placeholder}
-                defaultValue={editing?.[defaultKey]}
-                required={required}
-                className="border rounded-xl px-3 py-2.5 text-sm w-full focus:outline-none focus:ring-2 focus:ring-blue-400"
+                defaultValue={editing?.[defaultKey] ?? ''}
+                required
+                className="w-full px-3 py-2 text-sm rounded-md border border-input bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/30 focus:border-ring transition-colors"
               />
             </div>
           ))}
 
           <div>
-            <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Uzum Product URL</label>
+            <label className="block text-xs font-medium text-muted-foreground mb-1.5">Uzum Product URL</label>
             <input
               name="uzum_product_url"
               type="url"
               placeholder="https://uzum.uz/product/..."
-              defaultValue={editing?.uzum_product_url}
-              className="border rounded-xl px-3 py-2.5 text-sm w-full focus:outline-none focus:ring-2 focus:ring-blue-400"
+              defaultValue={editing?.uzum_product_url ?? ''}
+              className="w-full px-3 py-2 text-sm rounded-md border border-input bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/30 focus:border-ring transition-colors"
             />
-            <p className="text-xs text-slate-400 mt-1">Link to the product page on Uzum Market</p>
           </div>
 
           <div>
-            <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Image URL (optional)</label>
+            <label className="block text-xs font-medium text-muted-foreground mb-1.5">Image URL</label>
             <input
               name="image_url"
               type="url"
               placeholder="https://..."
-              defaultValue={editing?.image_url}
-              className="border rounded-xl px-3 py-2.5 text-sm w-full focus:outline-none focus:ring-2 focus:ring-blue-400"
+              defaultValue={editing?.image_url ?? ''}
+              className="w-full px-3 py-2 text-sm rounded-md border border-input bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/30 focus:border-ring transition-colors"
             />
           </div>
 
-          <div className="flex gap-2 pt-2">
+          <div className="flex items-center justify-between">
+            <label className="text-xs font-medium text-muted-foreground">Active</label>
+            <ToggleSwitch checked={isActive} onChange={() => setIsActive(!isActive)} />
+          </div>
+
+          <div className="flex gap-2 pt-3 border-t border-border">
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 py-2.5 border rounded-xl text-sm text-slate-600 hover:bg-slate-50 font-medium"
+              className="flex-1 px-3 py-2 text-sm font-medium rounded-md border border-border bg-background text-foreground hover:bg-muted transition-colors"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={isPending}
-              className="flex-1 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-xl text-sm font-bold disabled:opacity-50 shadow-md shadow-blue-500/20"
+              className="flex-1 px-3 py-2 text-sm font-medium rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50"
             >
-              {isPending ? 'Saving…' : editing ? 'Save Changes' : 'Create Product'}
+              {isPending ? 'Saving...' : editing ? 'Save Changes' : 'Create Product'}
             </button>
           </div>
         </form>
-      </div>
-    </>
-  )
-}
-
-// ── CSV Import Modal ─────────────────────────────────────────────────────────
-
-function CSVImportModal({ onClose }: { onClose: () => void }) {
-  const [csvText, setCsvText] = useState('')
-  const [preview, setPreview] = useState<string[][]>([])
-  const fileRef = useRef<HTMLInputElement>(null)
-
-  const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
-    const reader = new FileReader()
-    reader.onload = (ev) => {
-      const text = ev.target?.result as string
-      setCsvText(text)
-      const rows = text.split('\n').slice(0, 6).map((r) => r.split(','))
-      setPreview(rows)
-    }
-    reader.readAsText(file)
-  }
-
-  const handlePaste = (text: string) => {
-    setCsvText(text)
-    const rows = text.split('\n').slice(0, 6).map((r) => r.split(','))
-    setPreview(rows)
-  }
-
-  return (
-    <>
-      <div className="fixed inset-0 bg-black/50 z-[60]" onClick={onClose} />
-      <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 pointer-events-none">
-        <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl pointer-events-auto">
-          <div className="flex items-center justify-between p-5 border-b">
-            <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center">
-                <FileText size={16} className="text-white" />
-              </div>
-              <div>
-                <h3 className="font-bold text-slate-800">Bulk Import Products</h3>
-                <p className="text-xs text-slate-400">CSV format: name_uz, name_ru, name_en, category, uzum_id, uzum_url</p>
-              </div>
-            </div>
-            <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-slate-400">
-              <X size={16} />
-            </button>
-          </div>
-
-          <div className="p-5 space-y-4">
-            {/* Upload area */}
-            <div
-              onClick={() => fileRef.current?.click()}
-              className="w-full flex flex-col items-center justify-center gap-2 border-2 border-dashed border-slate-200 rounded-xl py-8 cursor-pointer hover:border-emerald-300 hover:bg-emerald-50/50 transition-all"
-            >
-              <Upload size={24} className="text-slate-300" />
-              <p className="text-sm font-medium text-slate-500">Drop CSV file here or click to browse</p>
-              <p className="text-xs text-slate-400">Supports .csv files up to 5MB</p>
-            </div>
-            <input ref={fileRef} type="file" accept=".csv,text/csv" className="hidden" onChange={handleFile} />
-
-            {/* Or paste */}
-            <div>
-              <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Or paste CSV content</label>
-              <textarea
-                rows={4}
-                placeholder="name_uz,name_ru,name_en,category,uzum_id,uzum_url&#10;Mahsulot,Продукт,Product,Electronics,12345,https://..."
-                value={csvText}
-                onChange={(e) => handlePaste(e.target.value)}
-                className="w-full border rounded-xl px-3 py-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-emerald-400 resize-none"
-              />
-            </div>
-
-            {/* Preview */}
-            {preview.length > 0 && (
-              <div className="overflow-x-auto">
-                <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Preview (first 5 rows)</p>
-                <table className="w-full text-xs border-collapse">
-                  <tbody>
-                    {preview.slice(0, 5).map((row, i) => (
-                      <tr key={i} className={i === 0 ? 'bg-slate-100 font-semibold' : 'hover:bg-slate-50'}>
-                        {row.map((cell, j) => (
-                          <td key={j} className="border border-slate-200 px-2 py-1.5 truncate max-w-32">{cell}</td>
-                        ))}
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
-
-          <div className="p-5 pt-0 flex gap-2">
-            <button onClick={onClose} className="flex-1 py-2.5 border rounded-xl text-sm text-slate-600 hover:bg-slate-50 font-medium">
-              Cancel
-            </button>
-            <button
-              disabled={!csvText.trim()}
-              onClick={() => { toast.info('CSV import is processed server-side — feature coming soon!'); onClose() }}
-              className="flex-1 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white rounded-xl text-sm font-bold disabled:opacity-50 shadow-md shadow-emerald-500/20"
-            >
-              Import {csvText.split('\n').filter(Boolean).length - 1} Products
-            </button>
-          </div>
-        </div>
       </div>
     </>
   )
@@ -242,15 +223,21 @@ function CSVImportModal({ onClose }: { onClose: () => void }) {
 export default function ProductsPage() {
   const qc = useQueryClient()
   const [showForm, setShowForm] = useState(false)
-  const [editing, setEditing] = useState<any>(null)
-  const [showCSV, setShowCSV] = useState(false)
+  const [editing, setEditing] = useState<Product | null>(null)
+  const [deleteTarget, setDeleteTarget] = useState<Product | null>(null)
   const [search, setSearch] = useState('')
+  const [activeFilter, setActiveFilter] = useState<'all' | 'active' | 'inactive'>('all')
   const [page, setPage] = useState(1)
+  const pageSize = 20
 
-  const { data, isLoading } = useQuery({
+  const { getView, setView, density, setDensity } = useViewPreferences()
+  const view = getView('products', 'table') as ViewMode
+  const dc = densityClasses[density]
+
+  const { data, isLoading } = useQuery<ProductsResponse>({
     queryKey: ['products', page, search],
     queryFn: () =>
-      getProducts({ page, per_page: 20, search: search || undefined }).then((r) => r.data),
+      getProducts({ page, per_page: pageSize, search: search || undefined }).then((r) => r.data),
   })
 
   const createMut = useMutation({
@@ -264,10 +251,11 @@ export default function ProductsPage() {
   })
 
   const updateMut = useMutation({
-    mutationFn: ({ id, data }: any) => updateProduct(id, data),
+    mutationFn: ({ id, data }: { id: string; data: Record<string, unknown> }) => updateProduct(id, data),
     onSuccess: () => {
       toast.success('Product updated')
       setEditing(null)
+      setShowForm(false)
       qc.invalidateQueries({ queryKey: ['products'] })
     },
     onError: () => toast.error('Failed to update product'),
@@ -287,6 +275,7 @@ export default function ProductsPage() {
     mutationFn: deleteProduct,
     onSuccess: () => {
       toast.success('Product deleted')
+      setDeleteTarget(null)
       qc.invalidateQueries({ queryKey: ['products'] })
     },
     onError: () => toast.error('Failed to delete product'),
@@ -294,205 +283,308 @@ export default function ProductsPage() {
 
   const products = data?.items ?? []
   const total = data?.total ?? 0
-  const totalPages = Math.max(1, Math.ceil(total / 20))
-  const activeCount = products.filter((p: any) => p.is_active).length
+  const totalPages = Math.max(1, Math.ceil(total / pageSize))
+
+  const filtered = products.filter((p) => {
+    if (activeFilter === 'active') return p.is_active
+    if (activeFilter === 'inactive') return !p.is_active
+    return true
+  })
+
+  const filterChips = [
+    { key: 'all', label: 'All', active: activeFilter === 'all' },
+    { key: 'active', label: 'Active', active: activeFilter === 'active' },
+    { key: 'inactive', label: 'Inactive', active: activeFilter === 'inactive' },
+  ]
+
+  function openEdit(p: Product) {
+    setEditing(p)
+    setShowForm(true)
+  }
+
+  function openCreate() {
+    setEditing(null)
+    setShowForm(true)
+  }
+
+  // ── Render ─────────────────────────────────────────────────────────────────
 
   return (
-    <div className="space-y-5">
-      {/* Header */}
-      <div className="flex flex-wrap items-center gap-3 justify-between">
-        <div>
-          <h1 className="text-2xl font-black text-slate-800">Products</h1>
-          <p className="text-sm text-slate-400 mt-0.5">
-            {total} products · {activeCount} active
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
+    <div className="space-y-4">
+      <PageHeader
+        title="Products"
+        description="Manage products available for user submissions"
+        badge={
+          <StatusBadge variant="neutral">{total} total</StatusBadge>
+        }
+        actions={
           <button
-            onClick={() => setShowCSV(true)}
-            className="flex items-center gap-2 border border-slate-200 text-slate-600 hover:bg-slate-50 px-3.5 py-2 rounded-xl text-sm font-medium transition-colors shadow-sm"
+            onClick={openCreate}
+            className="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
           >
-            <Upload size={14} />
-            Import CSV
-          </button>
-          <button
-            onClick={() => { setEditing(null); setShowForm(true) }}
-            className="flex items-center gap-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white px-4 py-2 rounded-xl text-sm font-bold shadow-md shadow-blue-500/20 transition-all"
-          >
-            <Plus size={15} />
+            <Plus className="w-4 h-4" />
             Add Product
           </button>
-        </div>
-      </div>
+        }
+      />
 
-      {/* Search */}
-      <div className="flex gap-3 items-center">
-        <div className="relative flex-1 max-w-sm">
-          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-          <input
-            type="search"
-            placeholder="Search products…"
-            value={search}
-            onChange={(e) => { setSearch(e.target.value); setPage(1) }}
-            className="border rounded-xl pl-8 pr-3 py-2.5 text-sm w-full focus:outline-none focus:ring-2 focus:ring-blue-400 shadow-sm"
+      <FilterBar
+        searchValue={search}
+        onSearchChange={(v) => { setSearch(v); setPage(1) }}
+        searchPlaceholder="Search products..."
+        chips={filterChips}
+        onChipToggle={(key) => setActiveFilter(key as 'all' | 'active' | 'inactive')}
+      >
+        <div className="flex items-center gap-2">
+          <ViewToggle
+            current={view}
+            onChange={(m) => setView('products', m)}
+            options={['table', 'card']}
           />
+          <DensityToggle current={density} onChange={setDensity} />
         </div>
-        {search && (
-          <button
-            onClick={() => { setSearch(''); setPage(1) }}
-            className="text-sm text-slate-500 hover:text-slate-700 flex items-center gap-1"
-          >
-            <X size={13} /> Clear
-          </button>
-        )}
-      </div>
+      </FilterBar>
 
-      {/* Table */}
-      <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead className="bg-slate-50 border-b border-slate-100">
-              <tr>
-                {['#', 'Product (UZ/RU)', 'English Name', 'Uzum URL', 'Submissions', 'Active', 'Actions'].map((h) => (
-                    <th key={h} className="px-4 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider whitespace-nowrap">{h}</th>
+      {/* Content */}
+      {isLoading ? (
+        <div className="rounded-lg border border-border bg-card">
+          {[...Array(5)].map((_, i) => (
+            <div key={i} className={clsx('flex gap-4 border-b border-border last:border-b-0', dc.padding)}>
+              <div className="h-4 w-32 bg-muted rounded animate-pulse" />
+              <div className="h-4 w-24 bg-muted rounded animate-pulse" />
+              <div className="h-4 w-20 bg-muted rounded animate-pulse" />
+            </div>
+          ))}
+        </div>
+      ) : filtered.length === 0 ? (
+        <EmptyState
+          icon={<Package className="w-6 h-6 text-muted-foreground" />}
+          title={search ? 'No products match your search' : 'No products yet'}
+          description={search ? 'Try a different search term' : 'Add your first product to get started'}
+          action={
+            !search ? (
+              <button
+                onClick={openCreate}
+                className="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
+              >
+                <Plus className="w-4 h-4" />
+                Add Product
+              </button>
+            ) : undefined
+          }
+        />
+      ) : view === 'table' ? (
+        /* ── Table View ──────────────────────────────────────────────────── */
+        <div className="rounded-lg border border-border bg-card overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-border bg-muted/50">
+                  {['Name (UZ)', 'Name (RU)', 'Name (EN)', 'URL', 'Active', 'Actions'].map((h) => (
+                    <th
+                      key={h}
+                      className={clsx(
+                        'text-left text-xs font-medium text-muted-foreground uppercase tracking-wider whitespace-nowrap',
+                        dc.padding
+                      )}
+                    >
+                      {h}
+                    </th>
                   ))}
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-50">
-                {isLoading ? (
-                  [...Array(5)].map((_, i) => (
-                    <tr key={i}>
-                      {[...Array(7)].map((_, j) => (
-                        <td key={j} className="px-4 py-3">
-                          <div className="h-3 bg-slate-100 rounded animate-pulse" />
-                        </td>
-                      ))}
-                    </tr>
-                  ))
-                ) : products.length === 0 ? (
-                  <tr>
-                    <td colSpan={7} className="px-4 py-16 text-center">
-                      <div className="w-14 h-14 bg-slate-100 rounded-2xl flex items-center justify-center mx-auto mb-3">
-                        <Package size={24} className="text-slate-300" />
-                      </div>
-                      <p className="font-medium text-slate-500">
-                        {search ? 'No products match your search' : 'No products yet'}
-                      </p>
-                      <p className="text-xs text-slate-400 mt-1">
-                        {search ? 'Try a different search term' : 'Add your first product to get started'}
-                      </p>
-                    </td>
-                  </tr>
-                ) : products.map((p: any, idx: number) => (
-                  <tr key={p.id} className="hover:bg-blue-50/30 transition-colors group">
-                    <td className="px-4 py-3 text-slate-400 text-xs font-mono">
-                      {(page - 1) * 20 + idx + 1}
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-3">
+              <tbody className="divide-y divide-border">
+                {filtered.map((p) => (
+                  <tr key={p.id} className="hover:bg-muted/30 transition-colors group">
+                    <td className={clsx(dc.padding, dc.text)}>
+                      <div className="flex items-center gap-2.5">
                         {p.image_url ? (
-                          <img src={p.image_url} alt="" className="w-9 h-9 rounded-xl object-cover border border-slate-200 flex-shrink-0" />
+                          <img
+                            src={p.image_url}
+                            alt=""
+                            className="w-8 h-8 rounded-md object-cover border border-border shrink-0"
+                          />
                         ) : (
-                          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-slate-100 to-slate-200 flex items-center justify-center text-slate-500 font-bold text-sm flex-shrink-0 border border-slate-200">
+                          <div className="w-8 h-8 rounded-md bg-muted flex items-center justify-center text-muted-foreground text-xs font-medium shrink-0">
                             {(p.name_uz?.[0] ?? '?').toUpperCase()}
                           </div>
                         )}
-                        <div>
-                          <p className="font-semibold text-slate-800 leading-tight">{p.name_uz}</p>
-                          <p className="text-xs text-slate-400">{p.name_ru}</p>
-                        </div>
+                        <span className="font-medium text-foreground truncate max-w-[200px]">
+                          {p.name_uz}
+                        </span>
                       </div>
                     </td>
-                    <td className="px-4 py-3">
-                      <p className="text-xs text-slate-500">{p.name_en}</p>
+                    <td className={clsx(dc.padding, dc.text, 'text-muted-foreground truncate max-w-[180px]')}>
+                      {p.name_ru}
                     </td>
-                    <td className="px-4 py-3">
+                    <td className={clsx(dc.padding, dc.text, 'text-muted-foreground truncate max-w-[180px]')}>
+                      {p.name_en}
+                    </td>
+                    <td className={clsx(dc.padding)}>
                       {p.uzum_product_url ? (
                         <a
                           href={p.uzum_product_url}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="flex items-center gap-1 text-blue-600 hover:text-blue-800 text-xs font-semibold max-w-[160px] truncate"
+                          className="inline-flex items-center justify-center w-7 h-7 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
                         >
-                          <ExternalLink size={10} className="shrink-0" />
-                          <span className="truncate">{p.uzum_product_url.replace('https://uzum.uz', '')}</span>
+                          <ExternalLink className="w-3.5 h-3.5" />
                         </a>
-                      ) : <span className="text-slate-300 text-xs">—</span>}
+                      ) : (
+                        <span className="text-muted-foreground/40 text-xs">--</span>
+                      )}
                     </td>
-                    <td className="px-4 py-3">
-                      <span className="font-semibold text-slate-700">{p.submission_count ?? 0}</span>
+                    <td className={clsx(dc.padding)}>
+                      <StatusBadge variant={p.is_active ? 'success' : 'neutral'} dot>
+                        {p.is_active ? 'Active' : 'Inactive'}
+                      </StatusBadge>
                     </td>
-                    <td className="px-4 py-3">
-                      <ToggleSwitch
-                        checked={p.is_active}
-                        onChange={() => toggleActiveMut.mutate({ id: p.id, is_active: !p.is_active })}
-                        disabled={toggleActiveMut.isPending}
-                      />
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="flex gap-3 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <td className={clsx(dc.padding)}>
+                      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                         <button
-                          onClick={() => { setEditing(p); setShowForm(true) }}
-                          className="text-xs text-blue-600 hover:text-blue-800 font-semibold"
+                          onClick={() => toggleActiveMut.mutate({ id: p.id, is_active: !p.is_active })}
+                          className={clsx(
+                            'px-2 py-1 text-xs font-medium rounded-md transition-colors',
+                            p.is_active
+                              ? 'text-muted-foreground hover:bg-muted'
+                              : 'text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-500/10'
+                          )}
                         >
-                          Edit
+                          {p.is_active ? 'Deactivate' : 'Activate'}
                         </button>
                         <button
-                          onClick={() => { if (confirm(`Delete "${p.name_uz}"?`)) deleteMut.mutate(p.id) }}
-                          className="text-xs text-red-600 hover:text-red-800 font-semibold"
+                          onClick={() => openEdit(p)}
+                          className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
                         >
-                          Delete
+                          <Pencil className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          onClick={() => setDeleteTarget(p)}
+                          className="p-1.5 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
                         </button>
                       </div>
                     </td>
                   </tr>
                 ))}
-            </tbody>
-          </table>
+              </tbody>
+            </table>
+          </div>
         </div>
-      </div>
+      ) : (
+        /* ── Card View ───────────────────────────────────────────────────── */
+        <div className={clsx('grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3', dc.gap)}>
+          {filtered.map((p) => (
+            <DataCard key={p.id} padding="none">
+              <div className="p-4 space-y-3">
+                {/* Image / placeholder */}
+                <div className="flex items-start gap-3">
+                  {p.image_url ? (
+                    <img
+                      src={p.image_url}
+                      alt=""
+                      className="w-10 h-10 rounded-md object-cover border border-border shrink-0"
+                    />
+                  ) : (
+                    <div className="w-10 h-10 rounded-md bg-muted flex items-center justify-center text-muted-foreground text-sm font-medium shrink-0">
+                      <Package className="w-4 h-4" />
+                    </div>
+                  )}
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-foreground truncate">{p.name_uz}</p>
+                    <p className="text-xs text-muted-foreground truncate">{p.name_ru}</p>
+                    <p className="text-xs text-muted-foreground truncate">{p.name_en}</p>
+                  </div>
+                  <StatusBadge variant={p.is_active ? 'success' : 'neutral'} dot size="sm">
+                    {p.is_active ? 'Active' : 'Inactive'}
+                  </StatusBadge>
+                </div>
+
+                {/* Uzum link */}
+                {p.uzum_product_url && (
+                  <a
+                    href={p.uzum_product_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 text-xs text-primary hover:underline truncate max-w-full"
+                  >
+                    <ExternalLink className="w-3 h-3 shrink-0" />
+                    <span className="truncate">{p.uzum_product_url.replace(/^https?:\/\//, '')}</span>
+                  </a>
+                )}
+
+                {/* Actions */}
+                <div className="flex items-center gap-1.5 pt-2 border-t border-border">
+                  <button
+                    onClick={() => openEdit(p)}
+                    className="flex-1 inline-flex items-center justify-center gap-1.5 px-2.5 py-1.5 text-xs font-medium rounded-md border border-border bg-background text-foreground hover:bg-muted transition-colors"
+                  >
+                    <Pencil className="w-3 h-3" />
+                    Edit
+                  </button>
+                  <button
+                    onClick={() => setDeleteTarget(p)}
+                    className="inline-flex items-center justify-center p-1.5 rounded-md border border-border text-muted-foreground hover:text-destructive hover:border-destructive/30 transition-colors"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              </div>
+            </DataCard>
+          ))}
+        </div>
+      )}
 
       {/* Pagination */}
-      {total > 0 && (
-        <div className="flex items-center justify-between text-sm text-slate-500">
-          <span className="font-medium">{total.toLocaleString()} products total</span>
-          {totalPages > 1 && (
-            <div className="flex gap-2">
-              <button
-                disabled={page === 1}
-                onClick={() => setPage((p) => p - 1)}
-                className="px-3 py-1.5 border rounded-xl disabled:opacity-40 hover:bg-slate-50 font-medium transition-colors"
-              >
-                ← Prev
-              </button>
-              <span className="px-3 py-1.5 bg-blue-600 text-white rounded-xl font-bold text-sm">
-                {page} / {totalPages}
-              </span>
-              <button
-                disabled={page >= totalPages}
-                onClick={() => setPage((p) => p + 1)}
-                className="px-3 py-1.5 border rounded-xl disabled:opacity-40 hover:bg-slate-50 font-medium transition-colors"
-              >
-                Next →
-              </button>
-            </div>
-          )}
+      {total > 0 && totalPages > 1 && (
+        <div className="flex items-center justify-between text-sm">
+          <span className="text-muted-foreground">
+            {total.toLocaleString()} product{total !== 1 ? 's' : ''} total
+          </span>
+          <div className="flex items-center gap-1.5">
+            <button
+              disabled={page === 1}
+              onClick={() => setPage((p) => p - 1)}
+              className="px-3 py-1.5 text-sm font-medium rounded-md border border-border bg-background text-foreground hover:bg-muted transition-colors disabled:opacity-40 disabled:pointer-events-none"
+            >
+              Previous
+            </button>
+            <span className="px-3 py-1.5 text-sm font-medium text-muted-foreground">
+              {page} / {totalPages}
+            </span>
+            <button
+              disabled={page >= totalPages}
+              onClick={() => setPage((p) => p + 1)}
+              className="px-3 py-1.5 text-sm font-medium rounded-md border border-border bg-background text-foreground hover:bg-muted transition-colors disabled:opacity-40 disabled:pointer-events-none"
+            >
+              Next
+            </button>
+          </div>
         </div>
       )}
 
       {/* Product form drawer */}
-      {(showForm || editing) && (
+      {showForm && (
         <ProductFormDrawer
           editing={editing}
           onClose={() => { setShowForm(false); setEditing(null) }}
-          onCreate={createMut.mutate}
-          onUpdate={updateMut.mutate}
+          onCreate={(data) => createMut.mutate(data)}
+          onUpdate={(data) => updateMut.mutate(data)}
           isPending={createMut.isPending || updateMut.isPending}
         />
       )}
 
-      {/* CSV import modal */}
-      {showCSV && <CSVImportModal onClose={() => setShowCSV(false)} />}
+      {/* Delete confirmation */}
+      {deleteTarget && (
+        <ConfirmDialog
+          title="Delete Product"
+          message={`Are you sure you want to delete "${deleteTarget.name_uz}"? This action cannot be undone.`}
+          onConfirm={() => deleteMut.mutate(deleteTarget.id)}
+          onCancel={() => setDeleteTarget(null)}
+          isPending={deleteMut.isPending}
+        />
+      )}
     </div>
   )
 }

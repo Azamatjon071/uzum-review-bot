@@ -1,442 +1,426 @@
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { getAnalyticsOverview, getAnalyticsChart, getSubmissions, getUsers, getPrizes } from '@/api'
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  BarChart, Bar, Legend, PieChart, Pie, Cell,
 } from 'recharts'
-import { formatNumber, formatDate } from '@/lib/utils'
+import { format, subDays } from 'date-fns'
 import {
-  Users, FileText, Clock, Heart, TrendingUp, TrendingDown,
-  CheckCircle, XCircle, AlertCircle, Star, Award, Activity,
-  Trophy, Zap, ArrowRight, RefreshCw,
+  Users, FileText, CheckCircle2, Dices, Gift, HeartHandshake,
+  RefreshCw, ArrowRight, TrendingUp, TrendingDown,
 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
+import { getAnalyticsOverview, getAnalyticsChart, getSubmissions } from '@/api'
+import { formatNumber, formatDate } from '@/lib/utils'
+import { useViewPreferences, densityClasses } from '@/hooks/useViewPreferences'
+import type { ViewMode } from '@/hooks/useViewPreferences'
+import PageHeader from '@/components/ui/PageHeader'
+import ViewToggle from '@/components/ui/ViewToggle'
+import DensityToggle from '@/components/ui/DensityToggle'
+import StatusBadge from '@/components/ui/StatusBadge'
+import DataCard from '@/components/ui/DataCard'
+import EmptyState from '@/components/ui/EmptyState'
+
+// ── Animated Counter ─────────────────────────────────────────────────────────
+
+function AnimatedCounter({ value, duration = 1200, formatter }: {
+  value: number
+  duration?: number
+  formatter?: (n: number) => string
+}) {
+  const [display, setDisplay] = useState(0)
+  const startRef = useRef<number | null>(null)
+  const rafRef = useRef<number>(0)
+  const prevValueRef = useRef(0)
+
+  const easeOutExpo = useCallback((t: number): number => {
+    return t === 1 ? 1 : 1 - Math.pow(2, -10 * t)
+  }, [])
+
+  useEffect(() => {
+    const from = prevValueRef.current
+    const to = value
+    if (to === from) return
+
+    startRef.current = null
+    cancelAnimationFrame(rafRef.current)
+
+    const animate = (timestamp: number) => {
+      if (startRef.current === null) startRef.current = timestamp
+      const elapsed = timestamp - startRef.current
+      const progress = Math.min(elapsed / duration, 1)
+      const eased = easeOutExpo(progress)
+      const current = Math.round(from + (to - from) * eased)
+      setDisplay(current)
+
+      if (progress < 1) {
+        rafRef.current = requestAnimationFrame(animate)
+      } else {
+        prevValueRef.current = to
+      }
+    }
+
+    rafRef.current = requestAnimationFrame(animate)
+    return () => cancelAnimationFrame(rafRef.current)
+  }, [value, duration, easeOutExpo])
+
+  return <>{formatter ? formatter(display) : formatNumber(display)}</>
+}
+
+// ── KPI Card ─────────────────────────────────────────────────────────────────
 
 interface KpiCardProps {
   label: string
-  value: string | number
-  sub?: string
+  value: number
   icon: React.ElementType
-  gradient: string
+  accentColor: string
   iconBg: string
-  trend?: { value: number; label: string }
+  iconColor: string
+  trend?: number
+  formatter?: (n: number) => string
 }
 
-function KpiCard({ label, value, sub, icon: Icon, gradient, iconBg, trend }: KpiCardProps) {
-  const isPositive = trend ? trend.value >= 0 : null
+function KpiCard({ label, value, icon: Icon, accentColor, iconBg, iconColor, trend, formatter }: KpiCardProps) {
   return (
-    <div className={`relative overflow-hidden rounded-2xl p-5 shadow-lg ${gradient}`}>
-      <div className="flex items-start justify-between">
-        <div>
-          <p className="text-sm font-medium text-white/70">{label}</p>
-          <p className="text-3xl font-extrabold text-white mt-1 tracking-tight">
-            {typeof value === 'number' ? formatNumber(value) : value}
-          </p>
-          {sub && <p className="text-xs text-white/60 mt-1">{sub}</p>}
-          {trend && (
-            <div className={`flex items-center gap-1 mt-2 text-xs font-medium ${isPositive ? 'text-green-200' : 'text-red-200'}`}>
-              {isPositive ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
-              <span>{isPositive ? '+' : ''}{trend.value}% {trend.label}</span>
-            </div>
-          )}
+    <div className="relative overflow-hidden rounded-xl border border-border bg-card">
+      <div className={`absolute left-0 top-0 bottom-0 w-1 rounded-l-xl ${accentColor}`} />
+      <div className="p-4 pl-5">
+        <div className="flex items-start justify-between">
+          <div className="space-y-1">
+            <p className="text-xs font-medium text-muted-foreground">{label}</p>
+            <p className="text-2xl font-bold tracking-tight text-foreground">
+              <AnimatedCounter value={value} formatter={formatter} />
+            </p>
+          </div>
+          <div className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 ${iconBg}`}>
+            <Icon className={`w-5 h-5 ${iconColor}`} />
+          </div>
         </div>
-        <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${iconBg} shadow-inner`}>
-          <Icon size={22} className="text-white" />
-        </div>
+        {trend !== undefined && (
+          <div className={`flex items-center gap-1 mt-2 text-xs font-medium ${trend >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}>
+            {trend >= 0 ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
+            <span>{trend >= 0 ? '+' : ''}{trend}% vs last period</span>
+          </div>
+        )}
       </div>
-      <div className="absolute -bottom-4 -right-4 w-24 h-24 rounded-full bg-white/10 pointer-events-none" />
-      <div className="absolute -bottom-8 -right-8 w-32 h-32 rounded-full bg-white/5 pointer-events-none" />
     </div>
   )
 }
 
-const STATUS_BADGE: Record<string, string> = {
-  PENDING:   'bg-yellow-100 text-yellow-700 border border-yellow-200',
-  APPROVED:  'bg-emerald-100 text-emerald-700 border border-emerald-200',
-  REJECTED:  'bg-red-100 text-red-700 border border-red-200',
-  DUPLICATE: 'bg-slate-100 text-slate-500 border border-slate-200',
-}
-const STATUS_ICON: Record<string, React.ElementType> = {
-  PENDING: AlertCircle,
-  APPROVED: CheckCircle,
-  REJECTED: XCircle,
-  DUPLICATE: AlertCircle,
+// ── Chart tooltip ────────────────────────────────────────────────────────────
+
+function ChartTooltip({ active, payload, label }: any) {
+  if (!active || !payload?.length) return null
+  return (
+    <div className="rounded-lg border border-border bg-popover px-3 py-2 shadow-lg">
+      <p className="text-xs font-medium text-muted-foreground mb-1">{label}</p>
+      {payload.map((p: any) => (
+        <div key={p.name} className="flex items-center gap-2 text-sm">
+          <span className="w-2 h-2 rounded-full" style={{ background: p.color }} />
+          <span className="text-muted-foreground">{p.name}:</span>
+          <span className="font-semibold text-foreground">{p.value}</span>
+        </div>
+      ))}
+    </div>
+  )
 }
 
-const CustomTooltip = ({ active, payload, label }: any) => {
-  if (active && payload?.length) {
-    return (
-      <div className="bg-slate-900/95 backdrop-blur border border-slate-700 rounded-xl px-4 py-3 shadow-2xl">
-        <p className="text-slate-400 text-xs mb-2 font-medium">{label}</p>
-        {payload.map((p: any) => (
-          <div key={p.name} className="flex items-center gap-2 text-sm">
-            <div className="w-2 h-2 rounded-full" style={{ background: p.color }} />
-            <span className="text-slate-300">{p.name}:</span>
-            <span className="text-white font-bold">{p.value}</span>
-          </div>
-        ))}
-      </div>
-    )
-  }
-  return null
+// ── Status map helper ────────────────────────────────────────────────────────
+
+const statusVariantMap: Record<string, 'warning' | 'success' | 'error' | 'neutral'> = {
+  PENDING: 'warning',
+  APPROVED: 'success',
+  REJECTED: 'error',
+  DUPLICATE: 'neutral',
 }
 
-// Custom donut label
-const DonutLabel = ({ cx, cy, total }: { cx: number; cy: number; total: number }) => (
-  <text x={cx} y={cy} textAnchor="middle" dominantBaseline="central">
-    <tspan x={cx} dy="-6" fontSize="20" fontWeight="800" fill="#1e293b">{total}</tspan>
-    <tspan x={cx} dy="20" fontSize="11" fill="#94a3b8">total</tspan>
-  </text>
-)
+// ── Main component ───────────────────────────────────────────────────────────
 
 export default function DashboardPage() {
   const navigate = useNavigate()
+  const { density, setDensity, getView, setView } = useViewPreferences()
+  const dc = densityClasses[density]
+  const view = getView('dashboard-activity', 'table')
+  const [chartDays, setChartDays] = useState(30)
 
   const { data: overview, refetch: refetchOverview, isFetching } = useQuery({
-    queryKey: ['analytics-overview'],
+    queryKey: ['admin-overview'],
     queryFn: () => getAnalyticsOverview().then((r) => r.data),
     refetchInterval: 60_000,
   })
+
   const { data: chart } = useQuery({
-    queryKey: ['analytics-chart'],
-    queryFn: () => getAnalyticsChart(30).then((r) => r.data),
+    queryKey: ['admin-submissions-chart', chartDays],
+    queryFn: () => getAnalyticsChart(chartDays).then((r) => r.data),
   })
+
   const { data: recentSubs } = useQuery({
     queryKey: ['submissions-recent'],
-    queryFn: () => getSubmissions({ page: 1, limit: 8 }).then((r) => r.data),
-  })
-  const { data: topUsers } = useQuery({
-    queryKey: ['users-leaderboard'],
-    queryFn: () => getUsers({ page: 1, limit: 5 }).then((r) => r.data),
-  })
-  const { data: prizesData } = useQuery({
-    queryKey: ['prizes'],
-    queryFn: () => getPrizes().then((r) => r.data),
+    queryFn: () => getSubmissions({ page: 1, page_size: 10 }).then((r) => r.data),
   })
 
-  const pending    = overview?.pending_submissions ?? 0
-  const approved   = overview?.approved_count ?? 0
-  const rejected   = overview?.rejected_count ?? 0
-  const chartData  = chart?.data ?? []
-  const prizes     = prizesData?.prizes ?? []
-  const activePrizes = prizes.filter((p: any) => p.is_active).length
+  const chartData = chart?.daily ?? []
+  const recentItems = recentSubs?.items ?? []
 
-  // Donut chart data
-  const donutData = [
-    { name: 'Approved', value: approved, color: '#10b981' },
-    { name: 'Pending',  value: pending,  color: '#f59e0b' },
-    { name: 'Rejected', value: rejected, color: '#ef4444' },
-  ].filter((d) => d.value > 0)
-  const donutTotal = approved + pending + rejected
-
-  // Quick actions
-  const quickActions = [
-    { label: 'Review Queue', sub: `${pending} pending`, icon: Clock, color: 'text-orange-500', bg: 'bg-orange-50', border: 'border-orange-100', to: '/submissions' },
-    { label: 'All Users', sub: `${overview?.total_users ?? 0} total`, icon: Users, color: 'text-blue-500', bg: 'bg-blue-50', border: 'border-blue-100', to: '/users' },
-    { label: 'Manage Prizes', sub: `${activePrizes} active`, icon: Trophy, color: 'text-violet-500', bg: 'bg-violet-50', border: 'border-violet-100', to: '/prizes' },
-    { label: 'Broadcast', sub: 'Send message', icon: Zap, color: 'text-pink-500', bg: 'bg-pink-50', border: 'border-pink-100', to: '/broadcast' },
+  const kpis: KpiCardProps[] = [
+    {
+      label: 'Total Users',
+      value: overview?.total_users ?? 0,
+      icon: Users,
+      accentColor: 'bg-blue-500',
+      iconBg: 'bg-blue-50 dark:bg-blue-500/10',
+      iconColor: 'text-blue-600 dark:text-blue-400',
+    },
+    {
+      label: 'Total Submissions',
+      value: overview?.total_submissions ?? 0,
+      icon: FileText,
+      accentColor: 'bg-violet-500',
+      iconBg: 'bg-violet-50 dark:bg-violet-500/10',
+      iconColor: 'text-violet-600 dark:text-violet-400',
+    },
+    {
+      label: 'Approved',
+      value: overview?.approved_submissions ?? 0,
+      icon: CheckCircle2,
+      accentColor: 'bg-emerald-500',
+      iconBg: 'bg-emerald-50 dark:bg-emerald-500/10',
+      iconColor: 'text-emerald-600 dark:text-emerald-400',
+    },
+    {
+      label: 'Total Spins',
+      value: overview?.total_spins ?? 0,
+      icon: Dices,
+      accentColor: 'bg-amber-500',
+      iconBg: 'bg-amber-50 dark:bg-amber-500/10',
+      iconColor: 'text-amber-600 dark:text-amber-400',
+    },
+    {
+      label: 'Total Rewards',
+      value: overview?.total_rewards ?? 0,
+      icon: Gift,
+      accentColor: 'bg-pink-500',
+      iconBg: 'bg-pink-50 dark:bg-pink-500/10',
+      iconColor: 'text-pink-600 dark:text-pink-400',
+    },
+    {
+      label: 'Charity Donated',
+      value: overview?.total_charity_amount ?? 0,
+      icon: HeartHandshake,
+      accentColor: 'bg-teal-500',
+      iconBg: 'bg-teal-50 dark:bg-teal-500/10',
+      iconColor: 'text-teal-600 dark:text-teal-400',
+      formatter: (n: number) => formatNumber(n),
+    },
   ]
 
   return (
-    <div className="space-y-6">
-      {/* Page header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight">Dashboard</h1>
-          <p className="text-sm text-slate-500 mt-0.5">Real-time platform overview</p>
-        </div>
-        <div className="flex items-center gap-3">
-          <button
-            onClick={() => refetchOverview()}
-            disabled={isFetching}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 text-slate-500 hover:text-slate-700 hover:bg-slate-50 transition-all text-xs font-medium"
-          >
-            <RefreshCw size={13} className={isFetching ? 'animate-spin' : ''} />
-            Refresh
-          </button>
-          <div className="flex items-center gap-2 bg-emerald-50 border border-emerald-200 px-3 py-1.5 rounded-full">
-            <Activity size={14} className="text-emerald-500 animate-pulse" />
-            <span className="text-xs font-semibold text-emerald-700">Live</span>
+    <div className={dc.spacing}>
+      {/* Header */}
+      <PageHeader
+        title="Dashboard"
+        description="Overview of platform activity"
+        actions={
+          <div className="flex items-center gap-2">
+            <DensityToggle current={density} onChange={setDensity} />
+            <button
+              onClick={() => refetchOverview()}
+              disabled={isFetching}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-background px-3 py-1.5 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${isFetching ? 'animate-spin' : ''}`} />
+              Refresh
+            </button>
           </div>
-        </div>
-      </div>
+        }
+      />
 
-      {/* KPI cards — 6 on xl, 3 on md */}
-      <div className="grid grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6 gap-4">
-        <KpiCard
-          label="Total Users"
-          value={overview?.total_users ?? '—'}
-          sub="Registered via bot"
-          icon={Users}
-          gradient="bg-gradient-to-br from-blue-500 to-indigo-600"
-          iconBg="bg-blue-400/40"
-        />
-        <KpiCard
-          label="Today's Reviews"
-          value={overview?.submissions_today ?? '—'}
-          sub="New submissions"
-          icon={FileText}
-          gradient="bg-gradient-to-br from-violet-500 to-purple-600"
-          iconBg="bg-violet-400/40"
-        />
-        <KpiCard
-          label="Pending Review"
-          value={pending}
-          sub={pending > 0 ? 'Needs attention' : 'Queue is clear ✓'}
-          icon={Clock}
-          gradient={pending > 5
-            ? 'bg-gradient-to-br from-orange-500 to-red-500'
-            : 'bg-gradient-to-br from-emerald-500 to-teal-600'}
-          iconBg={pending > 5 ? 'bg-orange-400/40' : 'bg-emerald-400/40'}
-        />
-        <KpiCard
-          label="Charity Raised"
-          value={overview ? `${formatNumber(overview.charity_raised_uzs ?? 0)} UZS` : '—'}
-          sub="Total donations"
-          icon={Heart}
-          gradient="bg-gradient-to-br from-pink-500 to-rose-600"
-          iconBg="bg-pink-400/40"
-        />
-        <KpiCard
-          label="Total Spins"
-          value={overview?.total_spins ?? '—'}
-          sub="All time spin count"
-          icon={Trophy}
-          gradient="bg-gradient-to-br from-amber-500 to-orange-500"
-          iconBg="bg-amber-400/40"
-        />
-        <KpiCard
-          label="Active Prizes"
-          value={activePrizes}
-          sub={`${prizes.length} configured`}
-          icon={Star}
-          gradient="bg-gradient-to-br from-teal-500 to-cyan-600"
-          iconBg="bg-teal-400/40"
-        />
-      </div>
-
-      {/* Quick Actions */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        {quickActions.map(({ label, sub, icon: Icon, color, bg, border, to }) => (
-          <button
-            key={to}
-            onClick={() => navigate(to)}
-            className={`flex items-center gap-3 p-4 rounded-2xl border ${bg} ${border} hover:shadow-md transition-all group text-left`}
-          >
-            <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 bg-white shadow-sm`}>
-              <Icon size={18} className={color} />
-            </div>
-            <div className="min-w-0">
-              <p className="text-sm font-semibold text-slate-800 leading-tight">{label}</p>
-              <p className="text-xs text-slate-400 mt-0.5">{sub}</p>
-            </div>
-            <ArrowRight size={14} className="text-slate-300 group-hover:text-slate-500 ml-auto shrink-0 transition-colors" />
-          </button>
+      {/* KPI Grid */}
+      <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
+        {kpis.map((kpi) => (
+          <KpiCard key={kpi.label} {...kpi} />
         ))}
       </div>
 
-      {/* Charts row */}
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-5">
-        {/* Area chart — submissions trend */}
-        <div className="xl:col-span-2 bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
-          <div className="flex items-center justify-between mb-5">
-            <div>
-              <h2 className="text-base font-bold text-slate-800">Submission Trends</h2>
-              <p className="text-xs text-slate-400 mt-0.5">Last 30 days</p>
-            </div>
-            <div className="flex items-center gap-4 text-xs">
-              <span className="flex items-center gap-1.5 text-slate-500">
-                <span className="w-3 h-0.5 rounded-full bg-blue-500 inline-block" />Total
-              </span>
-              <span className="flex items-center gap-1.5 text-slate-500">
-                <span className="w-3 h-0.5 rounded-full bg-emerald-500 inline-block" />Approved
-              </span>
-            </div>
+      {/* Charts */}
+      <div className="rounded-xl border border-border bg-card">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-border">
+          <div>
+            <h2 className="text-sm font-semibold text-foreground">Submission Trends</h2>
+            <p className="text-xs text-muted-foreground mt-0.5">Daily submissions over time</p>
           </div>
-          <ResponsiveContainer width="100%" height={220}>
-            <AreaChart data={chartData} margin={{ top: 5, right: 5, left: -15, bottom: 0 }}>
-              <defs>
-                <linearGradient id="gradTotal" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.25} />
-                  <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
-                </linearGradient>
-                <linearGradient id="gradApproved" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#10b981" stopOpacity={0.25} />
-                  <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
-                </linearGradient>
-              </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-              <XAxis dataKey="date" tick={{ fontSize: 10, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
-              <YAxis tick={{ fontSize: 10, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
-              <Tooltip content={<CustomTooltip />} />
-              <Area type="monotone" dataKey="total" stroke="#3b82f6" strokeWidth={2.5} fill="url(#gradTotal)" name="Total" dot={false} activeDot={{ r: 4, fill: '#3b82f6' }} />
-              <Area type="monotone" dataKey="approved" stroke="#10b981" strokeWidth={2.5} fill="url(#gradApproved)" name="Approved" dot={false} activeDot={{ r: 4, fill: '#10b981' }} />
-            </AreaChart>
-          </ResponsiveContainer>
+          <div className="flex items-center gap-1 rounded-lg border border-border bg-muted/50 p-0.5">
+            {[7, 14, 30].map((d) => (
+              <button
+                key={d}
+                onClick={() => setChartDays(d)}
+                className={`px-2.5 py-1 text-xs font-medium rounded-md transition-all ${
+                  chartDays === d
+                    ? 'bg-background text-foreground shadow-sm'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                {d}d
+              </button>
+            ))}
+          </div>
         </div>
-
-        {/* Status donut + top users */}
-        <div className="space-y-4">
-          {/* Donut */}
-          <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
-            <h2 className="text-sm font-bold text-slate-800 mb-3">Approval Breakdown</h2>
-            {donutData.length > 0 ? (
-              <div className="flex items-center gap-4">
-                <ResponsiveContainer width={110} height={110}>
-                  <PieChart>
-                    <Pie
-                      data={donutData}
-                      cx="50%"
-                      cy="50%"
-                      innerRadius={32}
-                      outerRadius={50}
-                      paddingAngle={2}
-                      dataKey="value"
-                      labelLine={false}
-                    >
-                      {donutData.map((entry, index) => (
-                        <Cell key={index} fill={entry.color} stroke="none" />
-                      ))}
-                    </Pie>
-                    <text x="50%" y="50%" textAnchor="middle" dominantBaseline="middle" fontSize="16" fontWeight="800" fill="#1e293b">
-                      {donutTotal}
-                    </text>
-                  </PieChart>
-                </ResponsiveContainer>
-                <div className="space-y-2 flex-1">
-                  {donutData.map((d) => (
-                    <div key={d.name} className="flex items-center justify-between text-xs">
-                      <div className="flex items-center gap-1.5">
-                        <div className="w-2.5 h-2.5 rounded-full" style={{ background: d.color }} />
-                        <span className="text-slate-600">{d.name}</span>
-                      </div>
-                      <span className="font-bold text-slate-800">{d.value}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ) : (
-              <p className="text-sm text-slate-400 text-center py-6">No data yet</p>
-            )}
-          </div>
-
-          {/* Top users */}
-          <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4">
-            <div className="flex items-center gap-2 mb-3">
-              <Award size={14} className="text-amber-500" />
-              <h2 className="text-sm font-bold text-slate-800">Top Users</h2>
-            </div>
-            <div className="space-y-2">
-              {(topUsers?.items ?? []).length === 0 && (
-                <p className="text-xs text-slate-400 text-center py-3">No data yet</p>
-              )}
-              {(topUsers?.items ?? []).map((u: any, i: number) => {
-                const medals = ['🥇', '🥈', '🥉']
-                const colors = ['from-amber-400 to-yellow-500', 'from-slate-300 to-slate-400', 'from-orange-400 to-amber-500']
-                return (
-                  <div key={u.id} className="flex items-center gap-2.5">
-                    <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 text-white text-xs font-bold shadow
-                      ${i < 3 ? `bg-gradient-to-br ${colors[i]}` : 'bg-slate-100 text-slate-500'}`}>
-                      {i < 3 ? medals[i] : i + 1}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs font-semibold text-slate-800 truncate">
-                        {u.first_name ?? 'User'} {u.last_name ?? ''}
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-0.5 text-xs font-bold text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded-full">
-                      <Star size={9} />
-                      {u.spin_count ?? 0}
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
+        <div className="p-5">
+          {chartData.length > 0 ? (
+            <ResponsiveContainer width="100%" height={260}>
+              <AreaChart data={chartData} margin={{ top: 5, right: 5, left: -15, bottom: 0 }}>
+                <defs>
+                  <linearGradient id="gradTotal" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.2} />
+                    <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0} />
+                  </linearGradient>
+                  <linearGradient id="gradApproved" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#10b981" stopOpacity={0.2} />
+                    <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                <XAxis
+                  dataKey="date"
+                  tick={{ fontSize: 10 }}
+                  className="text-muted-foreground"
+                  axisLine={false}
+                  tickLine={false}
+                />
+                <YAxis
+                  tick={{ fontSize: 10 }}
+                  className="text-muted-foreground"
+                  axisLine={false}
+                  tickLine={false}
+                />
+                <Tooltip content={<ChartTooltip />} />
+                <Area
+                  type="monotone"
+                  dataKey="total"
+                  stroke="hsl(var(--primary))"
+                  strokeWidth={2}
+                  fill="url(#gradTotal)"
+                  name="Total"
+                  dot={false}
+                  activeDot={{ r: 4 }}
+                />
+                <Area
+                  type="monotone"
+                  dataKey="approved"
+                  stroke="#10b981"
+                  strokeWidth={2}
+                  fill="url(#gradApproved)"
+                  name="Approved"
+                  dot={false}
+                  activeDot={{ r: 4 }}
+                />
+              </AreaChart>
+            </ResponsiveContainer>
+          ) : (
+            <EmptyState title="No chart data" description="Submission data will appear here once available" />
+          )}
+          <div className="flex items-center justify-center gap-6 mt-3 text-xs text-muted-foreground">
+            <span className="flex items-center gap-1.5">
+              <span className="w-3 h-0.5 rounded-full bg-primary inline-block" />Total
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="w-3 h-0.5 rounded-full bg-emerald-500 inline-block" />Approved
+            </span>
           </div>
         </div>
       </div>
 
-      {/* Bottom row */}
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-5">
-        {/* Recent submissions */}
-        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-base font-bold text-slate-800">Recent Submissions</h2>
+      {/* Recent Activity */}
+      <div className="rounded-xl border border-border bg-card">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-border">
+          <h2 className="text-sm font-semibold text-foreground">Recent Activity</h2>
+          <div className="flex items-center gap-2">
+            <ViewToggle
+              current={view}
+              onChange={(m) => setView('dashboard-activity', m)}
+              options={['table', 'card']}
+            />
             <button
               onClick={() => navigate('/submissions')}
-              className="text-xs text-blue-600 hover:underline font-medium flex items-center gap-1"
+              className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:text-primary/80 transition-colors"
             >
-              View all <ArrowRight size={12} />
+              View all <ArrowRight className="w-3 h-3" />
             </button>
           </div>
-          <div className="space-y-1.5">
-            {(recentSubs?.items ?? []).length === 0 && (
-              <p className="text-sm text-slate-400 text-center py-4">No submissions yet</p>
-            )}
-            {(recentSubs?.items ?? []).map((s: any) => {
-              const StatusIcon = STATUS_ICON[s.status] ?? AlertCircle
-              const rowBg = s.status === 'PENDING' ? 'bg-yellow-50/60' : s.status === 'REJECTED' ? 'bg-red-50/40' : ''
-              return (
-                <div key={s.id} className={`flex items-center gap-3 p-2.5 rounded-xl hover:bg-slate-50 transition-colors group cursor-pointer ${rowBg}`}>
-                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-400 to-indigo-500 flex items-center justify-center text-white text-xs font-bold shrink-0">
+        </div>
+
+        {recentItems.length === 0 ? (
+          <EmptyState title="No submissions yet" description="Submissions will appear here as they come in" />
+        ) : view === 'table' ? (
+          <div className="overflow-x-auto">
+            <table className={`w-full ${dc.text}`}>
+              <thead>
+                <tr className="border-b border-border bg-muted/30">
+                  <th className={`text-left font-medium text-muted-foreground ${dc.padding}`}>User</th>
+                  <th className={`text-left font-medium text-muted-foreground ${dc.padding}`}>Product</th>
+                  <th className={`text-left font-medium text-muted-foreground ${dc.padding}`}>Status</th>
+                  <th className={`text-left font-medium text-muted-foreground ${dc.padding}`}>Date</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {recentItems.map((s: any) => (
+                  <tr
+                    key={s.id}
+                    className="hover:bg-muted/30 transition-colors cursor-pointer"
+                    onClick={() => navigate('/submissions')}
+                  >
+                    <td className={dc.padding}>
+                      <div className="flex items-center gap-2">
+                        <div className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center text-xs font-semibold text-primary shrink-0">
+                          {(s.user?.first_name ?? '?')[0].toUpperCase()}
+                        </div>
+                        <span className="font-medium text-foreground truncate">
+                          {s.user?.first_name ?? 'User'} {s.user?.last_name ?? ''}
+                        </span>
+                      </div>
+                    </td>
+                    <td className={`${dc.padding} text-muted-foreground`}>
+                      {s.product?.name_en ?? s.product?.name_uz ?? '—'}
+                    </td>
+                    <td className={dc.padding}>
+                      <StatusBadge variant={statusVariantMap[s.status] ?? 'neutral'} dot size="sm">
+                        {s.status}
+                      </StatusBadge>
+                    </td>
+                    <td className={`${dc.padding} text-muted-foreground whitespace-nowrap`}>
+                      {formatDate(s.created_at)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <div className={`p-4 grid gap-3 ${dc.gridCols}`}>
+            {recentItems.map((s: any) => (
+              <DataCard key={s.id} onClick={() => navigate('/submissions')} padding="sm">
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center text-xs font-semibold text-primary shrink-0">
                     {(s.user?.first_name ?? '?')[0].toUpperCase()}
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-slate-800 truncate">
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-foreground truncate">
                       {s.user?.first_name ?? 'User'}
-                      {s.order_number && <span className="ml-1.5 font-mono text-xs text-slate-400">#{s.order_number}</span>}
                     </p>
-                    <p className="text-xs text-slate-400 truncate">{s.review_text ?? 'No review text'}</p>
-                  </div>
-                  <div className="shrink-0 flex items-center gap-1">
-                    <span className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold ${STATUS_BADGE[s.status] ?? ''}`}>
-                      <StatusIcon size={10} />
-                      {s.status}
-                    </span>
+                    <p className="text-xs text-muted-foreground truncate">
+                      {s.product?.name_en ?? s.product?.name_uz ?? '—'}
+                    </p>
                   </div>
                 </div>
-              )
-            })}
-          </div>
-        </div>
-
-        {/* Status breakdown bar chart */}
-        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
-          <div className="flex items-center gap-2 mb-4">
-            <h2 className="text-base font-bold text-slate-800">Approval Rate (Last 14 days)</h2>
-          </div>
-          {chartData.length > 0 ? (
-            <ResponsiveContainer width="100%" height={185}>
-              <BarChart data={chartData.slice(-14)} margin={{ top: 5, right: 5, left: -15, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                <XAxis dataKey="date" tick={{ fontSize: 9, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fontSize: 9, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
-                <Tooltip content={<CustomTooltip />} />
-                <Legend wrapperStyle={{ fontSize: 11, color: '#94a3b8' }} />
-                <Bar dataKey="approved" fill="#10b981" radius={[4, 4, 0, 0]} name="Approved" />
-                <Bar dataKey="rejected" fill="#f43f5e" radius={[4, 4, 0, 0]} name="Rejected" />
-              </BarChart>
-            </ResponsiveContainer>
-          ) : (
-            <div className="flex items-center justify-center h-48 text-slate-400 text-sm">
-              No chart data available
-            </div>
-          )}
-
-          {/* Quick stats */}
-          <div className="grid grid-cols-3 gap-2 mt-4 pt-4 border-t border-slate-100">
-            {[
-              { label: 'Approved', value: approved, color: 'text-emerald-600', bg: 'bg-emerald-50' },
-              { label: 'Rejected', value: rejected, color: 'text-red-500', bg: 'bg-red-50' },
-              { label: 'Pending',  value: pending,  color: 'text-orange-500', bg: 'bg-orange-50' },
-            ].map((stat) => (
-              <div key={stat.label} className={`${stat.bg} rounded-xl p-2.5 text-center`}>
-                <p className={`text-lg font-extrabold ${stat.color}`}>{stat.value}</p>
-                <p className="text-[10px] text-slate-500 font-medium mt-0.5">{stat.label}</p>
-              </div>
+                <div className="flex items-center justify-between">
+                  <StatusBadge variant={statusVariantMap[s.status] ?? 'neutral'} dot size="sm">
+                    {s.status}
+                  </StatusBadge>
+                  <span className="text-xs text-muted-foreground">{formatDate(s.created_at)}</span>
+                </div>
+              </DataCard>
             ))}
           </div>
-        </div>
+        )}
       </div>
     </div>
   )

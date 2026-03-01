@@ -1,43 +1,55 @@
 import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { getSubmissions, approveSubmission, rejectSubmission, bulkApprove, bulkReject } from '@/api'
+import { clsx } from 'clsx'
+import {
+  getSubmissions, approveSubmission, rejectSubmission, bulkApprove, bulkReject,
+} from '@/api'
 import { formatDate } from '@/lib/utils'
 import {
-  CheckCircle, XCircle, Clock, AlertCircle, X, ChevronLeft, ChevronRight,
-  Image as ImageIcon, Eye, ZoomIn, FileText, LayoutGrid, List, RefreshCw,
+  CheckCircle2, XCircle, X, ChevronLeft, ChevronRight,
+  Image as ImageIcon, Eye, ZoomIn, ArrowUpDown,
 } from 'lucide-react'
+import { useViewPreferences, densityClasses } from '@/hooks/useViewPreferences'
+import type { ViewMode } from '@/hooks/useViewPreferences'
+import PageHeader from '@/components/ui/PageHeader'
+import FilterBar from '@/components/ui/FilterBar'
+import ViewToggle from '@/components/ui/ViewToggle'
+import DensityToggle from '@/components/ui/DensityToggle'
+import StatusBadge from '@/components/ui/StatusBadge'
+import DataCard from '@/components/ui/DataCard'
+import EmptyState from '@/components/ui/EmptyState'
+import KanbanBoard from '@/components/ui/KanbanBoard'
 
-const LIMIT = 20
+// ── Constants ────────────────────────────────────────────────────────────────
 
-/** API returns images as either string[] or { url: string }[] — normalise to string[] */
+const PAGE_SIZE = 20
+
+const STATUS_FILTERS = [
+  { key: '', label: 'All' },
+  { key: 'PENDING', label: 'Pending' },
+  { key: 'APPROVED', label: 'Approved' },
+  { key: 'REJECTED', label: 'Rejected' },
+]
+
+const statusVariantMap: Record<string, 'warning' | 'success' | 'error' | 'neutral'> = {
+  PENDING: 'warning',
+  APPROVED: 'success',
+  REJECTED: 'error',
+  DUPLICATE: 'neutral',
+}
+
+// ── Helper: normalize images ─────────────────────────────────────────────────
+
 function toImageUrls(images: any[]): string[] {
   return (images ?? []).map((img) => (typeof img === 'string' ? img : img?.url ?? '')).filter(Boolean)
 }
 
-const STATUS_BADGE: Record<string, string> = {
-  PENDING:   'bg-yellow-100 text-yellow-700 border border-yellow-200',
-  APPROVED:  'bg-emerald-100 text-emerald-700 border border-emerald-200',
-  REJECTED:  'bg-red-100 text-red-700 border border-red-200',
-  DUPLICATE: 'bg-slate-100 text-slate-500 border border-slate-200',
-}
-const STATUS_LABEL: Record<string, string> = {
-  PENDING: 'Pending', APPROVED: 'Approved', REJECTED: 'Rejected', DUPLICATE: 'Duplicate',
-}
-const STATUS_ICON: Record<string, React.ElementType> = {
-  PENDING: Clock, APPROVED: CheckCircle, REJECTED: XCircle, DUPLICATE: AlertCircle,
-}
-// Color-coded row backgrounds
-const STATUS_ROW_BG: Record<string, string> = {
-  PENDING:   'bg-yellow-50/50 hover:bg-yellow-50',
-  APPROVED:  'hover:bg-emerald-50/30',
-  REJECTED:  'bg-red-50/30 hover:bg-red-50/50',
-  DUPLICATE: 'bg-slate-50/50 hover:bg-slate-100/50',
-}
+// ── Lightbox ─────────────────────────────────────────────────────────────────
 
-// ── Lightbox ────────────────────────────────────────────────────────────────
 function Lightbox({ images, index, onClose }: { images: string[]; index: number; onClose: () => void }) {
   const [cur, setCur] = useState(index)
+
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose()
@@ -50,181 +62,142 @@ function Lightbox({ images, index, onClose }: { images: string[]; index: number;
 
   return (
     <div className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center" onClick={onClose}>
-      <button onClick={onClose} className="absolute top-4 right-4 text-white/70 hover:text-white p-2 rounded-xl bg-white/10 hover:bg-white/20 transition-colors">
-        <X size={22} />
+      <button
+        onClick={onClose}
+        className="absolute top-4 right-4 p-2 rounded-lg bg-white/10 text-white/70 hover:text-white hover:bg-white/20 transition-colors"
+      >
+        <X className="w-5 h-5" />
       </button>
       {cur > 0 && (
-        <button onClick={(e) => { e.stopPropagation(); setCur((c) => c - 1) }} className="absolute left-4 text-white/70 hover:text-white p-3 rounded-xl bg-white/10 hover:bg-white/20 transition-colors">
-          <ChevronLeft size={24} />
+        <button
+          onClick={(e) => { e.stopPropagation(); setCur((c) => c - 1) }}
+          className="absolute left-4 p-3 rounded-lg bg-white/10 text-white/70 hover:text-white hover:bg-white/20 transition-colors"
+        >
+          <ChevronLeft className="w-6 h-6" />
         </button>
       )}
-      <img src={images[cur]} alt="Review screenshot" className="max-h-[85vh] max-w-[90vw] object-contain rounded-xl shadow-2xl" onClick={(e) => e.stopPropagation()} />
+      <img
+        src={images[cur]}
+        alt={`Image ${cur + 1}`}
+        className="max-h-[85vh] max-w-[90vw] object-contain rounded-lg"
+        onClick={(e) => e.stopPropagation()}
+      />
       {cur < images.length - 1 && (
-        <button onClick={(e) => { e.stopPropagation(); setCur((c) => c + 1) }} className="absolute right-4 text-white/70 hover:text-white p-3 rounded-xl bg-white/10 hover:bg-white/20 transition-colors">
-          <ChevronRight size={24} />
+        <button
+          onClick={(e) => { e.stopPropagation(); setCur((c) => c + 1) }}
+          className="absolute right-4 p-3 rounded-lg bg-white/10 text-white/70 hover:text-white hover:bg-white/20 transition-colors"
+        >
+          <ChevronRight className="w-6 h-6" />
         </button>
       )}
       {images.length > 1 && (
         <div className="absolute bottom-6 flex gap-2">
           {images.map((_, i) => (
-            <button key={i} onClick={(e) => { e.stopPropagation(); setCur(i) }}
-              className={`w-2 h-2 rounded-full transition-colors ${i === cur ? 'bg-white' : 'bg-white/40'}`} />
+            <button
+              key={i}
+              onClick={(e) => { e.stopPropagation(); setCur(i) }}
+              className={clsx('w-2 h-2 rounded-full transition-colors', i === cur ? 'bg-white' : 'bg-white/40')}
+            />
           ))}
         </div>
       )}
-      <div className="absolute bottom-6 right-6 text-white/50 text-sm">{cur + 1} / {images.length}</div>
-    </div>
-  )
-}
-
-// ── Submission Card (card view) ──────────────────────────────────────────────
-function SubmissionCard({
-  s, onOpen, onApprove, onReject, selected, onToggle,
-}: {
-  s: any; onOpen: () => void; onApprove: () => void; onReject: () => void
-  selected: boolean; onToggle: () => void
-}) {
-  const StatusIcon = STATUS_ICON[s.status] ?? AlertCircle
-  const images: string[] = toImageUrls(s.images)
-  return (
-    <div
-      className={`bg-white rounded-2xl border shadow-sm overflow-hidden cursor-pointer transition-all hover:shadow-md hover:-translate-y-0.5 ${selected ? 'ring-2 ring-blue-400' : ''}`}
-      style={{ borderLeftWidth: 3, borderLeftColor: s.status === 'PENDING' ? '#f59e0b' : s.status === 'APPROVED' ? '#10b981' : s.status === 'REJECTED' ? '#ef4444' : '#94a3b8' }}
-      onClick={onOpen}
-    >
-      {/* Image preview strip */}
-      {images.length > 0 && (
-        <div className="h-28 bg-slate-100 relative overflow-hidden">
-          <img src={images[0]} alt="" className="w-full h-full object-cover" />
-          {images.length > 1 && (
-            <div className="absolute top-2 right-2 bg-black/60 text-white text-xs px-1.5 py-0.5 rounded-full font-medium">
-              +{images.length - 1}
-            </div>
-          )}
-          <div className="absolute bottom-0 inset-x-0 h-8 bg-gradient-to-t from-white/40 to-transparent" />
-        </div>
-      )}
-
-      <div className="p-4">
-        <div className="flex items-start justify-between mb-2">
-          <div className="flex items-center gap-2.5">
-            <input type="checkbox" checked={selected} onChange={(e) => { e.stopPropagation(); onToggle() }} className="rounded" />
-            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-400 to-indigo-500 flex items-center justify-center text-white text-xs font-bold">
-              {(s.user?.first_name ?? '?')[0].toUpperCase()}
-            </div>
-            <div className="min-w-0">
-              <p className="text-sm font-semibold text-slate-800 truncate">{s.user?.first_name ?? '—'}</p>
-              {s.order_number && <p className="text-xs text-slate-400 font-mono">#{s.order_number}</p>}
-            </div>
-          </div>
-          <span className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold whitespace-nowrap ${STATUS_BADGE[s.status] ?? ''}`}>
-            <StatusIcon size={9} />
-            {STATUS_LABEL[s.status] ?? s.status}
-          </span>
-        </div>
-
-        {s.review_text && (
-          <p className="text-xs text-slate-500 leading-relaxed line-clamp-2 mb-3">{s.review_text}</p>
-        )}
-
-        <div className="flex items-center justify-between">
-          <p className="text-[10px] text-slate-400">{formatDate(s.created_at)}</p>
-          {s.status === 'PENDING' && (
-            <div className="flex gap-1.5">
-              <button onClick={(e) => { e.stopPropagation(); onApprove() }}
-                className="bg-emerald-100 text-emerald-700 px-2.5 py-1 rounded-lg text-xs hover:bg-emerald-200 font-semibold transition-colors">
-                ✓ Approve
-              </button>
-              <button onClick={(e) => { e.stopPropagation(); onReject() }}
-                className="bg-red-100 text-red-600 px-2.5 py-1 rounded-lg text-xs hover:bg-red-200 font-semibold transition-colors">
-                ✕ Reject
-              </button>
-            </div>
-          )}
-        </div>
-      </div>
     </div>
   )
 }
 
 // ── Detail Drawer ────────────────────────────────────────────────────────────
+
 function DetailDrawer({ sub, onClose, onApprove, onReject }: {
-  sub: any; onClose: () => void; onApprove: (id: string) => void; onReject: (id: string) => void
+  sub: any
+  onClose: () => void
+  onApprove: (id: string) => void
+  onReject: (id: string, reason?: string) => void
 }) {
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null)
-  const images: string[] = toImageUrls(sub.images)
-  const StatusIcon = STATUS_ICON[sub.status] ?? AlertCircle
+  const [rejectReason, setRejectReason] = useState('')
+  const [showReject, setShowReject] = useState(false)
+  const images = toImageUrls(sub.images)
 
   return (
     <>
       {lightboxIndex !== null && (
         <Lightbox images={images} index={lightboxIndex} onClose={() => setLightboxIndex(null)} />
       )}
-      <div className="fixed inset-0 z-30 bg-black/40 backdrop-blur-sm" onClick={onClose} />
-      <div className="fixed right-0 top-0 bottom-0 z-40 w-full max-w-md bg-white shadow-2xl flex flex-col">
-        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
-          <h3 className="font-bold text-slate-800 text-base">Submission Detail</h3>
-          <button onClick={onClose} className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors">
-            <X size={18} />
+      <div className="fixed inset-0 z-30 bg-black/40" onClick={onClose} />
+      <div className="fixed right-0 top-0 bottom-0 z-40 w-full max-w-md bg-card border-l border-border shadow-2xl flex flex-col">
+        {/* Header */}
+        <div className="flex items-center justify-between px-5 py-4 border-b border-border">
+          <h3 className="text-sm font-semibold text-foreground">Submission Detail</h3>
+          <button
+            onClick={onClose}
+            className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+          >
+            <X className="w-4 h-4" />
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-5 space-y-5">
-          <div className="flex items-center gap-2">
-            <span className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-semibold ${STATUS_BADGE[sub.status] ?? ''}`}>
-              <StatusIcon size={14} />
-              {STATUS_LABEL[sub.status] ?? sub.status}
-            </span>
-          </div>
+        {/* Body */}
+        <div className="flex-1 overflow-y-auto p-5 space-y-4">
+          <StatusBadge variant={statusVariantMap[sub.status] ?? 'neutral'} dot>
+            {sub.status}
+          </StatusBadge>
 
-          {/* User info */}
-          <div className="bg-slate-50 rounded-xl p-4 space-y-2">
-            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">User</p>
+          {/* User */}
+          <div className="rounded-lg bg-muted/30 p-4">
+            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">User</p>
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-400 to-indigo-500 flex items-center justify-center text-white font-bold">
+              <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center text-sm font-semibold text-primary">
                 {(sub.user?.first_name ?? '?')[0].toUpperCase()}
               </div>
               <div>
-                <p className="font-semibold text-slate-800">{sub.user?.first_name ?? '—'} {sub.user?.last_name ?? ''}</p>
-                {sub.user?.username && <p className="text-sm text-slate-400">@{sub.user.username}</p>}
+                <p className="text-sm font-medium text-foreground">
+                  {sub.user?.first_name ?? '—'} {sub.user?.last_name ?? ''}
+                </p>
+                {sub.user?.username && (
+                  <p className="text-xs text-muted-foreground">@{sub.user.username}</p>
+                )}
               </div>
             </div>
           </div>
 
-          {/* Order info */}
-          <div className="space-y-2">
-            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Order Details</p>
-            <div className="grid grid-cols-2 gap-2 text-sm">
-              <div className="bg-slate-50 rounded-lg p-3">
-                <p className="text-slate-400 text-xs">Order #</p>
-                <p className="font-mono font-semibold text-slate-800">{sub.order_number ?? '—'}</p>
-              </div>
-              <div className="bg-slate-50 rounded-lg p-3">
-                <p className="text-slate-400 text-xs">Submitted</p>
-                <p className="font-semibold text-slate-800 text-xs">{formatDate(sub.created_at)}</p>
-              </div>
-            </div>
+          {/* Product */}
+          <div className="rounded-lg bg-muted/30 p-4">
+            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1">Product</p>
+            <p className="text-sm text-foreground">
+              {sub.product?.name_en ?? sub.product?.name_uz ?? sub.product?.name_ru ?? '—'}
+            </p>
           </div>
 
-          {/* Review text */}
-          {sub.review_text && (
-            <div className="space-y-2">
-              <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Review Text</p>
-              <div className="bg-slate-50 rounded-xl p-4 text-sm text-slate-700 leading-relaxed">{sub.review_text}</div>
+          {/* Date */}
+          <div className="rounded-lg bg-muted/30 p-4">
+            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1">Submitted</p>
+            <p className="text-sm text-foreground">{formatDate(sub.created_at)}</p>
+          </div>
+
+          {/* Rejection reason */}
+          {sub.rejection_reason && (
+            <div className="rounded-lg bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 p-4">
+              <p className="text-xs font-medium text-red-600 dark:text-red-400 uppercase tracking-wider mb-1">Rejection Reason</p>
+              <p className="text-sm text-red-800 dark:text-red-300">{sub.rejection_reason}</p>
             </div>
           )}
 
           {/* Images */}
           {images.length > 0 && (
-            <div className="space-y-2">
-              <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Screenshots ({images.length})</p>
+            <div>
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">
+                Screenshots ({images.length})
+              </p>
               <div className="grid grid-cols-2 gap-2">
-                {images.map((img: string, i: number) => (
-                  <button key={i} onClick={() => setLightboxIndex(i)}
-                    className="relative aspect-video bg-slate-100 rounded-xl overflow-hidden group border border-slate-200 hover:border-blue-400 transition-colors">
+                {images.map((img, i) => (
+                  <button
+                    key={i}
+                    onClick={() => setLightboxIndex(i)}
+                    className="relative aspect-video rounded-lg bg-muted overflow-hidden border border-border hover:border-primary/50 transition-colors group"
+                  >
                     <img src={img} alt={`Screenshot ${i + 1}`} className="w-full h-full object-cover" />
-                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors flex items-center justify-center">
-                      <ZoomIn size={20} className="text-white opacity-0 group-hover:opacity-100 transition-opacity" />
+                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 flex items-center justify-center transition-colors">
+                      <ZoomIn className="w-5 h-5 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
                     </div>
                   </button>
                 ))}
@@ -235,15 +208,47 @@ function DetailDrawer({ sub, onClose, onApprove, onReject }: {
 
         {/* Footer actions */}
         {sub.status === 'PENDING' && (
-          <div className="px-5 py-4 border-t border-slate-100 flex gap-3">
-            <button onClick={() => { onApprove(sub.id); onClose() }}
-              className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-2.5 rounded-xl text-sm flex items-center justify-center gap-2 transition-colors">
-              <CheckCircle size={16} /> Approve
-            </button>
-            <button onClick={() => { onReject(sub.id); onClose() }}
-              className="flex-1 bg-red-500 hover:bg-red-600 text-white font-semibold py-2.5 rounded-xl text-sm flex items-center justify-center gap-2 transition-colors">
-              <XCircle size={16} /> Reject
-            </button>
+          <div className="px-5 py-4 border-t border-border space-y-2">
+            {showReject ? (
+              <div className="space-y-2">
+                <input
+                  type="text"
+                  value={rejectReason}
+                  onChange={(e) => setRejectReason(e.target.value)}
+                  placeholder="Rejection reason (optional)"
+                  className="w-full px-3 py-2 text-sm rounded-lg border border-input bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/30"
+                />
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => { onReject(sub.id, rejectReason || undefined); onClose() }}
+                    className="flex-1 py-2 rounded-lg bg-red-600 hover:bg-red-700 text-white text-sm font-medium transition-colors"
+                  >
+                    Confirm Reject
+                  </button>
+                  <button
+                    onClick={() => { setShowReject(false); setRejectReason('') }}
+                    className="px-4 py-2 rounded-lg border border-border text-sm text-foreground hover:bg-muted transition-colors"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="flex gap-2">
+                <button
+                  onClick={() => { onApprove(sub.id); onClose() }}
+                  className="flex-1 inline-flex items-center justify-center gap-2 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium transition-colors"
+                >
+                  <CheckCircle2 className="w-4 h-4" /> Approve
+                </button>
+                <button
+                  onClick={() => setShowReject(true)}
+                  className="flex-1 inline-flex items-center justify-center gap-2 py-2 rounded-lg bg-red-600 hover:bg-red-700 text-white text-sm font-medium transition-colors"
+                >
+                  <XCircle className="w-4 h-4" /> Reject
+                </button>
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -251,286 +256,530 @@ function DetailDrawer({ sub, onClose, onApprove, onReject }: {
   )
 }
 
-// ── Main page ────────────────────────────────────────────────────────────────
+// ── Main component ───────────────────────────────────────────────────────────
+
 export default function SubmissionsPage() {
   const qc = useQueryClient()
+  const { density, setDensity, getView, setView } = useViewPreferences()
+  const dc = densityClasses[density]
+  const view = getView('submissions', 'table') as ViewMode
+
   const [page, setPage] = useState(1)
   const [status, setStatus] = useState('')
+  const [search, setSearch] = useState('')
   const [selected, setSelected] = useState<string[]>([])
   const [drawerSub, setDrawerSub] = useState<any>(null)
   const [lightbox, setLightbox] = useState<{ images: string[]; index: number } | null>(null)
-  const [viewMode, setViewMode] = useState<'table' | 'cards'>('table')
-  const [autoRefresh, setAutoRefresh] = useState(false)
+  const [sortField, setSortField] = useState<'created_at' | 'status'>('created_at')
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc')
 
-  const { data, isLoading, isFetching } = useQuery({
-    queryKey: ['submissions', page, status],
-    queryFn: () => getSubmissions({ page, limit: LIMIT, status: status || undefined }).then((r) => r.data),
-    refetchInterval: autoRefresh ? 15_000 : false,
+  // For kanban we fetch all statuses; for table/card we use status filter
+  const isKanban = view === 'kanban'
+
+  const { data, isLoading } = useQuery({
+    queryKey: ['submissions', page, isKanban ? '' : status, search],
+    queryFn: () =>
+      getSubmissions({
+        page,
+        page_size: isKanban ? 100 : PAGE_SIZE,
+        status: isKanban ? undefined : (status || undefined),
+        search: search || undefined,
+      }).then((r) => r.data),
   })
 
   const approveMut = useMutation({
     mutationFn: approveSubmission,
-    onSuccess: () => { toast.success('Approved'); qc.invalidateQueries({ queryKey: ['submissions'] }) },
-    onError: (e: any) => toast.error(e?.response?.data?.detail ?? 'Failed'),
+    onSuccess: () => {
+      toast.success('Approved')
+      qc.invalidateQueries({ queryKey: ['submissions'] })
+    },
+    onError: (e: any) => toast.error(e?.response?.data?.detail ?? 'Failed to approve'),
   })
+
   const rejectMut = useMutation({
-    mutationFn: (id: string) => rejectSubmission(id),
-    onSuccess: () => { toast.success('Rejected'); qc.invalidateQueries({ queryKey: ['submissions'] }) },
-    onError: (e: any) => toast.error(e?.response?.data?.detail ?? 'Failed'),
+    mutationFn: ({ id, reason }: { id: string; reason?: string }) => rejectSubmission(id, reason),
+    onSuccess: () => {
+      toast.success('Rejected')
+      qc.invalidateQueries({ queryKey: ['submissions'] })
+    },
+    onError: (e: any) => toast.error(e?.response?.data?.detail ?? 'Failed to reject'),
   })
+
   const bulkApproveMut = useMutation({
     mutationFn: () => bulkApprove(selected),
-    onSuccess: () => { toast.success(`Approved ${selected.length}`); setSelected([]); qc.invalidateQueries({ queryKey: ['submissions'] }) },
+    onSuccess: () => {
+      toast.success(`Approved ${selected.length} submissions`)
+      setSelected([])
+      qc.invalidateQueries({ queryKey: ['submissions'] })
+    },
+    onError: () => toast.error('Bulk approve failed'),
   })
+
   const bulkRejectMut = useMutation({
     mutationFn: () => bulkReject(selected),
-    onSuccess: () => { toast.success(`Rejected ${selected.length}`); setSelected([]); qc.invalidateQueries({ queryKey: ['submissions'] }) },
+    onSuccess: () => {
+      toast.success(`Rejected ${selected.length} submissions`)
+      setSelected([])
+      qc.invalidateQueries({ queryKey: ['submissions'] })
+    },
+    onError: () => toast.error('Bulk reject failed'),
   })
+
+  const submissions = data?.items ?? []
+  const total = data?.total ?? 0
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
+  const from = total === 0 ? 0 : (page - 1) * PAGE_SIZE + 1
+  const to = Math.min(page * PAGE_SIZE, total)
+
+  const pendingCount = submissions.filter((s: any) => s.status === 'PENDING').length
 
   const toggle = (id: string) =>
     setSelected((prev) => prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id])
 
-  const submissions = data?.items ?? []
-  const total       = data?.total ?? 0
-  const totalPages  = Math.max(1, Math.ceil(total / LIMIT))
-  const from        = total === 0 ? 0 : (page - 1) * LIMIT + 1
-  const to          = Math.min(page * LIMIT, total)
+  const toggleAll = () =>
+    setSelected((prev) => prev.length === submissions.length ? [] : submissions.map((s: any) => s.id))
 
-  const statuses = submissions.reduce((acc: Record<string, number>, s: any) => {
-    acc[s.status] = (acc[s.status] ?? 0) + 1
-    return acc
-  }, {})
+  const toggleSort = (field: 'created_at' | 'status') => {
+    if (sortField === field) {
+      setSortDir((d) => d === 'asc' ? 'desc' : 'asc')
+    } else {
+      setSortField(field)
+      setSortDir('asc')
+    }
+  }
+
+  const sorted = [...submissions].sort((a: any, b: any) => {
+    const av = a[sortField] ?? ''
+    const bv = b[sortField] ?? ''
+    return sortDir === 'asc'
+      ? String(av).localeCompare(String(bv))
+      : String(bv).localeCompare(String(av))
+  })
+
+  const filterChips = STATUS_FILTERS.map((f) => ({
+    key: f.key,
+    label: f.label,
+    active: status === f.key,
+  }))
+
+  const handleChip = (key: string) => {
+    setStatus(key)
+    setPage(1)
+  }
+
+  const handleSearch = (v: string) => {
+    setSearch(v)
+    setPage(1)
+  }
+
+  const handleApprove = (id: string) => approveMut.mutate(id)
+  const handleReject = (id: string, reason?: string) => rejectMut.mutate({ id, reason })
+
+  // ── Kanban columns ──
+  const kanbanColumns = [
+    {
+      id: 'PENDING',
+      title: 'Pending',
+      color: 'bg-amber-500',
+      items: submissions.filter((s: any) => s.status === 'PENDING'),
+    },
+    {
+      id: 'APPROVED',
+      title: 'Approved',
+      color: 'bg-emerald-500',
+      items: submissions.filter((s: any) => s.status === 'APPROVED'),
+    },
+    {
+      id: 'REJECTED',
+      title: 'Rejected',
+      color: 'bg-red-500',
+      items: submissions.filter((s: any) => s.status === 'REJECTED'),
+    },
+  ]
+
+  const handleKanbanMove = (itemId: string, fromCol: string, toCol: string) => {
+    if (fromCol === toCol) return
+    if (toCol === 'APPROVED') {
+      approveMut.mutate(itemId)
+    } else if (toCol === 'REJECTED') {
+      const reason = window.prompt('Rejection reason (optional):')
+      rejectMut.mutate({ id: itemId, reason: reason || undefined })
+    }
+  }
+
+  function SortHeader({ field, children }: { field: 'created_at' | 'status'; children: React.ReactNode }) {
+    return (
+      <button
+        onClick={() => toggleSort(field)}
+        className="inline-flex items-center gap-1 text-muted-foreground hover:text-foreground transition-colors"
+      >
+        {children}
+        <ArrowUpDown className={clsx('w-3 h-3', sortField === field && 'text-foreground')} />
+      </button>
+    )
+  }
 
   return (
     <>
       {lightbox && <Lightbox images={lightbox.images} index={lightbox.index} onClose={() => setLightbox(null)} />}
       {drawerSub && (
-        <DetailDrawer sub={drawerSub} onClose={() => setDrawerSub(null)}
-          onApprove={(id) => approveMut.mutate(id)} onReject={(id) => rejectMut.mutate(id)} />
+        <DetailDrawer
+          sub={drawerSub}
+          onClose={() => setDrawerSub(null)}
+          onApprove={handleApprove}
+          onReject={handleReject}
+        />
       )}
 
-      <div className="space-y-4">
+      <div className={dc.spacing}>
         {/* Header */}
-        <div className="flex flex-wrap items-start gap-3 justify-between">
-          <div>
-            <h1 className="text-2xl font-extrabold text-slate-900">Submissions</h1>
-            <p className="text-sm text-slate-500 mt-0.5">{total} total reviews submitted</p>
-          </div>
-          <div className="flex flex-wrap gap-2 items-center">
-            {/* View toggle */}
-            <div className="flex rounded-xl border border-slate-200 overflow-hidden text-sm bg-white shadow-sm">
-              <button onClick={() => setViewMode('table')}
-                className={`flex items-center gap-1.5 px-3 py-1.5 transition-colors ${viewMode === 'table' ? 'bg-slate-800 text-white' : 'text-slate-500 hover:bg-slate-50'}`}>
-                <List size={14} /> Table
+        <PageHeader
+          title="Submissions"
+          badge={
+            pendingCount > 0 ? (
+              <StatusBadge variant="warning" size="sm">{pendingCount} pending</StatusBadge>
+            ) : undefined
+          }
+          actions={
+            <div className="flex items-center gap-2">
+              <DensityToggle current={density} onChange={setDensity} />
+              <ViewToggle
+                current={view}
+                onChange={(m) => { setView('submissions', m); setSelected([]) }}
+                options={['table', 'card', 'kanban']}
+              />
+            </div>
+          }
+        />
+
+        {/* Filters */}
+        {!isKanban && (
+          <FilterBar
+            searchValue={search}
+            onSearchChange={handleSearch}
+            searchPlaceholder="Search submissions..."
+            chips={filterChips}
+            onChipToggle={handleChip}
+          />
+        )}
+
+        {/* Bulk actions bar */}
+        {selected.length > 0 && (
+          <div className="flex items-center gap-3 rounded-lg border border-primary/30 bg-primary/5 px-4 py-2.5">
+            <span className="text-sm font-medium text-foreground">
+              {selected.length} selected
+            </span>
+            <div className="flex items-center gap-2 ml-auto">
+              <button
+                onClick={() => bulkApproveMut.mutate()}
+                disabled={bulkApproveMut.isPending}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-medium transition-colors disabled:opacity-50"
+              >
+                <CheckCircle2 className="w-3.5 h-3.5" /> Approve All
               </button>
-              <button onClick={() => setViewMode('cards')}
-                className={`flex items-center gap-1.5 px-3 py-1.5 transition-colors ${viewMode === 'cards' ? 'bg-slate-800 text-white' : 'text-slate-500 hover:bg-slate-50'}`}>
-                <LayoutGrid size={14} /> Cards
+              <button
+                onClick={() => bulkRejectMut.mutate()}
+                disabled={bulkRejectMut.isPending}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-600 hover:bg-red-700 text-white text-xs font-medium transition-colors disabled:opacity-50"
+              >
+                <XCircle className="w-3.5 h-3.5" /> Reject All
+              </button>
+              <button
+                onClick={() => setSelected([])}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border text-xs font-medium text-foreground hover:bg-muted transition-colors"
+              >
+                Clear
               </button>
             </div>
-
-            {/* Auto-refresh toggle */}
-            <button
-              onClick={() => setAutoRefresh((v) => !v)}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-sm font-medium transition-all ${autoRefresh ? 'bg-emerald-50 border-emerald-200 text-emerald-700' : 'border-slate-200 text-slate-500 hover:bg-slate-50'}`}
-            >
-              <RefreshCw size={13} className={autoRefresh ? 'animate-spin text-emerald-500' : ''} />
-              {autoRefresh ? 'Auto' : 'Auto'}
-            </button>
-
-            <select value={status} onChange={(e) => { setStatus(e.target.value); setPage(1) }}
-              className="border border-slate-200 rounded-xl px-3 py-1.5 text-sm bg-white shadow-sm">
-              <option value="">All statuses</option>
-              <option value="PENDING">Pending</option>
-              <option value="APPROVED">Approved</option>
-              <option value="REJECTED">Rejected</option>
-            </select>
-
-            {selected.length > 0 && (
-              <>
-                <button onClick={() => bulkApproveMut.mutate()} disabled={bulkApproveMut.isPending}
-                  className="flex items-center gap-1.5 bg-emerald-600 text-white px-4 py-1.5 rounded-xl text-sm hover:bg-emerald-700 disabled:opacity-50 shadow-sm font-medium">
-                  <CheckCircle size={14} /> Approve ({selected.length})
-                </button>
-                <button onClick={() => bulkRejectMut.mutate()} disabled={bulkRejectMut.isPending}
-                  className="flex items-center gap-1.5 bg-red-600 text-white px-4 py-1.5 rounded-xl text-sm hover:bg-red-700 disabled:opacity-50 shadow-sm font-medium">
-                  <XCircle size={14} /> Reject ({selected.length})
-                </button>
-              </>
-            )}
-          </div>
-        </div>
-
-        {/* Quick stats */}
-        <div className="grid grid-cols-4 gap-3">
-          {[
-            { label: 'Total', value: total, color: 'border-l-blue-500', textColor: 'text-blue-600', filter: '' },
-            { label: 'Pending', value: statuses['PENDING'] ?? 0, color: 'border-l-yellow-500', textColor: 'text-yellow-600', filter: 'PENDING' },
-            { label: 'Approved', value: statuses['APPROVED'] ?? 0, color: 'border-l-emerald-500', textColor: 'text-emerald-600', filter: 'APPROVED' },
-            { label: 'Rejected', value: statuses['REJECTED'] ?? 0, color: 'border-l-red-500', textColor: 'text-red-500', filter: 'REJECTED' },
-          ].map((s) => (
-            <button key={s.label} onClick={() => { setStatus(s.filter); setPage(1) }}
-              className={`bg-white rounded-xl border border-slate-100 border-l-4 ${s.color} px-4 py-3 shadow-sm text-left hover:shadow-md transition-all`}>
-              <p className={`text-xl font-extrabold ${s.textColor}`}>{s.value}</p>
-              <p className="text-xs text-slate-500 mt-0.5 font-medium">{s.label}</p>
-            </button>
-          ))}
-        </div>
-
-        {/* Fetching indicator */}
-        {isFetching && !isLoading && (
-          <div className="flex items-center gap-2 text-xs text-slate-400">
-            <RefreshCw size={12} className="animate-spin" /> Refreshing…
           </div>
         )}
 
-        {/* ── Card View ── */}
-        {viewMode === 'cards' && (
+        {/* Loading */}
+        {isLoading ? (
+          <div className="space-y-2">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <div key={i} className="h-12 rounded-lg bg-muted animate-pulse" />
+            ))}
+          </div>
+        ) : submissions.length === 0 ? (
+          <EmptyState
+            title="No submissions found"
+            description="Try adjusting your filters or check back later"
+          />
+        ) : (
           <>
-            {isLoading ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                {Array.from({ length: 8 }).map((_, i) => (
-                  <div key={i} className="bg-white rounded-2xl border h-48 animate-pulse" />
-                ))}
+            {/* ── Table view ── */}
+            {view === 'table' && (
+              <div className="rounded-xl border border-border bg-card overflow-hidden">
+                <div className="overflow-x-auto">
+                  <table className={`w-full ${dc.text}`}>
+                    <thead>
+                      <tr className="border-b border-border bg-muted/30">
+                        <th className={`${dc.padding} w-8`}>
+                          <input
+                            type="checkbox"
+                            checked={selected.length === submissions.length && submissions.length > 0}
+                            onChange={toggleAll}
+                            className="rounded border-border"
+                          />
+                        </th>
+                        <th className={`${dc.padding} text-left font-medium text-muted-foreground`}>User</th>
+                        <th className={`${dc.padding} text-left font-medium text-muted-foreground`}>Product</th>
+                        <th className={`${dc.padding} text-left font-medium text-muted-foreground`}>
+                          <SortHeader field="status">Status</SortHeader>
+                        </th>
+                        <th className={`${dc.padding} text-left font-medium text-muted-foreground`}>
+                          <SortHeader field="created_at">Date</SortHeader>
+                        </th>
+                        <th className={`${dc.padding} text-left font-medium text-muted-foreground`}>Images</th>
+                        <th className={`${dc.padding} w-24`}>Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-border">
+                      {sorted.map((s: any) => {
+                        const images = toImageUrls(s.images)
+                        return (
+                          <tr
+                            key={s.id}
+                            className={clsx(
+                              'hover:bg-muted/30 transition-colors cursor-pointer',
+                              selected.includes(s.id) && 'bg-primary/5'
+                            )}
+                            onClick={() => setDrawerSub(s)}
+                          >
+                            <td className={dc.padding} onClick={(e) => e.stopPropagation()}>
+                              <input
+                                type="checkbox"
+                                checked={selected.includes(s.id)}
+                                onChange={() => toggle(s.id)}
+                                className="rounded border-border"
+                              />
+                            </td>
+                            <td className={dc.padding}>
+                              <div className="flex items-center gap-2">
+                                <div className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center text-xs font-semibold text-primary shrink-0">
+                                  {(s.user?.first_name ?? '?')[0].toUpperCase()}
+                                </div>
+                                <div className="min-w-0">
+                                  <p className="text-sm font-medium text-foreground truncate">
+                                    {s.user?.first_name ?? '—'}
+                                  </p>
+                                  {s.user?.username && (
+                                    <p className="text-xs text-muted-foreground">@{s.user.username}</p>
+                                  )}
+                                </div>
+                              </div>
+                            </td>
+                            <td className={`${dc.padding} text-muted-foreground truncate max-w-[180px]`}>
+                              {s.product?.name_en ?? s.product?.name_uz ?? '—'}
+                            </td>
+                            <td className={dc.padding}>
+                              <StatusBadge variant={statusVariantMap[s.status] ?? 'neutral'} dot size="sm">
+                                {s.status}
+                              </StatusBadge>
+                            </td>
+                            <td className={`${dc.padding} text-muted-foreground whitespace-nowrap`}>
+                              {formatDate(s.created_at)}
+                            </td>
+                            <td className={dc.padding} onClick={(e) => e.stopPropagation()}>
+                              {images.length > 0 ? (
+                                <button
+                                  onClick={() => setLightbox({ images, index: 0 })}
+                                  className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:text-primary/80 bg-primary/5 hover:bg-primary/10 px-2 py-1 rounded-md transition-colors"
+                                >
+                                  <ImageIcon className="w-3 h-3" /> {images.length}
+                                </button>
+                              ) : (
+                                <span className="text-muted-foreground text-xs">—</span>
+                              )}
+                            </td>
+                            <td className={dc.padding} onClick={(e) => e.stopPropagation()}>
+                              {s.status === 'PENDING' ? (
+                                <div className="flex items-center gap-1">
+                                  <button
+                                    onClick={() => handleApprove(s.id)}
+                                    disabled={approveMut.isPending}
+                                    className="p-1.5 rounded-md text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-500/10 transition-colors disabled:opacity-50"
+                                    title="Approve"
+                                  >
+                                    <CheckCircle2 className="w-4 h-4" />
+                                  </button>
+                                  <button
+                                    onClick={() => {
+                                      const reason = window.prompt('Rejection reason (optional):')
+                                      if (reason !== null) handleReject(s.id, reason || undefined)
+                                    }}
+                                    disabled={rejectMut.isPending}
+                                    className="p-1.5 rounded-md text-red-600 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors disabled:opacity-50"
+                                    title="Reject"
+                                  >
+                                    <XCircle className="w-4 h-4" />
+                                  </button>
+                                  <button
+                                    onClick={() => setDrawerSub(s)}
+                                    className="p-1.5 rounded-md text-muted-foreground hover:bg-muted transition-colors"
+                                    title="View"
+                                  >
+                                    <Eye className="w-4 h-4" />
+                                  </button>
+                                </div>
+                              ) : (
+                                <button
+                                  onClick={() => setDrawerSub(s)}
+                                  className="p-1.5 rounded-md text-muted-foreground hover:bg-muted transition-colors"
+                                  title="View"
+                                >
+                                  <Eye className="w-4 h-4" />
+                                </button>
+                              )}
+                            </td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+                </div>
               </div>
-            ) : submissions.length === 0 ? (
-              <div className="text-center py-20 text-slate-400">
-                <FileText size={36} className="mx-auto mb-3 opacity-30" />
-                <p>No submissions found</p>
+            )}
+
+            {/* ── Card view ── */}
+            {view === 'card' && (
+              <div className={`grid gap-3 ${dc.gridCols}`}>
+                {sorted.map((s: any) => {
+                  const images = toImageUrls(s.images)
+                  return (
+                    <DataCard
+                      key={s.id}
+                      onClick={() => setDrawerSub(s)}
+                      selected={selected.includes(s.id)}
+                      padding="none"
+                    >
+                      {/* Image preview */}
+                      {images.length > 0 && (
+                        <div className="h-28 bg-muted relative overflow-hidden rounded-t-xl">
+                          <img src={images[0]} alt="" className="w-full h-full object-cover" />
+                          {images.length > 1 && (
+                            <div className="absolute top-2 right-2 bg-black/60 text-white text-xs px-1.5 py-0.5 rounded-full font-medium">
+                              +{images.length - 1}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                      <div className="p-4">
+                        <div className="flex items-start justify-between mb-2">
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="checkbox"
+                              checked={selected.includes(s.id)}
+                              onChange={(e) => { e.stopPropagation(); toggle(s.id) }}
+                              onClick={(e) => e.stopPropagation()}
+                              className="rounded border-border"
+                            />
+                            <div className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center text-xs font-semibold text-primary shrink-0">
+                              {(s.user?.first_name ?? '?')[0].toUpperCase()}
+                            </div>
+                            <div className="min-w-0">
+                              <p className="text-sm font-medium text-foreground truncate">
+                                {s.user?.first_name ?? '—'}
+                              </p>
+                            </div>
+                          </div>
+                          <StatusBadge variant={statusVariantMap[s.status] ?? 'neutral'} dot size="sm">
+                            {s.status}
+                          </StatusBadge>
+                        </div>
+                        <p className="text-xs text-muted-foreground mb-3 truncate">
+                          {s.product?.name_en ?? s.product?.name_uz ?? '—'}
+                        </p>
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs text-muted-foreground">{formatDate(s.created_at)}</span>
+                          {s.status === 'PENDING' && (
+                            <div className="flex gap-1">
+                              <button
+                                onClick={(e) => { e.stopPropagation(); handleApprove(s.id) }}
+                                className="p-1 rounded text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-500/10 transition-colors"
+                              >
+                                <CheckCircle2 className="w-4 h-4" />
+                              </button>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  const reason = window.prompt('Rejection reason (optional):')
+                                  if (reason !== null) handleReject(s.id, reason || undefined)
+                                }}
+                                className="p-1 rounded text-red-600 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors"
+                              >
+                                <XCircle className="w-4 h-4" />
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </DataCard>
+                  )
+                })}
               </div>
-            ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                {submissions.map((s: any) => (
-                  <SubmissionCard
-                    key={s.id}
-                    s={s}
-                    onOpen={() => setDrawerSub(s)}
-                    onApprove={() => approveMut.mutate(s.id)}
-                    onReject={() => rejectMut.mutate(s.id)}
-                    selected={selected.includes(s.id)}
-                    onToggle={() => toggle(s.id)}
-                  />
-                ))}
-              </div>
+            )}
+
+            {/* ── Kanban view ── */}
+            {view === 'kanban' && (
+              <KanbanBoard
+                columns={kanbanColumns}
+                getItemId={(item: any) => item.id}
+                onMove={handleKanbanMove}
+                renderCard={(item: any) => (
+                  <div
+                    className="cursor-pointer"
+                    onClick={() => setDrawerSub(item)}
+                  >
+                    <div className="flex items-center gap-2 mb-1.5">
+                      <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center text-[10px] font-semibold text-primary shrink-0">
+                        {(item.user?.first_name ?? '?')[0].toUpperCase()}
+                      </div>
+                      <span className="text-sm font-medium text-foreground truncate">
+                        {item.user?.first_name ?? '—'}
+                      </span>
+                    </div>
+                    <p className="text-xs text-muted-foreground truncate mb-1">
+                      {item.product?.name_en ?? item.product?.name_uz ?? '—'}
+                    </p>
+                    <p className="text-[10px] text-muted-foreground">
+                      {formatDate(item.created_at)}
+                    </p>
+                  </div>
+                )}
+              />
             )}
           </>
         )}
 
-        {/* ── Table View ── */}
-        {viewMode === 'table' && (
-          <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-x-auto">
-            <table className="w-full text-sm min-w-[700px]">
-              <thead className="bg-slate-50 border-b border-slate-100">
-                <tr>
-                  <th className="px-4 py-3 w-8">
-                    <input type="checkbox"
-                      checked={selected.length === submissions.length && submissions.length > 0}
-                      onChange={(e) => setSelected(e.target.checked ? submissions.map((s: any) => s.id) : [])}
-                      className="rounded" />
-                  </th>
-                  {['User', 'Order #', 'Review', 'Images', 'Status', 'Date', 'Actions'].map((h) => (
-                    <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-50">
-                {isLoading ? (
-                  Array.from({ length: 5 }).map((_, i) => (
-                    <tr key={i}>
-                      {Array.from({ length: 8 }).map((__, j) => (
-                        <td key={j} className="px-4 py-3">
-                          <div className="h-4 bg-slate-100 rounded animate-pulse" />
-                        </td>
-                      ))}
-                    </tr>
-                  ))
-                ) : submissions.length === 0 ? (
-                  <tr>
-                    <td colSpan={8} className="text-center py-16 text-slate-400">
-                      <FileText size={32} className="mx-auto mb-2 opacity-30" />
-                      No submissions found
-                    </td>
-                  </tr>
-                ) : submissions.map((s: any) => {
-                  const StatusIcon = STATUS_ICON[s.status] ?? AlertCircle
-                  const images: string[] = toImageUrls(s.images)
-                  return (
-                    <tr key={s.id}
-                      className={`transition-colors cursor-pointer ${STATUS_ROW_BG[s.status] ?? 'hover:bg-slate-50'}`}
-                      onClick={() => setDrawerSub(s)}
-                    >
-                      <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
-                        <input type="checkbox" checked={selected.includes(s.id)} onChange={() => toggle(s.id)} className="rounded" />
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-2.5">
-                          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-400 to-indigo-500 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
-                            {(s.user?.first_name ?? '?')[0].toUpperCase()}
-                          </div>
-                          <div>
-                            <div className="font-semibold text-slate-800 text-sm leading-tight">{s.user?.first_name ?? '—'}</div>
-                            {s.user?.username && <div className="text-xs text-slate-400">@{s.user.username}</div>}
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-4 py-3 font-mono text-xs text-slate-500">{s.order_number ?? <span className="text-slate-300">—</span>}</td>
-                      <td className="px-4 py-3 max-w-[200px]">
-                        <p className="truncate text-slate-600 text-xs">{s.review_text ?? <span className="text-slate-300 italic">No text</span>}</p>
-                      </td>
-                      <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
-                        {images.length > 0 ? (
-                          <button onClick={() => setLightbox({ images, index: 0 })}
-                            className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800 font-medium bg-blue-50 hover:bg-blue-100 px-2 py-1 rounded-lg transition-colors">
-                            <ImageIcon size={12} /> {images.length}
-                          </button>
-                        ) : (
-                          <span className="text-slate-300 text-xs">—</span>
-                        )}
-                      </td>
-                      <td className="px-4 py-3">
-                        <span className={`flex items-center gap-1 w-fit px-2 py-0.5 rounded-full text-xs font-semibold ${STATUS_BADGE[s.status] ?? 'bg-slate-100 text-slate-600'}`}>
-                          <StatusIcon size={10} />
-                          {STATUS_LABEL[s.status] ?? s.status}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 text-slate-500 text-xs whitespace-nowrap">{formatDate(s.created_at)}</td>
-                      <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
-                        {s.status === 'PENDING' && (
-                          <div className="flex gap-1">
-                            <button onClick={() => approveMut.mutate(s.id)} disabled={approveMut.isPending}
-                              className="bg-emerald-100 text-emerald-700 px-2 py-1 rounded-lg text-xs hover:bg-emerald-200 font-semibold disabled:opacity-50 transition-colors">✓</button>
-                            <button onClick={() => rejectMut.mutate(s.id)} disabled={rejectMut.isPending}
-                              className="bg-red-100 text-red-600 px-2 py-1 rounded-lg text-xs hover:bg-red-200 font-semibold disabled:opacity-50 transition-colors">✕</button>
-                            <button onClick={() => setDrawerSub(s)}
-                              className="bg-slate-100 text-slate-600 px-2 py-1 rounded-lg text-xs hover:bg-slate-200 font-semibold transition-colors">
-                              <Eye size={12} />
-                            </button>
-                          </div>
-                        )}
-                      </td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
+        {/* Pagination (table/card only) */}
+        {!isKanban && total > 0 && (
+          <div className="flex items-center justify-between text-sm text-muted-foreground">
+            <span>
+              Showing {from}–{to} of {total.toLocaleString()}
+            </span>
+            <div className="flex items-center gap-1.5">
+              <button
+                disabled={page === 1}
+                onClick={() => setPage((p) => p - 1)}
+                className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-border bg-background text-foreground text-xs font-medium disabled:opacity-40 hover:bg-muted transition-colors"
+              >
+                <ChevronLeft className="w-3.5 h-3.5" /> Prev
+              </button>
+              <span className="px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-semibold">
+                {page} / {totalPages}
+              </span>
+              <button
+                disabled={page >= totalPages}
+                onClick={() => setPage((p) => p + 1)}
+                className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-border bg-background text-foreground text-xs font-medium disabled:opacity-40 hover:bg-muted transition-colors"
+              >
+                Next <ChevronRight className="w-3.5 h-3.5" />
+              </button>
+            </div>
           </div>
         )}
-
-        {/* Pagination */}
-        <div className="flex items-center justify-between text-sm text-slate-500">
-          <span className="text-xs">{total === 0 ? 'No results' : `Showing ${from}–${to} of ${total}`}</span>
-          <div className="flex items-center gap-1.5">
-            <button disabled={page === 1} onClick={() => setPage((p) => p - 1)}
-              className="flex items-center gap-1 px-3 py-1.5 border border-slate-200 rounded-xl disabled:opacity-40 hover:bg-slate-50 text-xs font-medium transition-colors">
-              <ChevronLeft size={14} /> Prev
-            </button>
-            <span className="px-3 py-1.5 bg-blue-600 text-white rounded-xl text-xs font-bold">{page} / {totalPages}</span>
-            <button disabled={page >= totalPages} onClick={() => setPage((p) => p + 1)}
-              className="flex items-center gap-1 px-3 py-1.5 border border-slate-200 rounded-xl disabled:opacity-40 hover:bg-slate-50 text-xs font-medium transition-colors">
-              Next <ChevronRight size={14} />
-            </button>
-          </div>
-        </div>
       </div>
     </>
   )

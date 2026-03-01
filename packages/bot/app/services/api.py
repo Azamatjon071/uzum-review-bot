@@ -4,8 +4,14 @@ All calls use JWT tokens obtained via Telegram initData auth.
 """
 from __future__ import annotations
 
+import hashlib
+import hmac
+import json
 import logging
+import time
+import urllib.parse
 from typing import Any, Optional
+
 import httpx
 
 from app.config import get_settings
@@ -50,6 +56,42 @@ async def _request(
 
 
 # ---------------------------------------------------------------------------
+# Shared auth helper — generates Telegram initData HMAC and exchanges for JWT
+# ---------------------------------------------------------------------------
+
+async def get_auth_token(tg_user: Any, lang: str, bot_token: str | None = None) -> str | None:
+    """
+    Generate a valid Telegram initData HMAC and exchange it for a JWT.
+    Used by both submit.py and status.py to avoid duplicated HMAC code.
+    """
+    _bot_token = bot_token or settings.BOT_TOKEN
+    user_json = json.dumps({
+        "id": tg_user.id,
+        "first_name": tg_user.first_name or "",
+        "last_name": getattr(tg_user, "last_name", "") or "",
+        "username": tg_user.username or "",
+        "language_code": getattr(tg_user, "language_code", lang) or lang,
+    }, separators=(",", ":"))
+
+    auth_date = str(int(time.time()))
+    data_check_string = f"auth_date={auth_date}\nuser={user_json}"
+    secret_key = hmac.new(b"WebAppData", _bot_token.encode(), hashlib.sha256).digest()
+    hash_val = hmac.new(secret_key, data_check_string.encode(), hashlib.sha256).hexdigest()
+
+    init_data = urllib.parse.urlencode({
+        "auth_date": auth_date,
+        "user": user_json,
+        "hash": hash_val,
+    })
+
+    try:
+        resp = await auth_telegram(init_data)
+        return resp["access_token"]
+    except APIError:
+        return None
+
+
+# ---------------------------------------------------------------------------
 # Auth
 # ---------------------------------------------------------------------------
 
@@ -62,30 +104,8 @@ async def auth_telegram(init_data: str) -> dict:
 # Submissions
 # ---------------------------------------------------------------------------
 
-async def create_submission(
-    token: str,
-    product_url: str,
-    photo_bytes_list: list[tuple[bytes, str]],  # [(bytes, filename), ...]
-) -> dict:
-    """Upload a submission with multipart images."""
-    files = [
-        ("images", (fname, data, "image/jpeg"))
-        for data, fname in photo_bytes_list
-    ]
-    data = {"product_url": product_url}
-    return await _request("POST", "/api/v1/submissions", token=token, data=data, files=files)
-
-
 async def get_my_submissions(token: str) -> dict:
     return await _request("GET", "/api/v1/submissions", token=token)
-
-
-# ---------------------------------------------------------------------------
-# Profile
-# ---------------------------------------------------------------------------
-
-async def get_me(token: str) -> dict:
-    return await _request("GET", "/api/v1/me", token=token)
 
 
 # ---------------------------------------------------------------------------
@@ -144,6 +164,25 @@ async def get_user_info(telegram_id: int, secret: str) -> dict:
         f"/api/v1/bot/user/{telegram_id}",
         params={"secret": secret},
     )
+
+
+# ---------------------------------------------------------------------------
+# Language persistence — update language via bot/register endpoint
+# ---------------------------------------------------------------------------
+
+async def update_user_language(telegram_id: int, first_name: str, username: str | None, language_code: str) -> None:
+    """Re-register user with updated language_code so the backend persists it."""
+    try:
+        await bot_register_user(
+            telegram_id=telegram_id,
+            first_name=first_name,
+            last_name=None,
+            username=username,
+            language_code=language_code,
+            secret=settings.BOT_WEBHOOK_SECRET,
+        )
+    except APIError as e:
+        logger.warning("Failed to persist language for user %s: %s", telegram_id, e)
 
 
 # ---------------------------------------------------------------------------

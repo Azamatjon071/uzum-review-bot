@@ -2,11 +2,79 @@ import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { motion, AnimatePresence } from 'framer-motion'
 import { formatDistanceToNow, isPast, parseISO } from 'date-fns'
+import { Heart, Users, ChevronDown, Trophy } from 'lucide-react'
 import { t, prizeName, currentLang } from '@/i18n'
-import { getPublicCampaigns, donateToCapmaign, giveSadaqa, getCharityLeaderboard } from '@/api'
+import { getPublicCampaigns, donateToCampaign, giveSadaqa, getCharityLeaderboard } from '@/api'
+import { useViewPreferences, type ViewMode } from '@/hooks/useViewPreferences'
+import ViewToggle from '@/components/ui/ViewToggle'
+import EmptyState from '@/components/ui/EmptyState'
 
 // Quick donation amounts
 const QUICK_AMOUNTS = [5_000, 10_000, 25_000, 50_000, 100_000]
+
+// ── Feature 5: Motivational Quotes ──
+const CHARITY_QUOTES: Record<string, string[]> = {
+  uz: [
+    'Eng yaxshi sadaqa — yashirin berilgan sadaqadir. (Hadis)',
+    'Har bir yaxshilik — sadaqadir. (Buxoriy)',
+    'Qo\'li ochiq inson — Allohga yaqindir. (Hadis)',
+    'Mol kamaymas sadaqadan, balki ko\'payar barakadan.',
+    'Bir hurmo bilan bo\'lsa ham sadaqa qiling. (Hadis)',
+  ],
+  ru: [
+    'Лучшая милостыня — та, что дана тайно. (Хадис)',
+    'Каждое доброе дело — это садака. (Бухари)',
+    'Щедрый человек ближе к Аллаху. (Хадис)',
+    'Имущество не убавится от милостыни, а прибавится благодатью.',
+    'Подавайте милостыню, хотя бы половинкой финика. (Хадис)',
+  ],
+  en: [
+    'The best charity is that given in secret. (Hadith)',
+    'Every act of kindness is sadaqa. (Bukhari)',
+    'The generous person is close to Allah. (Hadith)',
+    'Wealth does not decrease from charity, it increases in barakah.',
+    'Give charity even if it is a date. (Hadith)',
+  ],
+}
+
+function QuotesRotator() {
+  const lang = currentLang()
+  const quotes = CHARITY_QUOTES[lang] ?? CHARITY_QUOTES['en']
+  const [index, setIndex] = useState(0)
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setIndex((prev) => (prev + 1) % quotes.length)
+    }, 8000)
+    return () => clearInterval(interval)
+  }, [quotes.length])
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: -8 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="mb-5 text-center px-2"
+    >
+      <p className="text-xs mb-1.5 font-medium text-success/45">
+        🌙 {t('charity_quote_title' as any)}
+      </p>
+      <div className="relative h-12 flex items-center justify-center overflow-hidden">
+        <AnimatePresence mode="wait">
+          <motion.p
+            key={index}
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -12 }}
+            transition={{ duration: 0.5, ease: 'easeInOut' }}
+            className="text-sm italic leading-relaxed absolute px-4 text-success/60"
+          >
+            {quotes[index]}
+          </motion.p>
+        </AnimatePresence>
+      </div>
+    </motion.div>
+  )
+}
 
 // Medal styles for top 3
 const MEDAL_STYLES = [
@@ -46,7 +114,7 @@ function ProgressRing({ pct, size = 72, stroke = 6, color = '#10b981' }: {
   const offset = circ - (pct / 100) * circ
   return (
     <svg width={size} height={size} style={{ transform: 'rotate(-90deg)' }}>
-      <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="rgba(255,255,255,0.07)" strokeWidth={stroke} />
+      <circle cx={size / 2} cy={size / 2} r={r} fill="none" className="stroke-border" strokeWidth={stroke} />
       <circle
         cx={size / 2} cy={size / 2} r={r}
         fill="none"
@@ -61,6 +129,93 @@ function ProgressRing({ pct, size = 72, stroke = 6, color = '#10b981' }: {
   )
 }
 
+/* ── Leaderboard Card View ── */
+function LeaderboardCard({ entry, i }: { entry: any; i: number }) {
+  const medal = MEDAL_STYLES[i]
+  return (
+    <motion.div
+      key={entry.user_id}
+      initial={{ opacity: 0, x: -12 }}
+      animate={{ opacity: 1, x: 0 }}
+      transition={{ delay: i * 0.04 }}
+      className={`rounded-2xl p-3.5 ${
+        i < 3 ? 'bg-success/8 border border-success/20' : 'bg-card border border-border'
+      }`}
+    >
+      <div className="flex items-center gap-3">
+        {/* Rank badge */}
+        {i < 3 ? (
+          <span
+            className="w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold shrink-0 text-white"
+            style={{ background: medal.bg, boxShadow: `0 4px 12px ${medal.shadow}` }}
+          >
+            {medal.emoji}
+          </span>
+        ) : (
+          <span className="w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold shrink-0 bg-secondary text-muted-foreground">
+            {i + 1}
+          </span>
+        )}
+
+        {/* Avatar */}
+        <div
+          className="w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold shrink-0 text-white"
+          style={{ background: avatarColor(entry.first_name) }}
+        >
+          {initials(entry.first_name)}
+        </div>
+
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-medium text-foreground truncate">
+            {entry.first_name ?? `User #${i + 1}`}
+          </p>
+          {i === 0 && (
+            <p className="text-xs text-warning/70">
+              {t('charity_leaderboard').split(' ')[0]} #1
+            </p>
+          )}
+        </div>
+
+        <span className="text-sm font-bold text-success">
+          {entry.total_donated?.toLocaleString()} <span className="text-xs font-normal opacity-60">UZS</span>
+        </span>
+      </div>
+    </motion.div>
+  )
+}
+
+/* ── Leaderboard List View (compact) ── */
+function LeaderboardListItem({ entry, i }: { entry: any; i: number }) {
+  const medal = MEDAL_STYLES[i]
+  return (
+    <motion.div
+      initial={{ opacity: 0, x: -8 }}
+      animate={{ opacity: 1, x: 0 }}
+      transition={{ delay: i * 0.03 }}
+      className="flex items-center gap-3 rounded-xl bg-card border border-border px-3 py-2"
+    >
+      {i < 3 ? (
+        <span
+          className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold shrink-0 text-white"
+          style={{ background: medal.bg, boxShadow: `0 2px 8px ${medal.shadow}` }}
+        >
+          {medal.emoji}
+        </span>
+      ) : (
+        <span className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold shrink-0 bg-secondary text-muted-foreground">
+          {i + 1}
+        </span>
+      )}
+      <p className="text-sm text-foreground truncate flex-1 min-w-0">
+        {entry.first_name ?? `User #${i + 1}`}
+      </p>
+      <span className="text-sm font-bold text-success shrink-0">
+        {entry.total_donated?.toLocaleString()} <span className="text-xs font-normal opacity-60">UZS</span>
+      </span>
+    </motion.div>
+  )
+}
+
 export default function CharityPage() {
   const qc = useQueryClient()
   const [donatingTo, setDonatingTo] = useState<any>(null)
@@ -70,6 +225,9 @@ export default function CharityPage() {
   const [tab, setTab] = useState<'campaigns' | 'leaderboard'>('campaigns')
   const [expandedCampaign, setExpandedCampaign] = useState<string | null>(null)
   const [now, setNow] = useState(Date.now())
+
+  const lbView = useViewPreferences((s) => s.getView)('charity-leaderboard', 'card')
+  const setLbView = useViewPreferences((s) => s.setView)
 
   // Tick every minute for deadline countdowns
   useEffect(() => {
@@ -90,7 +248,7 @@ export default function CharityPage() {
 
   const donateMut = useMutation({
     mutationFn: ({ campaign_id, amount }: { campaign_id: string; amount: number }) =>
-      donateToCapmaign(campaign_id, amount),
+      donateToCampaign(campaign_id, amount),
     onSuccess: () => {
       setSuccessMsg(t('charity_success'))
       setDonatingTo(null)
@@ -130,25 +288,19 @@ export default function CharityPage() {
   const totalDonors = campaigns.reduce((s, c) => s + (c.donor_count ?? 0), 0)
 
   return (
-    <div
-      className="px-4 pt-6 pb-28 min-h-screen"
-      style={{ background: 'linear-gradient(160deg, #0f0f1a 0%, #0a1a10 50%, #0f1a10 100%)' }}
-    >
+    <div className="px-4 pt-6 pb-28 min-h-screen bg-background">
       {/* Ambient glow orbs */}
-      <div
-        className="fixed -top-20 left-1/3 w-72 h-72 rounded-full pointer-events-none"
-        style={{ background: 'radial-gradient(circle, rgba(16,185,129,0.12) 0%, transparent 70%)', filter: 'blur(30px)' }}
-      />
-      <div
-        className="fixed bottom-32 -right-20 w-56 h-56 rounded-full pointer-events-none"
-        style={{ background: 'radial-gradient(circle, rgba(5,150,105,0.1) 0%, transparent 70%)', filter: 'blur(25px)' }}
-      />
+      <div className="fixed -top-20 left-1/3 w-72 h-72 rounded-full pointer-events-none bg-success/12 blur-[30px]" />
+      <div className="fixed bottom-32 -right-20 w-56 h-56 rounded-full pointer-events-none bg-success/10 blur-[25px]" />
 
       {/* Header */}
       <motion.div initial={{ opacity: 0, y: -12 }} animate={{ opacity: 1, y: 0 }} className="relative mb-5">
-        <h1 className="text-2xl font-bold text-white">{t('charity_title')}</h1>
-        <p className="text-sm mt-0.5" style={{ color: 'rgba(167,243,208,0.55)' }}>{t('charity_subtitle')}</p>
+        <h1 className="text-2xl font-bold text-foreground">{t('charity_title')}</h1>
+        <p className="text-sm mt-0.5 text-success/55">{t('charity_subtitle')}</p>
       </motion.div>
+
+      {/* ── Feature 5: Motivational Quotes ── */}
+      <QuotesRotator />
 
       {/* Success banner */}
       <AnimatePresence>
@@ -157,11 +309,7 @@ export default function CharityPage() {
             initial={{ opacity: 0, scale: 0.9, y: -10 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.9 }}
-            className="rounded-2xl px-4 py-3 text-sm font-semibold mb-4 flex items-center gap-2 justify-center text-white"
-            style={{
-              background: 'linear-gradient(90deg, #059669, #10b981)',
-              boxShadow: '0 8px 25px rgba(16,185,129,0.35)',
-            }}
+            className="rounded-2xl px-4 py-3 text-sm font-semibold mb-4 flex items-center gap-2 justify-center bg-success text-success-foreground shadow-lg shadow-success/30"
           >
             <span>✅</span> {successMsg}
           </motion.div>
@@ -182,16 +330,12 @@ export default function CharityPage() {
           ].map(({ label, value, icon }) => (
             <div
               key={label}
-              className="rounded-2xl p-3.5 flex items-center gap-3"
-              style={{
-                background: 'rgba(16,185,129,0.07)',
-                border: '1px solid rgba(16,185,129,0.15)',
-              }}
+              className="rounded-2xl p-3.5 flex items-center gap-3 bg-success/7 border border-success/15"
             >
               <span className="text-2xl">{icon}</span>
               <div>
-                <p className="text-xs" style={{ color: 'rgba(167,243,208,0.5)' }}>{label}</p>
-                <p className="font-bold text-sm text-white">{value}</p>
+                <p className="text-xs text-success/50">{label}</p>
+                <p className="font-bold text-sm text-foreground">{value}</p>
               </div>
             </div>
           ))}
@@ -203,12 +347,7 @@ export default function CharityPage() {
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.1 }}
-        className="rounded-3xl p-5 mb-5 relative overflow-hidden"
-        style={{
-          background: 'linear-gradient(135deg, #064e3b 0%, #065f46 50%, #047857 100%)',
-          border: '1px solid rgba(16,185,129,0.3)',
-          boxShadow: '0 8px 32px rgba(5,150,105,0.2)',
-        }}
+        className="rounded-3xl p-5 mb-5 relative overflow-hidden bg-gradient-to-br from-emerald-900 to-emerald-700 border border-success/30 shadow-lg shadow-success/20"
       >
         <div className="absolute -top-8 -right-8 w-32 h-32 rounded-full bg-white/5" />
         <div className="absolute -bottom-6 -left-6 w-24 h-24 rounded-full bg-white/5" />
@@ -217,7 +356,7 @@ export default function CharityPage() {
             <span className="text-xl">🤲</span>
             <h2 className="font-bold text-lg text-white">{t('charity_sadaqa_title')}</h2>
           </div>
-          <p className="text-sm mb-3" style={{ color: 'rgba(167,243,208,0.7)' }}>{t('charity_sadaqa_desc')}</p>
+          <p className="text-sm mb-3 text-emerald-200/70">{t('charity_sadaqa_desc')}</p>
 
           {/* Quick amount chips */}
           <div className="flex flex-wrap gap-2 mb-3">
@@ -225,14 +364,11 @@ export default function CharityPage() {
               <button
                 key={amt}
                 onClick={() => setSadaqaAmount(String(amt))}
-                className="px-3 py-1 rounded-full text-xs font-semibold transition-all"
-                style={{
-                  background: sadaqaAmount === String(amt)
-                    ? 'rgba(167,243,208,0.9)'
-                    : 'rgba(255,255,255,0.1)',
-                  color: sadaqaAmount === String(amt) ? '#064e3b' : 'rgba(167,243,208,0.8)',
-                  border: '1px solid rgba(167,243,208,0.2)',
-                }}
+                className={`px-3 py-1 rounded-full text-xs font-semibold transition-all ${
+                  sadaqaAmount === String(amt)
+                    ? 'bg-emerald-200 text-emerald-900 dark:bg-emerald-300 dark:text-emerald-900'
+                    : 'bg-secondary/60 text-success/80 border border-success/20'
+                }`}
               >
                 {(amt / 1000).toFixed(0)}K
               </button>
@@ -245,17 +381,12 @@ export default function CharityPage() {
               placeholder={t('charity_sadaqa_placeholder')}
               value={sadaqaAmount}
               onChange={(e) => setSadaqaAmount(e.target.value)}
-              className="flex-1 rounded-xl px-4 py-2.5 text-sm text-white outline-none"
-              style={{
-                background: 'rgba(255,255,255,0.1)',
-                border: '1px solid rgba(255,255,255,0.15)',
-              }}
+              className="flex-1 rounded-xl px-4 py-2.5 text-sm text-white outline-none bg-white/10 border border-white/15 placeholder:text-white/40 focus:border-success/50"
             />
             <button
               disabled={!sadaqaAmount || sadaqaMut.isPending}
               onClick={() => sadaqaMut.mutate(Number(sadaqaAmount))}
-              className="px-5 py-2.5 rounded-xl text-sm font-bold transition-all disabled:opacity-50 active:scale-95"
-              style={{ background: 'rgba(167,243,208,0.9)', color: '#064e3b' }}
+              className="px-5 py-2.5 rounded-xl text-sm font-bold transition-all disabled:opacity-50 active:scale-95 bg-emerald-200 text-emerald-900 dark:bg-emerald-300 dark:text-emerald-900"
             >
               {sadaqaMut.isPending ? '…' : t('charity_sadaqa_btn')}
             </button>
@@ -264,7 +395,7 @@ export default function CharityPage() {
       </motion.div>
 
       {/* Tabs */}
-      <div className="flex p-1 rounded-xl mb-5" style={{ background: 'rgba(255,255,255,0.05)' }}>
+      <div className="flex p-1 rounded-xl mb-5 bg-secondary/50">
         {([
           ['campaigns', t('charity_title')],
           ['leaderboard', t('charity_leaderboard')],
@@ -272,16 +403,11 @@ export default function CharityPage() {
           <button
             key={key}
             onClick={() => setTab(key)}
-            className="flex-1 py-2 text-sm font-medium rounded-lg transition-all"
-            style={
+            className={`flex-1 py-2 text-sm font-medium rounded-lg transition-all ${
               tab === key
-                ? {
-                    background: 'linear-gradient(90deg, #059669, #10b981)',
-                    color: 'white',
-                    boxShadow: '0 4px 12px rgba(16,185,129,0.3)',
-                  }
-                : { color: 'rgba(167,243,208,0.5)' }
-            }
+                ? 'bg-gradient-to-r from-emerald-600 to-success text-white shadow-md shadow-success/30'
+                : 'text-muted-foreground'
+            }`}
           >
             {label}
           </button>
@@ -296,20 +422,15 @@ export default function CharityPage() {
               {[1, 2].map((i) => (
                 <div
                   key={i}
-                  className="rounded-2xl h-40 animate-pulse"
-                  style={{ background: 'rgba(255,255,255,0.04)' }}
+                  className="rounded-2xl h-40 animate-pulse bg-secondary/30"
                 />
               ))}
             </div>
           ) : campaigns.length === 0 ? (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              className="text-center py-16"
-            >
-              <div className="text-5xl mb-3">🤲</div>
-              <p style={{ color: 'rgba(167,243,208,0.4)' }}>{t('charity_no_campaigns')}</p>
-            </motion.div>
+            <EmptyState
+              icon={Heart}
+              title={t('charity_no_campaigns')}
+            />
           ) : (
             <div className="space-y-4">
               {campaigns.map((c: any, i: number) => {
@@ -328,11 +449,9 @@ export default function CharityPage() {
                     initial={{ opacity: 0, y: 12 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: i * 0.07 }}
-                    className="rounded-2xl overflow-hidden"
-                    style={{
-                      background: 'rgba(255,255,255,0.04)',
-                      border: `1px solid ${isFunded ? 'rgba(251,191,36,0.3)' : 'rgba(16,185,129,0.15)'}`,
-                    }}
+                    className={`rounded-2xl overflow-hidden bg-card border ${
+                      isFunded ? 'border-warning/30' : 'border-border'
+                    }`}
                   >
                     <div className="p-4">
                       {/* Campaign header row */}
@@ -357,20 +476,14 @@ export default function CharityPage() {
 
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 flex-wrap">
-                            <h3 className="font-semibold text-white text-sm leading-snug">{prizeName(c)}</h3>
+                            <h3 className="font-semibold text-foreground text-sm leading-snug">{prizeName(c)}</h3>
                             {isFunded && (
-                              <span
-                                className="text-xs px-2 py-0.5 rounded-full font-medium"
-                                style={{ background: 'rgba(251,191,36,0.2)', color: '#fbbf24' }}
-                              >
+                              <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-warning/20 text-warning">
                                 ✨ {t('charity_funded')}
                               </span>
                             )}
                             {isClosed && !isFunded && (
-                              <span
-                                className="text-xs px-2 py-0.5 rounded-full font-medium"
-                                style={{ background: 'rgba(239,68,68,0.15)', color: '#f87171' }}
-                              >
+                              <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-destructive/15 text-destructive">
                                 {t('charity_closed')}
                               </span>
                             )}
@@ -379,12 +492,12 @@ export default function CharityPage() {
                           {/* Deadline & donor count */}
                           <div className="flex items-center gap-3 mt-1">
                             {deadline && (
-                              <span className="text-xs" style={{ color: isClosed ? '#f87171' : 'rgba(167,243,208,0.5)' }}>
+                              <span className={`text-xs ${isClosed ? 'text-destructive' : 'text-success/50'}`}>
                                 ⏰ {deadline}
                               </span>
                             )}
                             {(c.donor_count ?? 0) > 0 && (
-                              <span className="text-xs" style={{ color: 'rgba(167,243,208,0.5)' }}>
+                              <span className="text-xs text-success/50">
                                 👥 {c.donor_count}
                               </span>
                             )}
@@ -394,40 +507,30 @@ export default function CharityPage() {
                         {/* Expand toggle */}
                         <button
                           onClick={() => setExpandedCampaign(isExpanded ? null : c.id)}
-                          className="w-7 h-7 rounded-full flex items-center justify-center shrink-0 transition-transform"
-                          style={{
-                            background: 'rgba(255,255,255,0.07)',
-                            color: 'rgba(167,243,208,0.6)',
-                            transform: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)',
-                          }}
+                          className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 transition-transform bg-secondary text-muted-foreground ${
+                            isExpanded ? 'rotate-180' : ''
+                          }`}
                         >
-                          ▾
+                          <ChevronDown className="w-4 h-4" />
                         </button>
                       </div>
 
                       {/* Progress bar */}
                       {c.goal_amount > 0 && (
                         <div className="mt-3">
-                          <div
-                            className="w-full rounded-full h-1.5 overflow-hidden"
-                            style={{ background: 'rgba(255,255,255,0.07)' }}
-                          >
+                          <div className="w-full rounded-full h-1.5 overflow-hidden bg-border">
                             <motion.div
                               initial={{ width: 0 }}
                               animate={{ width: `${pct}%` }}
                               transition={{ duration: 0.9, delay: 0.1 + i * 0.07 }}
-                              className="h-1.5 rounded-full"
-                              style={{
-                                background: isFunded
-                                  ? 'linear-gradient(90deg, #fbbf24, #f59e0b)'
-                                  : 'linear-gradient(90deg, #059669, #34d399)',
-                              }}
+                              className={`h-1.5 rounded-full ${
+                                isFunded
+                                  ? 'bg-gradient-to-r from-amber-400 to-amber-500'
+                                  : 'bg-gradient-to-r from-emerald-600 to-success'
+                              }`}
                             />
                           </div>
-                          <div
-                            className="flex justify-between text-xs mt-1"
-                            style={{ color: 'rgba(167,243,208,0.45)' }}
-                          >
+                          <div className="flex justify-between text-xs mt-1 text-success/45">
                             <span>{c.raised_amount?.toLocaleString()} UZS</span>
                             <span>{c.goal_amount?.toLocaleString()} UZS</span>
                           </div>
@@ -445,15 +548,9 @@ export default function CharityPage() {
                           transition={{ duration: 0.25 }}
                           className="overflow-hidden"
                         >
-                          <div
-                            className="px-4 pb-4 pt-0"
-                            style={{ borderTop: '1px solid rgba(16,185,129,0.1)' }}
-                          >
+                          <div className="px-4 pb-4 pt-0 border-t border-success/10">
                             {c.description_uz && (
-                              <p
-                                className="text-sm leading-relaxed mt-3 mb-3"
-                                style={{ color: 'rgba(167,243,208,0.65)' }}
-                              >
+                              <p className="text-sm leading-relaxed mt-3 mb-3 text-success/65">
                                 {c.description_uz}
                               </p>
                             )}
@@ -465,11 +562,9 @@ export default function CharityPage() {
                                   {(c.recent_donors as any[]).slice(0, 5).map((d: any, di: number) => (
                                     <div
                                       key={di}
-                                      className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold border-2 shrink-0"
+                                      className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold border-2 border-background shrink-0 text-white"
                                       style={{
                                         background: avatarColor(d.first_name),
-                                        borderColor: '#0a1e16',
-                                        color: 'white',
                                         zIndex: 5 - di,
                                       }}
                                     >
@@ -477,7 +572,7 @@ export default function CharityPage() {
                                     </div>
                                   ))}
                                 </div>
-                                <span className="text-xs ml-2" style={{ color: 'rgba(167,243,208,0.5)' }}>
+                                <span className="text-xs ml-2 text-success/50">
                                   +{(c.donor_count ?? 0)} {t('charity_donors')}
                                 </span>
                               </div>
@@ -495,11 +590,7 @@ export default function CharityPage() {
                             setDonatingTo(c)
                             setDonateAmount('')
                           }}
-                          className="w-full py-2.5 rounded-xl text-sm font-semibold text-white transition-all active:scale-98"
-                          style={{
-                            background: 'linear-gradient(90deg, #059669, #10b981)',
-                            boxShadow: '0 4px 15px rgba(16,185,129,0.2)',
-                          }}
+                          className="w-full py-2.5 rounded-xl text-sm font-semibold text-white transition-all active:scale-[0.98] bg-gradient-to-r from-emerald-600 to-success shadow-md shadow-success/20"
                         >
                           {t('charity_donate_btn')}
                         </button>
@@ -516,73 +607,40 @@ export default function CharityPage() {
       {/* ── Leaderboard ── */}
       {tab === 'leaderboard' && (
         <div>
+          {/* View toggle for leaderboard */}
+          <div className="flex justify-end mb-3">
+            <ViewToggle
+              current={lbView}
+              onChange={(m: ViewMode) => setLbView('charity-leaderboard', m)}
+              options={['list', 'card']}
+            />
+          </div>
+
           {lbLoading ? (
             <div className="space-y-2">
               {[1, 2, 3, 4].map((i) => (
                 <div
                   key={i}
-                  className="rounded-2xl h-16 animate-pulse"
-                  style={{ background: 'rgba(255,255,255,0.04)' }}
+                  className="rounded-2xl h-16 animate-pulse bg-secondary/30"
                 />
               ))}
             </div>
           ) : leaderboard.length === 0 ? (
-            <p className="text-center py-10 text-sm" style={{ color: 'rgba(167,243,208,0.4)' }}>
-              {t('charity_no_campaigns')}
-            </p>
+            <EmptyState
+              icon={Trophy}
+              title={t('charity_no_campaigns')}
+            />
+          ) : lbView === 'list' ? (
+            <div className="space-y-2">
+              {leaderboard.map((entry: any, i: number) => (
+                <LeaderboardListItem key={entry.user_id} entry={entry} i={i} />
+              ))}
+            </div>
           ) : (
             <div className="space-y-2">
-              {leaderboard.map((entry: any, i: number) => {
-                const medal = MEDAL_STYLES[i]
-                return (
-                  <motion.div
-                    key={entry.user_id}
-                    initial={{ opacity: 0, x: -12 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: i * 0.04 }}
-                    className="flex items-center gap-3 rounded-2xl p-3.5"
-                    style={{
-                      background: i < 3 ? 'rgba(16,185,129,0.08)' : 'rgba(255,255,255,0.04)',
-                      border: `1px solid ${i < 3 ? 'rgba(16,185,129,0.2)' : 'rgba(255,255,255,0.06)'}`,
-                    }}
-                  >
-                    {/* Rank badge */}
-                    <span
-                      className="w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold shrink-0"
-                      style={
-                        i < 3
-                          ? { background: medal.bg, boxShadow: `0 4px 12px ${medal.shadow}`, color: 'white' }
-                          : { background: 'rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.4)' }
-                      }
-                    >
-                      {i < 3 ? medal.emoji : i + 1}
-                    </span>
-
-                    {/* Avatar */}
-                    <div
-                      className="w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold shrink-0"
-                      style={{ background: avatarColor(entry.first_name), color: 'white' }}
-                    >
-                      {initials(entry.first_name)}
-                    </div>
-
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-white truncate">
-                        {entry.first_name ?? `User #${i + 1}`}
-                      </p>
-                      {i === 0 && (
-                        <p className="text-xs" style={{ color: 'rgba(251,191,36,0.7)' }}>
-                          {t('charity_leaderboard').split(' ')[0]} #1 ⭐
-                        </p>
-                      )}
-                    </div>
-
-                    <span className="text-sm font-bold" style={{ color: '#34d399' }}>
-                      {entry.total_donated?.toLocaleString()} <span className="text-xs font-normal opacity-60">UZS</span>
-                    </span>
-                  </motion.div>
-                )
-              })}
+              {leaderboard.map((entry: any, i: number) => (
+                <LeaderboardCard key={entry.user_id} entry={entry} i={i} />
+              ))}
             </div>
           )}
         </div>
@@ -595,8 +653,7 @@ export default function CharityPage() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-30 flex items-end"
-            style={{ background: 'rgba(0,0,0,0.75)' }}
+            className="fixed inset-0 z-30 flex items-end bg-black/75"
             onClick={() => setDonatingTo(null)}
           >
             <motion.div
@@ -605,23 +662,18 @@ export default function CharityPage() {
               exit={{ y: '100%' }}
               transition={{ type: 'spring', damping: 26, stiffness: 300 }}
               onClick={(e) => e.stopPropagation()}
-              className="w-full rounded-t-3xl p-6"
-              style={{
-                background: 'linear-gradient(180deg, #0d2a1f 0%, #0a1e16 100%)',
-                border: '1px solid rgba(16,185,129,0.2)',
-                borderBottom: 'none',
-              }}
+              className="w-full rounded-t-3xl p-6 bg-card border border-border border-b-0"
             >
               {/* Handle */}
-              <div className="w-10 h-1 rounded-full bg-white/20 mx-auto mb-5" />
+              <div className="w-10 h-1 rounded-full bg-muted-foreground/20 mx-auto mb-5" />
 
-              <h2 className="font-bold text-lg text-white mb-0.5">{t('charity_donate_btn')}</h2>
-              <p className="text-sm mb-5" style={{ color: 'rgba(167,243,208,0.6)' }}>
+              <h2 className="font-bold text-lg text-foreground mb-0.5">{t('charity_donate_btn')}</h2>
+              <p className="text-sm mb-5 text-muted-foreground">
                 {prizeName(donatingTo)}
               </p>
 
               {/* Quick amount chips */}
-              <p className="text-xs mb-2" style={{ color: 'rgba(167,243,208,0.5)' }}>
+              <p className="text-xs mb-2 text-muted-foreground">
                 {t('charity_quick_amounts')}
               </p>
               <div className="flex flex-wrap gap-2 mb-4">
@@ -629,15 +681,11 @@ export default function CharityPage() {
                   <button
                     key={amt}
                     onClick={() => setDonateAmount(String(amt))}
-                    className="px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all"
-                    style={{
-                      background:
-                        donateAmount === String(amt)
-                          ? 'rgba(167,243,208,0.9)'
-                          : 'rgba(255,255,255,0.08)',
-                      color: donateAmount === String(amt) ? '#064e3b' : 'rgba(167,243,208,0.8)',
-                      border: '1px solid rgba(167,243,208,0.15)',
-                    }}
+                    className={`px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all ${
+                      donateAmount === String(amt)
+                        ? 'bg-emerald-200 text-emerald-900 dark:bg-emerald-300 dark:text-emerald-900'
+                        : 'bg-secondary/60 text-success/80 border border-success/20'
+                    }`}
                   >
                     {amt.toLocaleString()}
                   </button>
@@ -650,18 +698,13 @@ export default function CharityPage() {
                 value={donateAmount}
                 onChange={(e) => setDonateAmount(e.target.value)}
                 autoFocus
-                className="w-full rounded-xl px-4 py-3 text-sm text-white mb-5 outline-none"
-                style={{
-                  background: 'rgba(255,255,255,0.07)',
-                  border: '1px solid rgba(16,185,129,0.25)',
-                }}
+                className="w-full rounded-xl px-4 py-3 text-sm text-foreground mb-5 outline-none bg-secondary border border-border focus:border-primary"
               />
 
               <div className="flex gap-3">
                 <button
                   onClick={() => setDonatingTo(null)}
-                  className="flex-1 py-3 rounded-xl text-sm font-medium text-white/60 border border-white/10"
-                  style={{ background: 'rgba(255,255,255,0.05)' }}
+                  className="flex-1 py-3 rounded-xl text-sm font-medium text-muted-foreground border border-border bg-secondary"
                 >
                   {t('cancel')}
                 </button>
@@ -670,11 +713,7 @@ export default function CharityPage() {
                   onClick={() =>
                     donateMut.mutate({ campaign_id: donatingTo.id, amount: Number(donateAmount) })
                   }
-                  className="flex-1 py-3 rounded-xl text-sm font-bold text-white disabled:opacity-50 active:scale-98 transition-all"
-                  style={{
-                    background: 'linear-gradient(90deg, #059669, #10b981)',
-                    boxShadow: '0 4px 15px rgba(16,185,129,0.3)',
-                  }}
+                  className="flex-1 py-3 rounded-xl text-sm font-bold text-white disabled:opacity-50 active:scale-[0.98] transition-all bg-gradient-to-r from-emerald-600 to-success shadow-md shadow-success/30"
                 >
                   {donateMut.isPending ? '…' : t('confirm')}
                 </button>

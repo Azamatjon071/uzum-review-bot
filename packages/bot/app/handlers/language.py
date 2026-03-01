@@ -8,6 +8,7 @@ from app.i18n import t
 from app.keyboards import main_menu
 from app.middlewares import UserMiddleware
 from app.config import get_settings
+from app.services.api import update_user_language
 
 router = Router(name="language")
 settings = get_settings()
@@ -23,6 +24,14 @@ async def set_language(callback: CallbackQuery, lang: str):
 
     # Update in-memory cache
     UserMiddleware.set_lang(callback.from_user.id, chosen)
+
+    # Persist language to backend
+    await update_user_language(
+        callback.from_user.id,
+        callback.from_user.first_name or "",
+        callback.from_user.username,
+        chosen,
+    )
 
     await callback.message.edit_reply_markup(reply_markup=None)
     await callback.message.answer(

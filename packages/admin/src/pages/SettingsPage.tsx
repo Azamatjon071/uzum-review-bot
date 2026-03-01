@@ -1,75 +1,128 @@
+import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { getSettings, updateSettings } from '@/api'
-import { useState, useEffect } from 'react'
+import { useViewPreferences, densityClasses } from '@/hooks/useViewPreferences'
+import { clsx } from 'clsx'
+import { formatDistanceToNow } from 'date-fns'
 import {
-  Settings, Zap, Shield, Gift, Bell, ChevronRight, Save, RefreshCw,
+  Save, Loader2, Settings, Palette, RotateCcw,
 } from 'lucide-react'
+import PageHeader from '@/components/ui/PageHeader'
+import DataCard from '@/components/ui/DataCard'
+import ThemeToggle from '@/components/ui/ThemeToggle'
+import DensityToggle from '@/components/ui/DensityToggle'
 
-// Group settings by prefix
-const SETTING_GROUPS: { key: string; label: string; icon: React.ElementType; color: string; prefixes: string[] }[] = [
-  { key: 'bot', label: 'Bot Behavior', icon: Zap, color: 'text-blue-500', prefixes: ['bot_', 'telegram_', 'max_', 'min_', 'welcome'] },
-  { key: 'prizes', label: 'Prizes & Spins', icon: Gift, color: 'text-violet-500', prefixes: ['prize_', 'spin_', 'reward_'] },
-  { key: 'security', label: 'Security', icon: Shield, color: 'text-emerald-500', prefixes: ['rate_', 'auth_', 'token_', 'secret'] },
-  { key: 'notifications', label: 'Notifications', icon: Bell, color: 'text-amber-500', prefixes: ['notify_', 'alert_', 'email_'] },
-]
+/* ── Types ──────────────────────────────────────────────── */
 
-function groupSetting(key: string): string {
-  for (const g of SETTING_GROUPS) {
-    if (g.prefixes.some((p) => key.startsWith(p))) return g.key
+interface Setting {
+  key: string
+  value: string
+  description?: string
+  updated_at?: string
+}
+
+/* ── Value type detection ───────────────────────────────── */
+
+function detectType(value: string): 'boolean' | 'number' | 'json' | 'string' {
+  if (value === 'true' || value === 'false') return 'boolean'
+  if (/^-?\d+(\.\d+)?$/.test(value) && value.length < 20) return 'number'
+  if ((value.startsWith('{') && value.endsWith('}')) || (value.startsWith('[') && value.endsWith(']'))) {
+    try {
+      JSON.parse(value)
+      return 'json'
+    } catch {
+      return 'string'
+    }
   }
-  return 'other'
+  return 'string'
 }
 
-function isBooleanLike(val: string) {
-  return val === 'true' || val === 'false'
-}
+/* ── Toggle switch ──────────────────────────────────────── */
 
-function Toggle({ checked, onChange }: { checked: boolean; onChange: (v: boolean) => void }) {
+function ToggleSwitch({
+  checked,
+  onChange,
+}: {
+  checked: boolean
+  onChange: (v: boolean) => void
+}) {
   return (
     <button
       type="button"
       onClick={() => onChange(!checked)}
-      className={`relative w-10 h-5.5 rounded-full transition-colors duration-200 focus:outline-none
-        ${checked ? 'bg-blue-500' : 'bg-slate-300'}`}
-      style={{ height: '22px', minWidth: '40px' }}
+      className={clsx(
+        'relative inline-flex h-5 w-9 items-center rounded-full transition-colors',
+        checked ? 'bg-primary' : 'bg-muted-foreground/30',
+      )}
     >
       <span
-        className={`absolute top-0.5 left-0.5 w-4.5 h-4.5 bg-white rounded-full shadow transition-transform duration-200
-          ${checked ? 'translate-x-[18px]' : 'translate-x-0'}`}
-        style={{ width: '18px', height: '18px' }}
+        className="inline-block h-3.5 w-3.5 rounded-full bg-white shadow transition-transform"
+        style={{ transform: checked ? 'translateX(18px)' : 'translateX(2px)' }}
       />
     </button>
   )
 }
 
-interface SettingRowProps {
-  s: { key: string; value: string; description?: string }
-  val: string
-  onChange: (v: string) => void
-}
+/* ── Setting row ────────────────────────────────────────── */
 
-function SettingRow({ s, val, onChange }: SettingRowProps) {
-  const isBool = isBooleanLike(s.value)
-  const prettyKey = s.key.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
+function SettingRow({
+  setting,
+  value,
+  onChange,
+  isDirty,
+}: {
+  setting: Setting
+  value: string
+  onChange: (v: string) => void
+  isDirty: boolean
+}) {
+  const type = detectType(setting.value)
+  const prettyKey = setting.key
+    .replace(/_/g, ' ')
+    .replace(/\b\w/g, (c) => c.toUpperCase())
 
   return (
-    <div className="flex items-start justify-between gap-4 py-3.5 border-b border-slate-50 last:border-0">
+    <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2 py-3.5 border-b border-border/50 last:border-0">
       <div className="flex-1 min-w-0">
-        <p className="text-sm font-semibold text-slate-800">{prettyKey}</p>
-        {s.description && (
-          <p className="text-xs text-slate-400 mt-0.5 leading-relaxed">{s.description}</p>
+        <div className="flex items-center gap-2">
+          <p className="text-sm font-medium text-foreground">{prettyKey}</p>
+          {isDirty && (
+            <span className="w-1.5 h-1.5 rounded-full bg-warning shrink-0" />
+          )}
+        </div>
+        {setting.description && (
+          <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">{setting.description}</p>
         )}
-        <p className="text-[10px] font-mono text-slate-300 mt-0.5">{s.key}</p>
+        <p className="text-[10px] font-mono text-muted-foreground/60 mt-0.5">{setting.key}</p>
       </div>
-      <div className="shrink-0">
-        {isBool ? (
-          <Toggle checked={val === 'true'} onChange={(v) => onChange(v ? 'true' : 'false')} />
+
+      <div className="shrink-0 sm:ml-4">
+        {type === 'boolean' ? (
+          <ToggleSwitch
+            checked={value === 'true'}
+            onChange={(v) => onChange(v ? 'true' : 'false')}
+          />
+        ) : type === 'number' ? (
+          <input
+            type="number"
+            value={value}
+            onChange={(e) => onChange(e.target.value)}
+            className="w-36 rounded-lg border border-input bg-background px-3 py-1.5 text-sm text-right text-foreground focus:outline-none focus:ring-2 focus:ring-ring/30 focus:border-ring transition-colors"
+          />
+        ) : type === 'json' ? (
+          <textarea
+            value={value}
+            onChange={(e) => onChange(e.target.value)}
+            rows={3}
+            className="w-full sm:w-56 rounded-lg border border-input bg-background px-3 py-1.5 text-xs font-mono text-foreground resize-y focus:outline-none focus:ring-2 focus:ring-ring/30 focus:border-ring transition-colors"
+          />
         ) : (
           <input
-            value={val}
+            type="text"
+            value={value}
             onChange={(e) => onChange(e.target.value)}
-            className="border border-slate-200 rounded-lg px-3 py-1.5 text-sm text-right w-44 focus:outline-none focus:ring-2 focus:ring-blue-400 transition-colors"
+            className="w-full sm:w-44 rounded-lg border border-input bg-background px-3 py-1.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring/30 focus:border-ring transition-colors"
           />
         )}
       </div>
@@ -77,145 +130,187 @@ function SettingRow({ s, val, onChange }: SettingRowProps) {
   )
 }
 
+/* ── Main Page ──────────────────────────────────────────── */
+
 export default function SettingsPage() {
   const qc = useQueryClient()
-  const { data, isLoading } = useQuery({ queryKey: ['settings'], queryFn: () => getSettings().then((r) => r.data) })
+  const { density } = useViewPreferences()
+  const dc = densityClasses[density]
+
+  const { data, isLoading } = useQuery({
+    queryKey: ['settings'],
+    queryFn: () => getSettings().then((r) => r.data),
+  })
+
   const [form, setForm] = useState<Record<string, string>>({})
-  const [dirty, setDirty] = useState(false)
+  const [original, setOriginal] = useState<Record<string, string>>({})
 
   useEffect(() => {
     if (data?.settings) {
       const flat: Record<string, string> = {}
       for (const s of data.settings) flat[s.key] = s.value
       setForm(flat)
-      setDirty(false)
+      setOriginal(flat)
     }
   }, [data])
 
-  const handleChange = (key: string, val: string) => {
+  const dirtyKeys = Object.keys(form).filter((k) => form[k] !== original[k])
+  const hasDirty = dirtyKeys.length > 0
+
+  function handleChange(key: string, val: string) {
     setForm((f) => ({ ...f, [key]: val }))
-    setDirty(true)
   }
 
-  const mut = useMutation({
-    mutationFn: () => updateSettings({ settings: Object.entries(form).map(([key, value]) => ({ key, value })) }),
+  function handleReset() {
+    setForm(original)
+  }
+
+  const saveMut = useMutation({
+    mutationFn: () => {
+      const changes = dirtyKeys.map((key) => ({ key, value: form[key] }))
+      return updateSettings({ settings: changes })
+    },
     onSuccess: () => {
       toast.success('Settings saved')
-      setDirty(false)
+      setOriginal({ ...form })
       qc.invalidateQueries({ queryKey: ['settings'] })
     },
     onError: () => toast.error('Failed to save settings'),
   })
 
-  const settings: any[] = data?.settings ?? []
+  const settings: Setting[] = data?.settings ?? []
 
-  // Group settings
-  const grouped: Record<string, any[]> = { other: [] }
-  for (const g of SETTING_GROUPS) grouped[g.key] = []
-  for (const s of settings) {
-    const gKey = groupSetting(s.key)
-    if (!grouped[gKey]) grouped[gKey] = []
-    grouped[gKey].push(s)
-  }
+  /* ── Loading skeleton ─────────────────────────────────── */
 
-  return (
-    <div className="space-y-6 max-w-3xl">
-      <div className="flex items-start justify-between">
-        <div>
-          <h1 className="text-2xl font-extrabold text-slate-900">Settings</h1>
-          <p className="text-sm text-slate-500 mt-0.5">Configure platform behaviour and features</p>
-        </div>
-        <div className="flex items-center gap-2">
-          {dirty && (
-            <span className="flex items-center gap-1.5 text-xs text-amber-600 bg-amber-50 border border-amber-200 px-3 py-1.5 rounded-full font-medium">
-              <ChevronRight size={12} /> Unsaved changes
-            </span>
-          )}
-          <button
-            onClick={() => mut.mutate()}
-            disabled={!dirty || mut.isPending}
-            className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold px-4 py-2 rounded-xl text-sm disabled:opacity-50 transition-colors shadow-sm"
-          >
-            {mut.isPending ? (
-              <><RefreshCw size={14} className="animate-spin" /> Saving…</>
-            ) : (
-              <><Save size={14} /> Save Changes</>
-            )}
-          </button>
-        </div>
-      </div>
-
-      {isLoading ? (
-        <div className="space-y-4">
-          {[...Array(3)].map((_, i) => (
-            <div key={i} className="bg-white rounded-2xl border border-slate-100 p-5 animate-pulse">
-              <div className="h-5 bg-slate-100 rounded w-32 mb-4" />
-              {[...Array(3)].map((__, j) => (
-                <div key={j} className="flex justify-between py-3.5 border-b border-slate-50">
-                  <div className="h-4 bg-slate-100 rounded w-40" />
-                  <div className="h-8 bg-slate-100 rounded w-44" />
+  function renderSkeleton() {
+    return (
+      <div className="space-y-4">
+        {Array.from({ length: 3 }).map((_, i) => (
+          <DataCard key={i}>
+            <div className="animate-pulse space-y-4">
+              <div className="h-4 w-32 rounded bg-muted" />
+              {Array.from({ length: 3 }).map((__, j) => (
+                <div key={j} className="flex items-center justify-between py-3">
+                  <div className="space-y-1.5">
+                    <div className="h-3.5 w-40 rounded bg-muted" />
+                    <div className="h-3 w-56 rounded bg-muted" />
+                  </div>
+                  <div className="h-8 w-36 rounded bg-muted" />
                 </div>
               ))}
             </div>
-          ))}
-        </div>
-      ) : settings.length === 0 ? (
-        <div className="bg-white rounded-2xl border border-slate-100 p-10 text-center">
-          <Settings size={32} className="mx-auto text-slate-300 mb-3" />
-          <p className="text-slate-500 font-medium">No settings configured yet</p>
-          <p className="text-slate-400 text-sm mt-1">Settings will appear here once the platform is configured.</p>
-        </div>
-      ) : (
-        <div className="space-y-4">
-          {SETTING_GROUPS.map((group) => {
-            const groupSettings = grouped[group.key] ?? []
-            if (groupSettings.length === 0) return null
-            const Icon = group.icon
-            return (
-              <div key={group.key} className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
-                <div className="flex items-center gap-3 px-5 py-4 border-b border-slate-100 bg-slate-50/60">
-                  <div className={`w-8 h-8 rounded-xl bg-slate-100 flex items-center justify-center`}>
-                    <Icon size={15} className={group.color} />
-                  </div>
-                  <h2 className="font-bold text-slate-700 text-sm">{group.label}</h2>
-                  <span className="ml-auto text-xs text-slate-400">{groupSettings.length} setting{groupSettings.length !== 1 ? 's' : ''}</span>
-                </div>
-                <div className="px-5">
-                  {groupSettings.map((s: any) => (
-                    <SettingRow
-                      key={s.key}
-                      s={s}
-                      val={form[s.key] ?? ''}
-                      onChange={(v) => handleChange(s.key, v)}
-                    />
-                  ))}
-                </div>
-              </div>
-            )
-          })}
+          </DataCard>
+        ))}
+      </div>
+    )
+  }
 
-          {/* Ungrouped / other settings */}
-          {(grouped['other'] ?? []).length > 0 && (
-            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
-              <div className="flex items-center gap-3 px-5 py-4 border-b border-slate-100 bg-slate-50/60">
-                <div className="w-8 h-8 rounded-xl bg-slate-100 flex items-center justify-center">
-                  <Settings size={15} className="text-slate-400" />
-                </div>
-                <h2 className="font-bold text-slate-700 text-sm">Other</h2>
-              </div>
-              <div className="px-5">
-                {(grouped['other'] ?? []).map((s: any) => (
-                  <SettingRow
-                    key={s.key}
-                    s={s}
-                    val={form[s.key] ?? ''}
-                    onChange={(v) => handleChange(s.key, v)}
-                  />
-                ))}
-              </div>
+  return (
+    <div className={clsx('space-y-6 max-w-3xl', dc.spacing)}>
+      <PageHeader
+        title="Settings"
+        actions={
+          hasDirty ? (
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-warning font-medium">
+                {dirtyKeys.length} unsaved change{dirtyKeys.length !== 1 ? 's' : ''}
+              </span>
+              <button
+                onClick={handleReset}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-foreground bg-background hover:bg-muted transition-colors"
+              >
+                <RotateCcw className="w-3 h-3" />
+                Reset
+              </button>
+              <button
+                onClick={() => saveMut.mutate()}
+                disabled={saveMut.isPending}
+                className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3.5 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50 transition-colors"
+              >
+                {saveMut.isPending ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                ) : (
+                  <Save className="w-3.5 h-3.5" />
+                )}
+                Save Changes
+              </button>
             </div>
-          )}
+          ) : undefined
+        }
+      />
+
+      {/* ── Display / Preferences ───────────────────────── */}
+      <DataCard>
+        <div className="flex items-center gap-2.5 mb-4">
+          <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-primary/10">
+            <Palette className="w-4 h-4 text-primary" />
+          </div>
+          <h2 className="text-sm font-semibold text-foreground">Display Preferences</h2>
         </div>
+
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-foreground">Theme</p>
+              <p className="text-xs text-muted-foreground">Choose light, dark, or system theme</p>
+            </div>
+            <ThemeToggle />
+          </div>
+
+          <div className="border-t border-border/50" />
+
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-foreground">Density</p>
+              <p className="text-xs text-muted-foreground">Adjust the spacing and padding of UI elements</p>
+            </div>
+            <DensityToggle
+              current={density}
+              onChange={useViewPreferences.getState().setDensity}
+            />
+          </div>
+        </div>
+      </DataCard>
+
+      {/* ── Platform Settings ───────────────────────────── */}
+      {isLoading ? (
+        renderSkeleton()
+      ) : settings.length === 0 ? (
+        <DataCard>
+          <div className="flex flex-col items-center justify-center py-12 text-center">
+            <div className="flex items-center justify-center w-12 h-12 rounded-xl bg-muted mb-4">
+              <Settings className="w-6 h-6 text-muted-foreground" />
+            </div>
+            <p className="text-sm font-medium text-foreground">No settings configured</p>
+            <p className="text-xs text-muted-foreground mt-1">
+              Settings will appear here once the platform is configured.
+            </p>
+          </div>
+        </DataCard>
+      ) : (
+        <DataCard>
+          <div className="flex items-center gap-2.5 mb-1">
+            <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-muted">
+              <Settings className="w-4 h-4 text-muted-foreground" />
+            </div>
+            <h2 className="text-sm font-semibold text-foreground">Platform Settings</h2>
+            <span className="ml-auto text-xs text-muted-foreground">
+              {settings.length} setting{settings.length !== 1 ? 's' : ''}
+            </span>
+          </div>
+
+          <div className="mt-2">
+            {settings.map((s) => (
+              <SettingRow
+                key={s.key}
+                setting={s}
+                value={form[s.key] ?? ''}
+                onChange={(v) => handleChange(s.key, v)}
+                isDirty={form[s.key] !== original[s.key]}
+              />
+            ))}
+          </div>
+        </DataCard>
       )}
     </div>
   )

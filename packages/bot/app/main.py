@@ -10,7 +10,7 @@ import structlog
 from aiogram import Bot, Dispatcher
 from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
-from aiogram.fsm.storage.memory import MemoryStorage
+from aiogram.fsm.storage.redis import RedisStorage
 from aiogram.webhook.aiohttp_server import SimpleRequestHandler, setup_application
 from aiohttp import web
 
@@ -29,7 +29,9 @@ log = structlog.get_logger()
 
 
 def create_dispatcher() -> Dispatcher:
-    dp = Dispatcher(storage=MemoryStorage())
+    # Use RedisStorage so FSM state survives bot restarts
+    storage = RedisStorage.from_url(settings.REDIS_URL)
+    dp = Dispatcher(storage=storage)
 
     # Middleware
     dp.update.middleware(UserMiddleware())
@@ -55,13 +57,15 @@ async def on_startup(bot: Bot) -> None:
     else:
         log.info("Webhook URL not set, using polling")
 
-    # Set bot commands
+    # Set bot commands — include ALL available commands
     from aiogram.types import BotCommand, BotCommandScopeDefault
     await bot.set_my_commands(
         [
             BotCommand(command="start", description="Bosh menyu"),
             BotCommand(command="submit", description="Sharh yuborish"),
             BotCommand(command="status", description="Sharhlarim"),
+            BotCommand(command="myspins", description="Spinlarim"),
+            BotCommand(command="referral", description="Taklif dasturi"),
             BotCommand(command="wallet", description="Mukofotlarim"),
             BotCommand(command="charity", description="Xayriya"),
             BotCommand(command="language", description="Tilni o'zgartirish"),
