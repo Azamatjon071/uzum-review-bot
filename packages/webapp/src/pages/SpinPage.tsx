@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { motion, AnimatePresence } from 'framer-motion'
+import { Zap, Trophy, ChevronDown, Shield } from 'lucide-react'
 import { t, prizeName } from '@/i18n'
 import { getSpinCommitments, commitSpin, executeSpin, getPrizeOdds, getMyRewards } from '@/api'
 import PrizeWheel from '@/components/wheel/PrizeWheel'
@@ -109,7 +110,6 @@ function AnimatedNumber({ value, duration = 800 }: { value: number; duration?: n
       if (startRef.current === null) startRef.current = ts
       const elapsed = ts - startRef.current
       const progress = Math.min(elapsed / duration, 1)
-      // easeOut: 1 - (1-p)^3
       const eased = 1 - Math.pow(1 - progress, 3)
       setDisplay(Math.round(eased * target))
       if (progress < 1) {
@@ -227,7 +227,6 @@ export default function SpinPage() {
       setTargetIndex(idx >= 0 ? idx : 0)
       setSpinning(true)
       setResult(spinResult)
-      // Haptic feedback
       try { (window as any).Telegram?.WebApp?.HapticFeedback?.impactOccurred?.('heavy') } catch {}
     },
   })
@@ -238,7 +237,6 @@ export default function SpinPage() {
   const prizes: any[] = oddsData?.prizes ?? PLACEHOLDER_SEGMENTS
   const totalWeight = prizes.reduce((s: number, p: any) => s + p.weight, 0)
 
-  // Recent wins: last 3 pending/claimed rewards
   const recentWins = (rewardsData?.rewards ?? []).slice(0, 3)
 
   function handleSpin() {
@@ -254,7 +252,6 @@ export default function SpinPage() {
     if (result?.prize) {
       setShowConfetti(true)
       setTimeout(() => setShowConfetti(false), 3500)
-      // Update streak
       const today = new Date().toDateString()
       const lastSpinDate = localStorage.getItem('last_spin_date')
       const currentStreak = parseInt(localStorage.getItem('spin_streak') ?? '0', 10)
@@ -282,77 +279,103 @@ export default function SpinPage() {
   const hasSpins = pendingCommitments.length > 0
 
   return (
-    <div className="flex flex-col items-center pb-24 pt-6 px-4 min-h-screen relative overflow-hidden bg-background">
-      {/* Background ambient glow */}
-      <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-80 h-80 rounded-full bg-primary/20 blur-[40px] pointer-events-none" />
-      <div className="absolute bottom-1/3 right-0 w-48 h-48 rounded-full bg-purple-500/10 blur-[30px] pointer-events-none" />
+    <div className="flex flex-col items-center pb-24 pt-4 px-4 min-h-screen relative overflow-hidden bg-background">
+      {/* Background ambient glows */}
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-96 h-96 rounded-full bg-primary/15 blur-[60px] pointer-events-none" />
+      <div className="absolute bottom-1/3 right-0 w-56 h-56 rounded-full bg-purple-500/8 blur-[40px] pointer-events-none" />
+      <div className="absolute top-1/2 left-0 w-40 h-40 rounded-full bg-pink-500/6 blur-[30px] pointer-events-none" />
 
       {showConfetti && <Confetti />}
 
-      {/* Header row */}
-      <div className="w-full flex items-start justify-between mb-3 relative z-10">
-        <div>
-          <motion.h1
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="text-2xl font-bold text-foreground tracking-tight"
+      {/* ── Header row ── */}
+      <div className="w-full flex items-center justify-between mb-5 relative z-10">
+        <div className="flex items-center gap-3">
+          {/* UzumBot logo mark */}
+          <div
+            className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
+            style={{ background: 'linear-gradient(135deg, #7000FF, #e8007c)' }}
           >
-            {t('spin_title')}
-          </motion.h1>
-          <motion.p
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.1 }}
-            className="text-sm mt-0.5 text-muted-foreground/60"
-          >
-            {t('spin_subtitle')}
-          </motion.p>
+            <Zap className="w-5 h-5 text-white" />
+          </div>
+          <div>
+            <motion.h1
+              initial={{ opacity: 0, x: -10 }}
+              animate={{ opacity: 1, x: 0 }}
+              className="text-lg font-bold text-foreground tracking-tight leading-tight"
+            >
+              {t('spin_title')}
+            </motion.h1>
+            <motion.p
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.1 }}
+              className="text-xs text-muted-foreground/50 leading-tight"
+            >
+              {t('spin_subtitle')}
+            </motion.p>
+          </div>
         </div>
 
         {/* Streak badge */}
         {streak > 1 && (
           <motion.div
-            initial={{ scale: 0.8, opacity: 0 }}
+            initial={{ scale: 0.7, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
-            className="flex flex-col items-center"
+            transition={{ type: 'spring', stiffness: 260, damping: 20 }}
           >
-            <div className="px-3 py-1.5 rounded-xl text-xs font-bold text-white flex items-center gap-1 bg-gradient-to-r from-amber-500 to-red-500 shadow-lg shadow-amber-500/40">
-              🔥 {streak} {t('spin_streak')}
+            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold text-white bg-gradient-to-r from-amber-500 to-orange-500 shadow-lg shadow-amber-500/40">
+              🔥 <span>{streak}</span> <span className="opacity-80">{t('spin_streak')}</span>
             </div>
           </motion.div>
         )}
       </div>
 
-      {/* Stats row */}
+      {/* ── Stats row ── */}
       <motion.div
-        initial={{ opacity: 0, y: 10 }}
+        initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.08 }}
-        className="w-full flex gap-3 mb-4 relative z-10"
+        className="w-full flex gap-3 mb-5 relative z-10"
       >
-        <div className="flex-1 rounded-2xl px-4 py-3 flex items-center gap-3 bg-primary/15 border border-primary/30">
-          <span className="text-2xl">🎯</span>
+        {/* Available spins — highlighted */}
+        <div className="flex-1 rounded-2xl px-4 py-3.5 flex items-center gap-3 bg-primary/10 border border-primary/20">
+          <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 bg-primary/20">
+            <Zap className="w-4 h-4 text-primary" />
+          </div>
           <div>
-            <p className="text-xs text-muted-foreground/60">{t('spin_available')}</p>
-            <p className="text-xl font-bold text-foreground"><AnimatedNumber value={pendingCommitments.length} /></p>
+            <p className="text-[10px] font-medium uppercase tracking-wide text-primary/60">{t('spin_available')}</p>
+            <p className="text-2xl font-bold text-foreground leading-none mt-0.5">
+              <AnimatedNumber value={pendingCommitments.length} />
+            </p>
           </div>
         </div>
-        <div className="flex-1 rounded-2xl px-4 py-3 flex items-center gap-3 bg-card/50 border border-border">
-          <span className="text-2xl">🏆</span>
+
+        {/* Total spins — plain */}
+        <div className="flex-1 rounded-2xl px-4 py-3.5 flex items-center gap-3 bg-card/60 border border-border">
+          <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 bg-secondary">
+            <Trophy className="w-4 h-4 text-muted-foreground" />
+          </div>
           <div>
-            <p className="text-xs text-muted-foreground/60">{t('spin_total_spins')}</p>
-            <p className="text-xl font-bold text-foreground"><AnimatedNumber value={rewardsData?.rewards?.length ?? 0} /></p>
+            <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground/50">{t('spin_total_spins')}</p>
+            <p className="text-2xl font-bold text-foreground leading-none mt-0.5">
+              <AnimatedNumber value={rewardsData?.rewards?.length ?? 0} />
+            </p>
           </div>
         </div>
       </motion.div>
 
-      {/* Wheel */}
+      {/* ── Wheel ── */}
       <motion.div
-        initial={{ opacity: 0, scale: 0.9 }}
+        initial={{ opacity: 0, scale: 0.88 }}
         animate={{ opacity: 1, scale: 1 }}
-        transition={{ delay: 0.15 }}
+        transition={{ delay: 0.15, type: 'spring', stiffness: 160, damping: 20 }}
         className="relative z-10"
-        style={{ filter: spinning ? 'drop-shadow(0 0 30px rgba(108,99,255,0.6))' : 'none', transition: 'filter 0.3s' }}
+        style={{
+          filter: spinning
+            ? 'drop-shadow(0 0 40px rgba(112,0,255,0.55)) drop-shadow(0 0 80px rgba(112,0,255,0.25))'
+            : 'drop-shadow(0 8px 24px rgba(112,0,255,0.2))',
+          transition: 'filter 0.4s ease',
+        }}
       >
         <PrizeWheel
           segments={prizes}
@@ -362,77 +385,111 @@ export default function SpinPage() {
         />
       </motion.div>
 
-      {/* Spin button area */}
+      {/* ── Spin button area ── */}
       <div className="mt-6 w-full max-w-xs relative z-10">
         {hasSpins ? (
           <>
             {pendingCommitments.length > 1 && (
-              <select
-                className="w-full rounded-xl px-4 py-3 text-sm mb-3 text-foreground bg-secondary border border-border focus:outline-none focus:border-primary"
-                value={activeCommitment?.id ?? ''}
-                onChange={(e) => {
-                  const c = pendingCommitments.find((c: any) => c.id === e.target.value)
-                  setActiveCommitment(c ?? null)
-                }}
-              >
-                {pendingCommitments.map((c: any) => (
-                  <option key={c.id} value={c.id} className="bg-card">
-                    #{c.id.slice(0, 8)} — {new Date(c.created_at).toLocaleDateString()}
-                  </option>
-                ))}
-              </select>
+              <div className="relative mb-3">
+                <select
+                  className="w-full rounded-xl px-4 py-3 text-sm text-foreground appearance-none bg-secondary border border-border focus:outline-none focus:border-primary pr-10"
+                  value={activeCommitment?.id ?? ''}
+                  onChange={(e) => {
+                    const c = pendingCommitments.find((c: any) => c.id === e.target.value)
+                    setActiveCommitment(c ?? null)
+                  }}
+                >
+                  {pendingCommitments.map((c: any) => (
+                    <option key={c.id} value={c.id} className="bg-card">
+                      #{c.id.slice(0, 8)} — {new Date(c.created_at).toLocaleDateString()}
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+              </div>
             )}
 
             <motion.button
-              whileTap={{ scale: 0.96 }}
+              whileTap={{ scale: 0.97 }}
               disabled={spinning || spinMut.isPending}
               onClick={handleSpin}
-              className={`w-full font-bold py-4 rounded-2xl text-lg transition-all relative overflow-hidden ${
+              className={`w-full font-bold py-4 rounded-2xl text-base transition-all relative overflow-hidden ${
                 spinning || spinMut.isPending
-                  ? 'bg-primary/40 text-foreground/70'
-                  : 'bg-gradient-to-r from-primary to-purple-500 text-white shadow-[0_0_30px] shadow-primary/50'
+                  ? 'opacity-60 bg-primary/30 text-foreground/70 border border-primary/20'
+                  : 'text-white shadow-[0_4px_32px_rgba(112,0,255,0.45)]'
               }`}
+              style={
+                spinning || spinMut.isPending
+                  ? {}
+                  : { background: 'linear-gradient(135deg, #7000FF, #e8007c)' }
+              }
             >
-              {spinning ? (
-                <span className="flex items-center justify-center gap-2">
-                  <span className="w-5 h-5 border-2 border-foreground/30 border-t-foreground rounded-full animate-spin" />
-                  <span className="text-foreground/70">Spinning…</span>
-                </span>
-              ) : spinMut.isPending ? t('spin_prepare') : t('spin_button')}
+              {/* Shimmer overlay when active */}
+              {!spinning && !spinMut.isPending && (
+                <span
+                  className="absolute inset-0 opacity-20"
+                  style={{
+                    background: 'linear-gradient(105deg, transparent 40%, rgba(255,255,255,0.5) 50%, transparent 60%)',
+                    backgroundSize: '200% 100%',
+                    animation: 'shimmer 2.5s infinite',
+                  }}
+                />
+              )}
+              <span className="relative">
+                {spinning ? (
+                  <span className="flex items-center justify-center gap-2">
+                    <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    <span>Spinning…</span>
+                  </span>
+                ) : spinMut.isPending ? (
+                  <span className="flex items-center justify-center gap-2">
+                    <span className="w-4 h-4 border-2 border-foreground/30 border-t-foreground/70 rounded-full animate-spin" />
+                    {t('spin_prepare')}
+                  </span>
+                ) : t('spin_button')}
+              </span>
             </motion.button>
           </>
         ) : (
           <>
             <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              className="text-center py-8 px-6 rounded-2xl bg-card/50 border border-border mb-3"
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="text-center py-8 px-6 rounded-2xl bg-card/50 border border-border mb-4"
             >
-              <div className="text-4xl mb-3">🎡</div>
-              <p className="font-semibold text-foreground/70">{t('spin_no_spins')}</p>
-              <p className="text-sm mt-1 text-muted-foreground/40">{t('spin_no_spins_sub')}</p>
+              <div className="w-14 h-14 rounded-2xl flex items-center justify-center text-3xl mx-auto mb-3 bg-muted/50">
+                🎡
+              </div>
+              <p className="font-semibold text-foreground/80 text-sm">{t('spin_no_spins')}</p>
+              <p className="text-xs mt-1.5 text-muted-foreground/50 leading-relaxed">{t('spin_no_spins_sub')}</p>
             </motion.div>
             <motion.button
               whileTap={{ scale: 0.97 }}
               onClick={() => commitMut.mutate()}
               disabled={commitMut.isPending}
-              className="w-full py-3 rounded-2xl text-sm font-medium text-muted-foreground border border-border bg-secondary transition-all hover:border-primary/50"
+              className="w-full py-3.5 rounded-2xl text-sm font-semibold text-foreground border border-primary/30 bg-primary/10 transition-all hover:bg-primary/15 disabled:opacity-50"
             >
-              {commitMut.isPending ? t('spin_prepare') : t('spin_commit_btn')}
+              {commitMut.isPending ? (
+                <span className="flex items-center justify-center gap-2">
+                  <span className="w-4 h-4 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
+                  {t('spin_prepare')}
+                </span>
+              ) : t('spin_commit_btn')}
             </motion.button>
           </>
         )}
       </div>
 
-      {/* Provably fair link */}
+      {/* ── Provably fair link ── */}
       <button
         onClick={() => setShowOdds(true)}
-        className="mt-5 text-xs transition-colors relative z-10 underline underline-offset-2 text-muted-foreground/50 hover:text-primary"
+        className="mt-5 flex items-center gap-1.5 text-xs transition-colors relative z-10 text-muted-foreground/40 hover:text-primary"
       >
+        <Shield className="w-3 h-3" />
         {t('spin_fair_info')}
       </button>
 
-      {/* Recent wins mini feed */}
+      {/* ── Recent wins mini feed ── */}
       {recentWins.length > 0 && (
         <motion.div
           initial={{ opacity: 0, y: 10 }}
@@ -440,9 +497,13 @@ export default function SpinPage() {
           transition={{ delay: 0.3 }}
           className="mt-6 w-full max-w-xs relative z-10"
         >
-          <p className="text-xs mb-2 font-medium text-muted-foreground/60">
-            {t('spin_recent_wins')}
-          </p>
+          <div className="flex items-center gap-2 mb-2.5">
+            <div className="flex-1 h-px bg-border/40" />
+            <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/40">
+              {t('spin_recent_wins')}
+            </p>
+            <div className="flex-1 h-px bg-border/40" />
+          </div>
           <div className="space-y-2">
             {recentWins.map((r: any, i: number) => (
               <motion.div
@@ -450,15 +511,24 @@ export default function SpinPage() {
                 initial={{ opacity: 0, x: -10 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: 0.35 + i * 0.06 }}
-                className="flex items-center gap-3 rounded-xl px-3 py-2 bg-card/50 border border-border/50"
+                className="flex items-center gap-3 rounded-xl px-3 py-2.5 bg-card/60 border border-border/60"
               >
                 <span
-                  className="w-6 h-6 rounded-full shrink-0"
-                  style={{ background: r.prize?.color ?? '#6c63ff', boxShadow: `0 0 8px ${r.prize?.color ?? '#6c63ff'}60` }}
-                />
-                <span className="text-xs text-foreground/70 flex-1 truncate">{prizeName(r.prize) ?? '—'}</span>
+                  className="w-7 h-7 rounded-lg shrink-0 flex items-center justify-center"
+                  style={{
+                    background: `${r.prize?.color ?? '#6c63ff'}22`,
+                    border: `1.5px solid ${r.prize?.color ?? '#6c63ff'}55`,
+                    boxShadow: `0 0 8px ${r.prize?.color ?? '#6c63ff'}30`,
+                  }}
+                >
+                  <span
+                    className="w-3 h-3 rounded-full"
+                    style={{ background: r.prize?.color ?? '#6c63ff' }}
+                  />
+                </span>
+                <span className="text-xs text-foreground/75 flex-1 truncate font-medium">{prizeName(r.prize) ?? '—'}</span>
                 <span
-                  className={`text-xs px-2 py-0.5 rounded-full ${
+                  className={`text-[10px] px-2 py-0.5 rounded-full font-semibold ${
                     r.status === 'claimed'
                       ? 'bg-success/15 text-success'
                       : 'bg-warning/15 text-warning'
@@ -472,10 +542,10 @@ export default function SpinPage() {
         </motion.div>
       )}
 
-      {/* ── Feature 4: Social Proof Live Feed ── */}
+      {/* ── Social Proof Live Feed ── */}
       <LiveFeedTicker prizes={prizes} />
 
-      {/* ── Odds modal ── */}
+      {/* ── Odds modal (bottom sheet) ── */}
       <AnimatePresence>
         {showOdds && (
           <motion.div
@@ -494,31 +564,37 @@ export default function SpinPage() {
               className="w-full rounded-t-3xl p-6 max-h-[75vh] overflow-y-auto bg-card border border-border/50 border-b-0"
             >
               <div className="w-10 h-1 rounded-full bg-muted mx-auto mb-5" />
-              <h2 className="text-lg font-bold text-foreground mb-4">{t('spin_odds_title')}</h2>
+              <div className="flex items-center gap-2 mb-5">
+                <Shield className="w-4 h-4 text-primary" />
+                <h2 className="text-lg font-bold text-foreground">{t('spin_odds_title')}</h2>
+              </div>
               <div className="space-y-2.5">
                 {prizes.map((p: any) => {
                   const pct = totalWeight > 0 ? (p.weight / totalWeight) * 100 : 0
                   return (
-                    <div key={p.id} className="p-3 rounded-xl bg-secondary/50">
-                      <div className="flex items-center justify-between mb-1.5">
+                    <div key={p.id} className="p-3.5 rounded-xl bg-secondary/50 border border-border/30">
+                      <div className="flex items-center justify-between mb-2">
                         <div className="flex items-center gap-3">
                           <span
                             className="w-4 h-4 rounded-full shrink-0"
                             style={{ background: p.color, boxShadow: `0 0 8px ${p.color}` }}
                           />
-                          <span className="text-sm text-foreground/80">{prizeName(p)}</span>
+                          <span className="text-sm text-foreground/85 font-medium">{prizeName(p)}</span>
                           <RarityBadge weight={p.weight} totalWeight={totalWeight} />
                         </div>
                         <span className="text-sm font-bold text-primary">{pct.toFixed(1)}%</span>
                       </div>
-                      <div className="w-full h-1.5 rounded-full bg-muted">
-                        <div className="h-1.5 rounded-full transition-all" style={{ width: `${pct}%`, background: p.color }} />
+                      <div className="w-full h-1.5 rounded-full bg-muted overflow-hidden">
+                        <div
+                          className="h-1.5 rounded-full transition-all"
+                          style={{ width: `${pct}%`, background: p.color }}
+                        />
                       </div>
                     </div>
                   )
                 })}
               </div>
-              <p className="text-xs mt-4 text-center text-muted-foreground/50">
+              <p className="text-xs mt-4 text-center text-muted-foreground/40">
                 Seed hash shown before spin • Verified with HMAC-SHA256 after
               </p>
               <button
@@ -546,7 +622,7 @@ export default function SpinPage() {
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.8, opacity: 0 }}
               transition={{ type: 'spring', damping: 16, stiffness: 200 }}
-              className="w-full max-w-sm rounded-3xl p-8 text-center bg-card border border-primary/40 shadow-2xl shadow-primary/20"
+              className="w-full max-w-sm rounded-3xl p-8 text-center bg-card border border-primary/30 shadow-2xl shadow-primary/20"
             >
               {result.prize ? (
                 <>
@@ -559,7 +635,7 @@ export default function SpinPage() {
                     🎉
                   </motion.div>
                   <h2 className="text-2xl font-bold text-foreground">{t('spin_result_title')}</h2>
-                  <p className="mt-1 mb-5 text-sm text-muted-foreground/70">{t('spin_result_subtitle')}</p>
+                  <p className="mt-1 mb-5 text-sm text-muted-foreground/60">{t('spin_result_subtitle')}</p>
 
                   <motion.div
                     initial={{ scale: 0.8 }}
@@ -574,7 +650,6 @@ export default function SpinPage() {
                     {prizeName(result.prize)}
                   </motion.div>
 
-                  {/* Rarity badge in result */}
                   <div className="mb-3">
                     <RarityBadge weight={result.prize.weight ?? 0} totalWeight={totalWeight} />
                   </div>
@@ -585,7 +660,6 @@ export default function SpinPage() {
                     </p>
                   )}
 
-                  {/* Claim code */}
                   {result.claim_code && (
                     <button
                       onClick={() => copyClaimCode(result.claim_code)}
@@ -597,10 +671,9 @@ export default function SpinPage() {
                     </button>
                   )}
 
-                  {/* Provably fair details */}
                   {result.seed && (
                     <details className="mt-3 text-left">
-                      <summary className="text-xs cursor-pointer text-muted-foreground/60">
+                      <summary className="text-xs cursor-pointer text-muted-foreground/50">
                         Verify fairness
                       </summary>
                       <div className="mt-2 rounded-xl p-3 text-xs font-mono break-all space-y-1 bg-secondary/50 text-foreground/80">
@@ -611,17 +684,17 @@ export default function SpinPage() {
                     </details>
                   )}
 
-                  {/* Action buttons */}
                   <div className="flex gap-3 mt-5">
                     <button
                       onClick={handleShare}
-                      className="flex-1 py-3 rounded-xl text-sm font-medium text-primary border border-primary/30 bg-primary/15 transition-all"
+                      className="flex-1 py-3 rounded-xl text-sm font-semibold text-primary border border-primary/25 bg-primary/10 transition-all"
                     >
                       📤 {t('spin_result_share')}
                     </button>
                     <button
                       onClick={() => setResult(null)}
-                      className="flex-1 py-3 rounded-xl font-semibold text-sm text-white bg-gradient-to-r from-primary to-purple-500 shadow-lg shadow-primary/40"
+                      className="flex-1 py-3 rounded-xl font-bold text-sm text-white shadow-lg shadow-primary/30"
+                      style={{ background: 'linear-gradient(135deg, #7000FF, #e8007c)' }}
                     >
                       {t('spin_result_close')}
                     </button>
@@ -630,10 +703,11 @@ export default function SpinPage() {
               ) : (
                 <>
                   <div className="text-6xl mb-4">😢</div>
-                  <p className="text-foreground/70 font-medium text-lg">{t('spin_result_no_prize')}</p>
+                  <p className="text-foreground/70 font-semibold text-lg">{t('spin_result_no_prize')}</p>
                   <button
                     onClick={() => setResult(null)}
-                    className="mt-6 w-full py-3 rounded-xl font-semibold text-sm text-white bg-gradient-to-r from-primary to-purple-500"
+                    className="mt-6 w-full py-3 rounded-xl font-bold text-sm text-white shadow-lg shadow-primary/30"
+                    style={{ background: 'linear-gradient(135deg, #7000FF, #e8007c)' }}
                   >
                     {t('spin_result_close')}
                   </button>

@@ -1,20 +1,22 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { getAdmins, createAdmin, deleteAdmin, getRoles } from '@/api'
-import { useViewPreferences, densityClasses } from '@/hooks/useViewPreferences'
-import { clsx } from 'clsx'
 import { formatDistanceToNow } from 'date-fns'
 import {
-  UserPlus, Trash2, Shield, ShieldCheck, ShieldOff, X, Loader2, Mail, Eye, EyeOff,
+  UserPlus, Trash2, Shield, ShieldCheck, ShieldOff, X, Loader2,
+  Eye, EyeOff, AlertTriangle, Mail, KeyRound, UserCircle2,
 } from 'lucide-react'
+import { getAdmins, createAdmin, deleteAdmin, getRoles } from '@/api'
+import { useViewPreferences, densityClasses } from '@/hooks/useViewPreferences'
+import { cn } from '@/lib/utils'
 import PageHeader from '@/components/ui/PageHeader'
-import ViewToggle from '@/components/ui/ViewToggle'
 import DataCard from '@/components/ui/DataCard'
 import StatusBadge from '@/components/ui/StatusBadge'
 import EmptyState from '@/components/ui/EmptyState'
+import ViewToggle from '@/components/ui/ViewToggle'
+import DensityToggle from '@/components/ui/DensityToggle'
 
-/* ── Types ──────────────────────────────────────────────── */
+/* ── Types ──────────────────────────────────────────────────────────────── */
 
 interface Role {
   id: number
@@ -32,11 +34,10 @@ interface Admin {
   is_totp_enabled: boolean
   is_superadmin?: boolean
   last_login_at?: string
-  last_login_ip?: string
   created_at: string
 }
 
-/* ── Role badge color mapping ───────────────────────────── */
+/* ── Role badge variant map ─────────────────────────────────────────────── */
 
 const ROLE_VARIANT: Record<string, 'primary' | 'info' | 'warning' | 'success' | 'neutral'> = {
   superadmin: 'primary',
@@ -50,12 +51,29 @@ function roleBadgeVariant(name?: string): 'primary' | 'info' | 'warning' | 'succ
   return ROLE_VARIANT[name.toLowerCase()] ?? 'success'
 }
 
-/* ── Initials avatar ────────────────────────────────────── */
+/* ── Avatar helpers ─────────────────────────────────────────────────────── */
+
+const AVATAR_PALETTE = [
+  'bg-violet-100 text-violet-700 dark:bg-violet-500/20 dark:text-violet-300',
+  'bg-blue-100 text-blue-700 dark:bg-blue-500/20 dark:text-blue-300',
+  'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300',
+  'bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-300',
+  'bg-pink-100 text-pink-700 dark:bg-pink-500/20 dark:text-pink-300',
+  'bg-cyan-100 text-cyan-700 dark:bg-cyan-500/20 dark:text-cyan-300',
+  'bg-orange-100 text-orange-700 dark:bg-orange-500/20 dark:text-orange-300',
+]
+
+function avatarColor(id: string): string {
+  let hash = 0
+  for (let i = 0; i < id.length; i++) hash = id.charCodeAt(i) + ((hash << 5) - hash)
+  return AVATAR_PALETTE[Math.abs(hash) % AVATAR_PALETTE.length]
+}
 
 function initialsFor(admin: Admin): string {
-  if (admin.full_name) {
+  if (admin.full_name?.trim()) {
     return admin.full_name
-      .split(' ')
+      .trim()
+      .split(/\s+/)
       .map((w) => w[0])
       .slice(0, 2)
       .join('')
@@ -64,36 +82,33 @@ function initialsFor(admin: Admin): string {
   return admin.email.slice(0, 2).toUpperCase()
 }
 
-const AVATAR_COLORS = [
-  'bg-violet-100 text-violet-700 dark:bg-violet-500/20 dark:text-violet-400',
-  'bg-blue-100 text-blue-700 dark:bg-blue-500/20 dark:text-blue-400',
-  'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400',
-  'bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-400',
-  'bg-pink-100 text-pink-700 dark:bg-pink-500/20 dark:text-pink-400',
-  'bg-cyan-100 text-cyan-700 dark:bg-cyan-500/20 dark:text-cyan-400',
-]
-
-function avatarColor(id: string): string {
-  let hash = 0
-  for (let i = 0; i < id.length; i++) hash = id.charCodeAt(i) + ((hash << 5) - hash)
-  return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length]
+function relativeLogin(admin: Admin): string {
+  if (!admin.last_login_at) return 'Never'
+  try {
+    return formatDistanceToNow(new Date(admin.last_login_at), { addSuffix: true })
+  } catch {
+    return 'Unknown'
+  }
 }
 
-/* ── Drawer ─────────────────────────────────────────────── */
+/* ── Input / label class constants ─────────────────────────────────────── */
 
-function AddAdminDrawer({
-  open,
-  onClose,
-  roles,
-  onSubmit,
-  isPending,
-}: {
+const INPUT_CLS =
+  'w-full px-3.5 py-2.5 text-sm rounded-xl border border-input bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/50 transition-all'
+
+const LABEL_CLS = 'block text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5'
+
+/* ── Add Admin Drawer ───────────────────────────────────────────────────── */
+
+interface AddAdminDrawerProps {
   open: boolean
   onClose: () => void
   roles: Role[]
   onSubmit: (data: { email: string; full_name: string; password: string; role_id: number | null }) => void
   isPending: boolean
-}) {
+}
+
+function AddAdminDrawer({ open, onClose, roles, onSubmit, isPending }: AddAdminDrawerProps) {
   const [showPassword, setShowPassword] = useState(false)
 
   if (!open) return null
@@ -102,8 +117,8 @@ function AddAdminDrawer({
     e.preventDefault()
     const fd = new FormData(e.currentTarget)
     onSubmit({
-      email: fd.get('email') as string,
-      full_name: (fd.get('full_name') as string) || '',
+      email: (fd.get('email') as string).trim(),
+      full_name: ((fd.get('full_name') as string) || '').trim(),
       password: fd.get('password') as string,
       role_id: fd.get('role_id') ? Number(fd.get('role_id')) : null,
     })
@@ -112,150 +127,213 @@ function AddAdminDrawer({
   return (
     <>
       {/* Backdrop */}
-      <div className="fixed inset-0 z-40 bg-black/30 dark:bg-black/50" onClick={onClose} />
+      <div
+        className="fixed inset-0 z-40 bg-black/40 backdrop-blur-[2px]"
+        onClick={onClose}
+        aria-hidden="true"
+      />
 
-      {/* Drawer */}
-      <div className="fixed inset-y-0 right-0 z-50 w-full max-w-md animate-slide-in-right">
+      {/* Drawer panel */}
+      <aside className="fixed inset-y-0 right-0 z-50 w-full max-w-md animate-slide-in-right">
         <div className="flex h-full flex-col bg-card border-l border-border shadow-2xl">
+          {/* Gradient accent bar */}
+          <div className="h-[3px] w-full uzum-gradient shrink-0" />
+
           {/* Header */}
           <div className="flex items-center justify-between px-6 py-4 border-b border-border">
-            <h2 className="text-lg font-semibold text-foreground">Add Administrator</h2>
+            <div className="flex items-center gap-3">
+              <div className="flex items-center justify-center w-8 h-8 rounded-lg uzum-gradient">
+                <UserPlus className="w-4 h-4 text-white" />
+              </div>
+              <div>
+                <h2 className="text-base font-semibold text-foreground leading-tight">
+                  Add Administrator
+                </h2>
+                <p className="text-[11px] text-muted-foreground mt-0.5">
+                  New admin account with role assignment
+                </p>
+              </div>
+            </div>
             <button
+              type="button"
               onClick={onClose}
               className="rounded-lg p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+              aria-label="Close drawer"
             >
               <X className="w-5 h-5" />
             </button>
           </div>
 
-          {/* Form */}
-          <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
+          {/* Form body */}
+          <form
+            id="add-admin-form"
+            onSubmit={handleSubmit}
+            className="flex-1 overflow-y-auto px-6 py-5 space-y-5"
+          >
+            {/* Email */}
             <div>
-              <label className="block text-sm font-medium text-foreground mb-1.5">Email</label>
-              <input
-                name="email"
-                type="email"
-                required
-                autoComplete="off"
-                placeholder="admin@example.com"
-                className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/30 focus:border-ring transition-colors"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-foreground mb-1.5">Full Name</label>
-              <input
-                name="full_name"
-                autoComplete="off"
-                placeholder="Jane Doe"
-                className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/30 focus:border-ring transition-colors"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-foreground mb-1.5">Password</label>
+              <label htmlFor="af-email" className={LABEL_CLS}>
+                Email address
+              </label>
               <div className="relative">
+                <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
                 <input
+                  id="af-email"
+                  name="email"
+                  type="email"
+                  required
+                  autoComplete="off"
+                  placeholder="admin@example.com"
+                  className={cn(INPUT_CLS, 'pl-10')}
+                />
+              </div>
+            </div>
+
+            {/* Full name */}
+            <div>
+              <label htmlFor="af-fullname" className={LABEL_CLS}>
+                Full Name <span className="normal-case font-normal opacity-60">(optional)</span>
+              </label>
+              <div className="relative">
+                <UserCircle2 className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+                <input
+                  id="af-fullname"
+                  name="full_name"
+                  type="text"
+                  autoComplete="off"
+                  placeholder="Jane Doe"
+                  className={cn(INPUT_CLS, 'pl-10')}
+                />
+              </div>
+            </div>
+
+            {/* Password */}
+            <div>
+              <label htmlFor="af-password" className={LABEL_CLS}>
+                Password
+              </label>
+              <div className="relative">
+                <KeyRound className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+                <input
+                  id="af-password"
                   name="password"
                   type={showPassword ? 'text' : 'password'}
                   required
                   autoComplete="new-password"
                   placeholder="Strong password"
-                  className="w-full rounded-lg border border-input bg-background px-3 py-2 pr-10 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/30 focus:border-ring transition-colors"
+                  className={cn(INPUT_CLS, 'pl-10 pr-11')}
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword((v) => !v)}
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 p-0.5 text-muted-foreground hover:text-foreground transition-colors"
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
                 >
                   {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
               </div>
             </div>
 
+            {/* Role */}
             <div>
-              <label className="block text-sm font-medium text-foreground mb-1.5">Role</label>
+              <label htmlFor="af-role" className={LABEL_CLS}>
+                Role Assignment
+              </label>
               <select
+                id="af-role"
                 name="role_id"
-                className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring/30 focus:border-ring transition-colors"
+                className={INPUT_CLS}
               >
                 <option value="">No role assigned</option>
                 {roles.map((r) => (
-                  <option key={r.id} value={r.id}>{r.name}</option>
+                  <option key={r.id} value={r.id}>
+                    {r.name}
+                  </option>
                 ))}
               </select>
+              <p className="mt-1.5 text-[11px] text-muted-foreground">
+                Roles control which parts of the admin panel are accessible.
+              </p>
             </div>
           </form>
 
           {/* Footer */}
-          <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-border">
+          <div className="flex items-center justify-end gap-2.5 px-6 py-4 border-t border-border bg-muted/20">
             <button
               type="button"
               onClick={onClose}
-              className="rounded-lg border border-border px-4 py-2 text-sm font-medium text-foreground bg-background hover:bg-muted transition-colors"
+              className="px-4 py-2 text-sm font-medium rounded-xl border border-border bg-background text-foreground hover:bg-muted transition-colors"
             >
               Cancel
             </button>
             <button
               type="submit"
+              form="add-admin-form"
               disabled={isPending}
-              form=""
-              onClick={(e) => {
-                const form = e.currentTarget.closest('.flex')?.previousElementSibling?.querySelector('form')
-                if (form) form.requestSubmit()
-              }}
-              className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50 transition-colors"
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 text-sm font-semibold rounded-xl uzum-gradient text-white shadow-sm hover:opacity-90 transition-opacity disabled:opacity-60"
             >
               {isPending && <Loader2 className="w-4 h-4 animate-spin" />}
               {isPending ? 'Creating...' : 'Create Admin'}
             </button>
           </div>
         </div>
-      </div>
+      </aside>
     </>
   )
 }
 
-/* ── Delete confirmation dialog ─────────────────────────── */
+/* ── Delete Confirm Dialog ──────────────────────────────────────────────── */
 
-function ConfirmDialog({
-  open,
-  admin,
-  onClose,
-  onConfirm,
-  isPending,
-}: {
+interface ConfirmDialogProps {
   open: boolean
   admin: Admin | null
   onClose: () => void
   onConfirm: () => void
   isPending: boolean
-}) {
+}
+
+function ConfirmDialog({ open, admin, onClose, onConfirm, isPending }: ConfirmDialogProps) {
   if (!open || !admin) return null
+
   return (
     <>
-      <div className="fixed inset-0 z-40 bg-black/30 dark:bg-black/50" onClick={onClose} />
+      <div
+        className="fixed inset-0 z-40 bg-black/40 backdrop-blur-[2px]"
+        onClick={onClose}
+        aria-hidden="true"
+      />
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-        <div className="w-full max-w-sm rounded-xl bg-card border border-border shadow-2xl p-6 animate-fade-in">
-          <h3 className="text-base font-semibold text-foreground">Remove Administrator</h3>
-          <p className="mt-2 text-sm text-muted-foreground">
-            Are you sure you want to remove <span className="font-medium text-foreground">{admin.email}</span>?
-            This action cannot be undone.
+        <div className="w-full max-w-sm rounded-2xl bg-card border border-border shadow-2xl p-6 animate-scale-in">
+          {/* Icon */}
+          <div className="flex items-center justify-center w-12 h-12 rounded-xl bg-destructive/10 mx-auto mb-4">
+            <AlertTriangle className="w-6 h-6 text-destructive" />
+          </div>
+
+          <h3 className="text-base font-semibold text-foreground text-center">
+            Remove Administrator
+          </h3>
+          <p className="mt-2 text-sm text-muted-foreground text-center leading-relaxed">
+            Are you sure you want to remove{' '}
+            <span className="font-semibold text-foreground">{admin.email}</span>?
+            {' '}This action cannot be undone.
           </p>
-          <div className="flex items-center justify-end gap-2 mt-5">
+
+          <div className="flex items-center gap-2.5 mt-6">
             <button
+              type="button"
               onClick={onClose}
-              className="rounded-lg border border-border px-4 py-2 text-sm font-medium text-foreground bg-background hover:bg-muted transition-colors"
+              className="flex-1 px-4 py-2 text-sm font-medium rounded-xl border border-border bg-background text-foreground hover:bg-muted transition-colors"
             >
               Cancel
             </button>
             <button
+              type="button"
               onClick={onConfirm}
               disabled={isPending}
-              className="inline-flex items-center gap-2 rounded-lg bg-destructive px-4 py-2 text-sm font-medium text-destructive-foreground hover:bg-destructive/90 disabled:opacity-50 transition-colors"
+              className="flex-1 inline-flex items-center justify-center gap-1.5 px-4 py-2 text-sm font-semibold rounded-xl bg-destructive text-destructive-foreground hover:bg-destructive/90 disabled:opacity-60 transition-colors"
             >
               {isPending && <Loader2 className="w-4 h-4 animate-spin" />}
-              Remove
+              {isPending ? 'Removing...' : 'Remove'}
             </button>
           </div>
         </div>
@@ -264,16 +342,40 @@ function ConfirmDialog({
   )
 }
 
-/* ── Main Page ──────────────────────────────────────────── */
+/* ── Loading skeleton ───────────────────────────────────────────────────── */
+
+function AdminSkeleton() {
+  return (
+    <DataCard padding="none" className="overflow-hidden">
+      <div className="divide-y divide-border">
+        {Array.from({ length: 6 }).map((_, i) => (
+          <div key={i} className="flex items-center gap-4 px-5 py-3.5">
+            <div className="w-9 h-9 rounded-full bg-muted animate-pulse shrink-0" />
+            <div className="flex-1 space-y-2 min-w-0">
+              <div className="h-3.5 w-36 rounded-md bg-muted animate-pulse" />
+              <div className="h-3 w-52 rounded-md bg-muted animate-pulse" />
+            </div>
+            <div className="h-5 w-16 rounded-full bg-muted animate-pulse" />
+            <div className="h-5 w-14 rounded-full bg-muted animate-pulse" />
+          </div>
+        ))}
+      </div>
+    </DataCard>
+  )
+}
+
+/* ── Main Page ──────────────────────────────────────────────────────────── */
 
 export default function AdminsPage() {
   const qc = useQueryClient()
-  const { getView, setView, density } = useViewPreferences()
+  const { getView, setView, density, setDensity } = useViewPreferences()
   const view = getView('admins', 'table')
   const dc = densityClasses[density]
 
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<Admin | null>(null)
+
+  /* ── Queries ── */
 
   const { data: adminsData, isLoading } = useQuery({
     queryKey: ['admins'],
@@ -285,15 +387,17 @@ export default function AdminsPage() {
     queryFn: () => getRoles().then((r) => r.data),
   })
 
+  /* ── Mutations ── */
+
   const createMut = useMutation({
     mutationFn: createAdmin,
     onSuccess: () => {
-      toast.success('Administrator created')
+      toast.success('Administrator created successfully')
       setDrawerOpen(false)
       qc.invalidateQueries({ queryKey: ['admins'] })
     },
     onError: (err: any) =>
-      toast.error(err?.response?.data?.detail ?? 'Failed to create admin'),
+      toast.error(err?.response?.data?.detail ?? 'Failed to create administrator'),
   })
 
   const deleteMut = useMutation({
@@ -303,31 +407,26 @@ export default function AdminsPage() {
       setDeleteTarget(null)
       qc.invalidateQueries({ queryKey: ['admins'] })
     },
-    onError: () => toast.error('Failed to remove admin'),
+    onError: () => toast.error('Failed to remove administrator'),
   })
 
   const admins: Admin[] = adminsData?.admins ?? []
   const roles: Role[] = rolesData?.roles ?? []
 
-  function relativeLogin(admin: Admin): string {
-    if (!admin.last_login_at) return 'Never'
-    return formatDistanceToNow(new Date(admin.last_login_at), { addSuffix: true })
-  }
-
-  /* ── Table view ───────────────────────────────────────── */
+  /* ── Table View ── */
 
   function renderTable() {
     return (
-      <DataCard padding="none" className="overflow-hidden">
+      <DataCard padding="none" className="overflow-hidden animate-fade-in">
         <div className="overflow-x-auto">
-          <table className={clsx('w-full min-w-[700px]', dc.text)}>
+          <table className={cn('w-full min-w-[720px]', dc.text)}>
             <thead>
-              <tr className="border-b border-border bg-muted/50">
-                {['Name', 'Email', 'Role', 'TOTP', 'Last Login', 'Active', 'Actions'].map((h) => (
+              <tr className="border-b border-border bg-muted/40">
+                {['Administrator', 'Email', 'Role', 'TOTP', 'Status', 'Last Login', ''].map((h, idx) => (
                   <th
-                    key={h}
-                    className={clsx(
-                      'text-left font-medium text-muted-foreground',
+                    key={`${h}-${idx}`}
+                    className={cn(
+                      'text-left text-[11px] font-semibold text-muted-foreground uppercase tracking-wider',
                       dc.padding,
                     )}
                   >
@@ -338,50 +437,79 @@ export default function AdminsPage() {
             </thead>
             <tbody className="divide-y divide-border">
               {admins.map((a) => (
-                <tr key={a.id} className="hover:bg-muted/30 transition-colors">
-                  <td className={clsx(dc.padding)}>
-                    <div className="flex items-center gap-2.5">
+                <tr key={a.id} className="hover:bg-muted/30 transition-colors group">
+                  {/* Name + avatar */}
+                  <td className={cn(dc.padding)}>
+                    <div className="flex items-center gap-3">
                       <div
-                        className={clsx(
-                          'flex items-center justify-center rounded-full font-semibold shrink-0',
+                        className={cn(
+                          'flex items-center justify-center rounded-full font-semibold shrink-0 select-none',
                           avatarColor(a.id),
-                          density === 'compact' ? 'w-6 h-6 text-[10px]' : 'w-8 h-8 text-xs',
+                          density === 'compact' ? 'w-6 h-6 text-[10px]' : 'w-9 h-9 text-xs',
                         )}
                       >
                         {initialsFor(a)}
                       </div>
-                      <span className="font-medium text-foreground truncate">
-                        {a.full_name || a.email.split('@')[0]}
-                      </span>
+                      <div className="min-w-0">
+                        <p className="font-medium text-foreground truncate leading-tight">
+                          {a.full_name || a.email.split('@')[0]}
+                        </p>
+                        {a.is_superadmin && (
+                          <p className="text-[10px] uzum-gradient-text font-semibold mt-0.5">
+                            Superadmin
+                          </p>
+                        )}
+                      </div>
                     </div>
                   </td>
-                  <td className={clsx(dc.padding, 'text-muted-foreground')}>{a.email}</td>
-                  <td className={dc.padding}>
+
+                  {/* Email */}
+                  <td className={cn(dc.padding, 'text-muted-foreground font-mono text-xs')}>
+                    {a.email}
+                  </td>
+
+                  {/* Role badge */}
+                  <td className={cn(dc.padding)}>
                     <StatusBadge variant={roleBadgeVariant(a.role?.name)}>
-                      {a.role?.name ?? 'None'}
+                      {a.role?.name ?? 'No role'}
                     </StatusBadge>
                   </td>
-                  <td className={dc.padding}>
+
+                  {/* TOTP */}
+                  <td className={cn(dc.padding)}>
                     {a.is_totp_enabled ? (
-                      <ShieldCheck className="w-4 h-4 text-emerald-500" />
+                      <span className="inline-flex items-center gap-1 text-emerald-600 dark:text-emerald-400 text-xs font-medium">
+                        <ShieldCheck className="w-4 h-4" />
+                        <span className="hidden sm:inline">On</span>
+                      </span>
                     ) : (
-                      <ShieldOff className="w-4 h-4 text-muted-foreground/50" />
+                      <span className="inline-flex items-center gap-1 text-muted-foreground/50 text-xs">
+                        <ShieldOff className="w-4 h-4" />
+                        <span className="hidden sm:inline">Off</span>
+                      </span>
                     )}
                   </td>
-                  <td className={clsx(dc.padding, 'text-muted-foreground text-xs')}>
-                    {relativeLogin(a)}
-                  </td>
-                  <td className={dc.padding}>
+
+                  {/* Active status */}
+                  <td className={cn(dc.padding)}>
                     <StatusBadge variant={a.is_active ? 'success' : 'neutral'} dot>
                       {a.is_active ? 'Active' : 'Inactive'}
                     </StatusBadge>
                   </td>
-                  <td className={dc.padding}>
+
+                  {/* Last login */}
+                  <td className={cn(dc.padding, 'text-muted-foreground text-xs whitespace-nowrap')}>
+                    {relativeLogin(a)}
+                  </td>
+
+                  {/* Actions */}
+                  <td className={cn(dc.padding)}>
                     {!a.is_superadmin && (
                       <button
                         onClick={() => setDeleteTarget(a)}
-                        className="rounded-lg p-1.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
-                        title="Remove admin"
+                        className="rounded-lg p-1.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors opacity-0 group-hover:opacity-100"
+                        title="Remove administrator"
+                        aria-label={`Remove ${a.email}`}
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
@@ -396,53 +524,63 @@ export default function AdminsPage() {
     )
   }
 
-  /* ── Card view ────────────────────────────────────────── */
+  /* ── Card View ── */
 
   function renderCards() {
     return (
-      <div className={clsx('grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3', dc.gap)}>
+      <div className={cn('grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 animate-fade-in', dc.gap)}>
         {admins.map((a) => (
-          <DataCard key={a.id}>
-            <div className="flex items-start justify-between">
-              <div className="flex items-center gap-3">
+          <DataCard key={a.id} className="group hover:shadow-card-hover hover:-translate-y-0.5 transition-all">
+            {/* Header row */}
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex items-center gap-3 min-w-0">
                 <div
-                  className={clsx(
-                    'flex items-center justify-center w-10 h-10 rounded-full font-semibold text-sm',
+                  className={cn(
+                    'flex items-center justify-center w-11 h-11 rounded-full font-semibold text-sm shrink-0 select-none',
                     avatarColor(a.id),
                   )}
                 >
                   {initialsFor(a)}
                 </div>
                 <div className="min-w-0">
-                  <p className="font-medium text-foreground truncate">
+                  <p className="font-semibold text-foreground truncate leading-tight">
                     {a.full_name || a.email.split('@')[0]}
                   </p>
-                  <p className="text-xs text-muted-foreground truncate">{a.email}</p>
+                  <p className="text-xs text-muted-foreground truncate mt-0.5">{a.email}</p>
                 </div>
               </div>
+              {/* TOTP shield */}
               {a.is_totp_enabled ? (
-                <ShieldCheck className="w-4 h-4 text-emerald-500 shrink-0" />
+                <ShieldCheck className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" />
               ) : (
-                <ShieldOff className="w-4 h-4 text-muted-foreground/40 shrink-0" />
+                <ShieldOff className="w-4 h-4 text-muted-foreground/40 shrink-0 mt-0.5" />
               )}
             </div>
 
-            <div className="mt-4 flex items-center gap-2 flex-wrap">
+            {/* Badges */}
+            <div className="mt-3.5 flex flex-wrap items-center gap-1.5">
               <StatusBadge variant={roleBadgeVariant(a.role?.name)}>
                 {a.role?.name ?? 'No role'}
               </StatusBadge>
               <StatusBadge variant={a.is_active ? 'success' : 'neutral'} dot>
                 {a.is_active ? 'Active' : 'Inactive'}
               </StatusBadge>
+              {a.is_superadmin && (
+                <StatusBadge variant="primary">Superadmin</StatusBadge>
+              )}
             </div>
 
-            <div className="mt-3 flex items-center justify-between text-xs text-muted-foreground">
-              <span>Last login: {relativeLogin(a)}</span>
+            {/* Footer */}
+            <div className="mt-3.5 pt-3 border-t border-border flex items-center justify-between">
+              <p className="text-[11px] text-muted-foreground">
+                Last login: <span className="text-foreground/70">{relativeLogin(a)}</span>
+              </p>
               {!a.is_superadmin && (
                 <button
                   onClick={() => setDeleteTarget(a)}
-                  className="rounded-lg p-1.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
-                  title="Remove admin"
+                  className="rounded-lg p-1.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors opacity-0 group-hover:opacity-100"
+                  title="Remove administrator"
+                  aria-label={`Remove ${a.email}`}
                 >
                   <Trash2 className="w-3.5 h-3.5" />
                 </button>
@@ -454,33 +592,17 @@ export default function AdminsPage() {
     )
   }
 
-  /* ── Loading skeleton ─────────────────────────────────── */
-
-  function renderSkeleton() {
-    return (
-      <DataCard padding="none" className="overflow-hidden">
-        <div className="divide-y divide-border">
-          {Array.from({ length: 5 }).map((_, i) => (
-            <div key={i} className="flex items-center gap-4 px-4 py-3">
-              <div className="w-8 h-8 rounded-full bg-muted animate-pulse" />
-              <div className="flex-1 space-y-2">
-                <div className="h-3.5 w-32 rounded bg-muted animate-pulse" />
-                <div className="h-3 w-48 rounded bg-muted animate-pulse" />
-              </div>
-              <div className="h-5 w-16 rounded-full bg-muted animate-pulse" />
-            </div>
-          ))}
-        </div>
-      </DataCard>
-    )
-  }
+  /* ── Render ── */
 
   return (
-    <div className={clsx('space-y-5', dc.spacing)}>
+    <div className={cn('space-y-5', dc.spacing)}>
       <PageHeader
         title="Administrators"
+        description="Manage admin accounts and roles"
+        icon={<ShieldCheck className="w-5 h-5 text-primary" />}
         actions={
           <div className="flex items-center gap-2">
+            <DensityToggle current={density} onChange={setDensity} />
             <ViewToggle
               current={view}
               onChange={(m) => setView('admins', m)}
@@ -488,7 +610,7 @@ export default function AdminsPage() {
             />
             <button
               onClick={() => setDrawerOpen(true)}
-              className="inline-flex items-center gap-2 rounded-lg bg-primary px-3.5 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 text-sm font-semibold rounded-xl uzum-gradient text-white shadow-sm hover:opacity-90 transition-opacity"
             >
               <UserPlus className="w-4 h-4" />
               Add Admin
@@ -498,16 +620,16 @@ export default function AdminsPage() {
       />
 
       {isLoading ? (
-        renderSkeleton()
+        <AdminSkeleton />
       ) : admins.length === 0 ? (
         <EmptyState
-          icon={<Shield className="w-6 h-6 text-muted-foreground" />}
-          title="No administrators"
-          description="Create your first administrator to get started."
+          icon={<Shield className="w-7 h-7 text-muted-foreground/60" />}
+          title="No administrators yet"
+          description="Create your first administrator account to get started managing the platform."
           action={
             <button
               onClick={() => setDrawerOpen(true)}
-              className="inline-flex items-center gap-2 rounded-lg bg-primary px-3.5 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 text-sm font-semibold rounded-xl uzum-gradient text-white shadow-sm hover:opacity-90 transition-opacity"
             >
               <UserPlus className="w-4 h-4" />
               Add Admin

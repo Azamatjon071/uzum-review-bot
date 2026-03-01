@@ -1,14 +1,14 @@
 import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { clsx } from 'clsx'
 import {
   getSubmissions, approveSubmission, rejectSubmission, bulkApprove, bulkReject,
 } from '@/api'
-import { formatDate } from '@/lib/utils'
+import { cn, formatDate } from '@/lib/utils'
 import {
   CheckCircle2, XCircle, X, ChevronLeft, ChevronRight,
-  Image as ImageIcon, Eye, ZoomIn, ArrowUpDown,
+  Image as ImageIcon, Eye, ZoomIn, ArrowUpDown, FileCheck,
+  Clock, CheckCheck, Ban,
 } from 'lucide-react'
 import { useViewPreferences, densityClasses } from '@/hooks/useViewPreferences'
 import type { ViewMode } from '@/hooks/useViewPreferences'
@@ -39,6 +39,12 @@ const statusVariantMap: Record<string, 'warning' | 'success' | 'error' | 'neutra
   DUPLICATE: 'neutral',
 }
 
+const statusIconMap: Record<string, typeof Clock> = {
+  PENDING: Clock,
+  APPROVED: CheckCheck,
+  REJECTED: Ban,
+}
+
 // ── Helper: normalize images ─────────────────────────────────────────────────
 
 function toImageUrls(images: any[]): string[] {
@@ -61,42 +67,61 @@ function Lightbox({ images, index, onClose }: { images: string[]; index: number;
   }, [images.length, onClose])
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center" onClick={onClose}>
+    <div className="fixed inset-0 z-50 bg-black/90 backdrop-blur-sm flex items-center justify-center animate-fade-in" onClick={onClose}>
+      {/* Close button */}
       <button
         onClick={onClose}
-        className="absolute top-4 right-4 p-2 rounded-lg bg-white/10 text-white/70 hover:text-white hover:bg-white/20 transition-colors"
+        className="absolute top-4 right-4 p-2.5 rounded-xl bg-white/10 text-white/70 hover:text-white hover:bg-white/20 transition-colors backdrop-blur-sm"
       >
         <X className="w-5 h-5" />
       </button>
+
+      {/* Counter */}
+      {images.length > 1 && (
+        <div className="absolute top-4 left-1/2 -translate-x-1/2 px-4 py-1.5 rounded-full bg-white/10 backdrop-blur-sm text-white/80 text-sm font-medium">
+          {cur + 1} / {images.length}
+        </div>
+      )}
+
+      {/* Previous */}
       {cur > 0 && (
         <button
           onClick={(e) => { e.stopPropagation(); setCur((c) => c - 1) }}
-          className="absolute left-4 p-3 rounded-lg bg-white/10 text-white/70 hover:text-white hover:bg-white/20 transition-colors"
+          className="absolute left-4 p-3 rounded-xl bg-white/10 text-white/70 hover:text-white hover:bg-white/20 transition-colors backdrop-blur-sm"
         >
           <ChevronLeft className="w-6 h-6" />
         </button>
       )}
+
+      {/* Image */}
       <img
         src={images[cur]}
         alt={`Image ${cur + 1}`}
-        className="max-h-[85vh] max-w-[90vw] object-contain rounded-lg"
+        className="max-h-[85vh] max-w-[90vw] object-contain rounded-xl shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       />
+
+      {/* Next */}
       {cur < images.length - 1 && (
         <button
           onClick={(e) => { e.stopPropagation(); setCur((c) => c + 1) }}
-          className="absolute right-4 p-3 rounded-lg bg-white/10 text-white/70 hover:text-white hover:bg-white/20 transition-colors"
+          className="absolute right-4 p-3 rounded-xl bg-white/10 text-white/70 hover:text-white hover:bg-white/20 transition-colors backdrop-blur-sm"
         >
           <ChevronRight className="w-6 h-6" />
         </button>
       )}
+
+      {/* Dots */}
       {images.length > 1 && (
         <div className="absolute bottom-6 flex gap-2">
           {images.map((_, i) => (
             <button
               key={i}
               onClick={(e) => { e.stopPropagation(); setCur(i) }}
-              className={clsx('w-2 h-2 rounded-full transition-colors', i === cur ? 'bg-white' : 'bg-white/40')}
+              className={cn(
+                'w-2 h-2 rounded-full transition-all',
+                i === cur ? 'bg-white w-6' : 'bg-white/40 hover:bg-white/60',
+              )}
             />
           ))}
         </div>
@@ -117,40 +142,57 @@ function DetailDrawer({ sub, onClose, onApprove, onReject }: {
   const [rejectReason, setRejectReason] = useState('')
   const [showReject, setShowReject] = useState(false)
   const images = toImageUrls(sub.images)
+  const StatusIcon = statusIconMap[sub.status]
 
   return (
     <>
       {lightboxIndex !== null && (
         <Lightbox images={images} index={lightboxIndex} onClose={() => setLightboxIndex(null)} />
       )}
-      <div className="fixed inset-0 z-30 bg-black/40" onClick={onClose} />
-      <div className="fixed right-0 top-0 bottom-0 z-40 w-full max-w-md bg-card border-l border-border shadow-2xl flex flex-col">
-        {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-border">
-          <h3 className="text-sm font-semibold text-foreground">Submission Detail</h3>
-          <button
-            onClick={onClose}
-            className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-          >
-            <X className="w-4 h-4" />
-          </button>
+
+      {/* Backdrop */}
+      <div className="fixed inset-0 z-30 bg-black/40 backdrop-blur-[2px] animate-fade-in" onClick={onClose} />
+
+      {/* Drawer */}
+      <div className="fixed right-0 top-0 bottom-0 z-40 w-full max-w-md bg-card border-l border-border shadow-2xl flex flex-col animate-slide-in-right">
+        {/* Header with accent */}
+        <div className="relative">
+          <div className="absolute inset-x-0 top-0 h-1 uzum-gradient" />
+          <div className="flex items-center justify-between px-5 py-4 border-b border-border">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-xl bg-primary/10 flex items-center justify-center">
+                <FileCheck className="w-4 h-4 text-primary" />
+              </div>
+              <h3 className="text-sm font-semibold text-foreground">Submission Detail</h3>
+            </div>
+            <button
+              onClick={onClose}
+              className="p-1.5 rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
         </div>
 
         {/* Body */}
         <div className="flex-1 overflow-y-auto p-5 space-y-4">
-          <StatusBadge variant={statusVariantMap[sub.status] ?? 'neutral'} dot>
-            {sub.status}
-          </StatusBadge>
+          {/* Status badge */}
+          <div className="flex items-center gap-2">
+            <StatusBadge variant={statusVariantMap[sub.status] ?? 'neutral'} dot>
+              {sub.status}
+            </StatusBadge>
+            {StatusIcon && <StatusIcon className="w-4 h-4 text-muted-foreground" />}
+          </div>
 
-          {/* User */}
-          <div className="rounded-lg bg-muted/30 p-4">
-            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">User</p>
+          {/* User card */}
+          <div className="rounded-xl bg-muted/30 border border-border/50 p-4">
+            <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2.5">User</p>
             <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center text-sm font-semibold text-primary">
+              <div className="w-10 h-10 rounded-full uzum-gradient flex items-center justify-center text-sm font-bold text-white shadow-sm">
                 {(sub.user?.first_name ?? '?')[0].toUpperCase()}
               </div>
-              <div>
-                <p className="text-sm font-medium text-foreground">
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-foreground truncate">
                   {sub.user?.first_name ?? '—'} {sub.user?.last_name ?? ''}
                 </p>
                 {sub.user?.username && (
@@ -160,44 +202,46 @@ function DetailDrawer({ sub, onClose, onApprove, onReject }: {
             </div>
           </div>
 
-          {/* Product */}
-          <div className="rounded-lg bg-muted/30 p-4">
-            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1">Product</p>
-            <p className="text-sm text-foreground">
+          {/* Product card */}
+          <div className="rounded-xl bg-muted/30 border border-border/50 p-4">
+            <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Product</p>
+            <p className="text-sm font-medium text-foreground">
               {sub.product?.name_en ?? sub.product?.name_uz ?? sub.product?.name_ru ?? '—'}
             </p>
           </div>
 
-          {/* Date */}
-          <div className="rounded-lg bg-muted/30 p-4">
-            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1">Submitted</p>
-            <p className="text-sm text-foreground">{formatDate(sub.created_at)}</p>
+          {/* Date card */}
+          <div className="rounded-xl bg-muted/30 border border-border/50 p-4">
+            <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Submitted</p>
+            <p className="text-sm font-medium text-foreground">{formatDate(sub.created_at)}</p>
           </div>
 
           {/* Rejection reason */}
           {sub.rejection_reason && (
-            <div className="rounded-lg bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 p-4">
-              <p className="text-xs font-medium text-red-600 dark:text-red-400 uppercase tracking-wider mb-1">Rejection Reason</p>
-              <p className="text-sm text-red-800 dark:text-red-300">{sub.rejection_reason}</p>
+            <div className="rounded-xl bg-destructive/5 border border-destructive/20 p-4">
+              <p className="text-[10px] font-semibold text-destructive uppercase tracking-wider mb-1.5">Rejection Reason</p>
+              <p className="text-sm text-destructive/80">{sub.rejection_reason}</p>
             </div>
           )}
 
-          {/* Images */}
+          {/* Images gallery */}
           {images.length > 0 && (
             <div>
-              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">
+              <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2.5">
                 Screenshots ({images.length})
               </p>
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-2 gap-2.5">
                 {images.map((img, i) => (
                   <button
                     key={i}
                     onClick={() => setLightboxIndex(i)}
-                    className="relative aspect-video rounded-lg bg-muted overflow-hidden border border-border hover:border-primary/50 transition-colors group"
+                    className="relative aspect-video rounded-xl bg-muted overflow-hidden border border-border hover:border-primary/50 hover:shadow-card transition-all group"
                   >
                     <img src={img} alt={`Screenshot ${i + 1}`} className="w-full h-full object-cover" />
-                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 flex items-center justify-center transition-colors">
-                      <ZoomIn className="w-5 h-5 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
+                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 flex items-center justify-center transition-all">
+                      <div className="w-9 h-9 rounded-xl bg-white/20 backdrop-blur-sm flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity scale-90 group-hover:scale-100">
+                        <ZoomIn className="w-4 h-4 text-white" />
+                      </div>
                     </div>
                   </button>
                 ))}
@@ -208,26 +252,27 @@ function DetailDrawer({ sub, onClose, onApprove, onReject }: {
 
         {/* Footer actions */}
         {sub.status === 'PENDING' && (
-          <div className="px-5 py-4 border-t border-border space-y-2">
+          <div className="px-5 py-4 border-t border-border space-y-2.5 bg-card">
             {showReject ? (
-              <div className="space-y-2">
+              <div className="space-y-2.5">
                 <input
                   type="text"
                   value={rejectReason}
                   onChange={(e) => setRejectReason(e.target.value)}
                   placeholder="Rejection reason (optional)"
-                  className="w-full px-3 py-2 text-sm rounded-lg border border-input bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/30"
+                  className="w-full px-3.5 py-2.5 text-sm rounded-xl border border-input bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/50 transition-all"
+                  autoFocus
                 />
                 <div className="flex gap-2">
                   <button
                     onClick={() => { onReject(sub.id, rejectReason || undefined); onClose() }}
-                    className="flex-1 py-2 rounded-lg bg-red-600 hover:bg-red-700 text-white text-sm font-medium transition-colors"
+                    className="flex-1 py-2.5 rounded-xl bg-destructive hover:bg-destructive/90 text-white text-sm font-semibold transition-colors shadow-sm"
                   >
                     Confirm Reject
                   </button>
                   <button
                     onClick={() => { setShowReject(false); setRejectReason('') }}
-                    className="px-4 py-2 rounded-lg border border-border text-sm text-foreground hover:bg-muted transition-colors"
+                    className="px-4 py-2.5 rounded-xl border border-border text-sm font-medium text-foreground hover:bg-muted transition-colors"
                   >
                     Cancel
                   </button>
@@ -237,13 +282,13 @@ function DetailDrawer({ sub, onClose, onApprove, onReject }: {
               <div className="flex gap-2">
                 <button
                   onClick={() => { onApprove(sub.id); onClose() }}
-                  className="flex-1 inline-flex items-center justify-center gap-2 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium transition-colors"
+                  className="flex-1 inline-flex items-center justify-center gap-2 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold transition-colors shadow-sm"
                 >
                   <CheckCircle2 className="w-4 h-4" /> Approve
                 </button>
                 <button
                   onClick={() => setShowReject(true)}
-                  className="flex-1 inline-flex items-center justify-center gap-2 py-2 rounded-lg bg-red-600 hover:bg-red-700 text-white text-sm font-medium transition-colors"
+                  className="flex-1 inline-flex items-center justify-center gap-2 py-2.5 rounded-xl bg-destructive hover:bg-destructive/90 text-white text-sm font-semibold transition-colors shadow-sm"
                 >
                   <XCircle className="w-4 h-4" /> Reject
                 </button>
@@ -414,7 +459,7 @@ export default function SubmissionsPage() {
         className="inline-flex items-center gap-1 text-muted-foreground hover:text-foreground transition-colors"
       >
         {children}
-        <ArrowUpDown className={clsx('w-3 h-3', sortField === field && 'text-foreground')} />
+        <ArrowUpDown className={cn('w-3 h-3', sortField === field && 'text-primary')} />
       </button>
     )
   }
@@ -435,6 +480,8 @@ export default function SubmissionsPage() {
         {/* Header */}
         <PageHeader
           title="Submissions"
+          description="Review and manage user submissions"
+          icon={<FileCheck className="w-5 h-5 text-primary" />}
           badge={
             pendingCount > 0 ? (
               <StatusBadge variant="warning" size="sm">{pendingCount} pending</StatusBadge>
@@ -465,28 +512,33 @@ export default function SubmissionsPage() {
 
         {/* Bulk actions bar */}
         {selected.length > 0 && (
-          <div className="flex items-center gap-3 rounded-lg border border-primary/30 bg-primary/5 px-4 py-2.5">
-            <span className="text-sm font-medium text-foreground">
-              {selected.length} selected
-            </span>
+          <div className="flex items-center gap-3 rounded-xl border border-primary/30 bg-primary/5 px-4 py-3 animate-fade-in shadow-sm">
+            <div className="flex items-center gap-2">
+              <div className="w-7 h-7 rounded-lg uzum-gradient flex items-center justify-center">
+                <CheckCheck className="w-3.5 h-3.5 text-white" />
+              </div>
+              <span className="text-sm font-semibold text-foreground">
+                {selected.length} selected
+              </span>
+            </div>
             <div className="flex items-center gap-2 ml-auto">
               <button
                 onClick={() => bulkApproveMut.mutate()}
                 disabled={bulkApproveMut.isPending}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-medium transition-colors disabled:opacity-50"
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold transition-colors disabled:opacity-50 shadow-sm"
               >
                 <CheckCircle2 className="w-3.5 h-3.5" /> Approve All
               </button>
               <button
                 onClick={() => bulkRejectMut.mutate()}
                 disabled={bulkRejectMut.isPending}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-600 hover:bg-red-700 text-white text-xs font-medium transition-colors disabled:opacity-50"
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-destructive hover:bg-destructive/90 text-white text-xs font-semibold transition-colors disabled:opacity-50 shadow-sm"
               >
                 <XCircle className="w-3.5 h-3.5" /> Reject All
               </button>
               <button
                 onClick={() => setSelected([])}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border text-xs font-medium text-foreground hover:bg-muted transition-colors"
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-border text-xs font-semibold text-foreground hover:bg-muted transition-colors"
               >
                 Clear
               </button>
@@ -496,13 +548,14 @@ export default function SubmissionsPage() {
 
         {/* Loading */}
         {isLoading ? (
-          <div className="space-y-2">
+          <div className="space-y-2.5">
             {Array.from({ length: 5 }).map((_, i) => (
-              <div key={i} className="h-12 rounded-lg bg-muted animate-pulse" />
+              <div key={i} className="h-14 rounded-xl bg-muted/50 animate-pulse" />
             ))}
           </div>
         ) : submissions.length === 0 ? (
           <EmptyState
+            icon={<FileCheck className="w-6 h-6 text-muted-foreground/60" />}
             title="No submissions found"
             description="Try adjusting your filters or check back later"
           />
@@ -510,29 +563,29 @@ export default function SubmissionsPage() {
           <>
             {/* ── Table view ── */}
             {view === 'table' && (
-              <div className="rounded-xl border border-border bg-card overflow-hidden">
+              <div className="rounded-xl border border-border bg-card shadow-card overflow-hidden">
                 <div className="overflow-x-auto">
-                  <table className={`w-full ${dc.text}`}>
+                  <table className={cn('w-full', dc.text)}>
                     <thead>
                       <tr className="border-b border-border bg-muted/30">
-                        <th className={`${dc.padding} w-8`}>
+                        <th className={cn(dc.padding, 'w-8')}>
                           <input
                             type="checkbox"
                             checked={selected.length === submissions.length && submissions.length > 0}
                             onChange={toggleAll}
-                            className="rounded border-border"
+                            className="rounded border-border accent-primary"
                           />
                         </th>
-                        <th className={`${dc.padding} text-left font-medium text-muted-foreground`}>User</th>
-                        <th className={`${dc.padding} text-left font-medium text-muted-foreground`}>Product</th>
-                        <th className={`${dc.padding} text-left font-medium text-muted-foreground`}>
+                        <th className={cn(dc.padding, 'text-left font-medium text-muted-foreground')}>User</th>
+                        <th className={cn(dc.padding, 'text-left font-medium text-muted-foreground')}>Product</th>
+                        <th className={cn(dc.padding, 'text-left font-medium text-muted-foreground')}>
                           <SortHeader field="status">Status</SortHeader>
                         </th>
-                        <th className={`${dc.padding} text-left font-medium text-muted-foreground`}>
+                        <th className={cn(dc.padding, 'text-left font-medium text-muted-foreground')}>
                           <SortHeader field="created_at">Date</SortHeader>
                         </th>
-                        <th className={`${dc.padding} text-left font-medium text-muted-foreground`}>Images</th>
-                        <th className={`${dc.padding} w-24`}>Actions</th>
+                        <th className={cn(dc.padding, 'text-left font-medium text-muted-foreground')}>Images</th>
+                        <th className={cn(dc.padding, 'w-28')}>Actions</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-border">
@@ -541,9 +594,9 @@ export default function SubmissionsPage() {
                         return (
                           <tr
                             key={s.id}
-                            className={clsx(
-                              'hover:bg-muted/30 transition-colors cursor-pointer',
-                              selected.includes(s.id) && 'bg-primary/5'
+                            className={cn(
+                              'hover:bg-muted/30 transition-colors cursor-pointer group',
+                              selected.includes(s.id) && 'bg-primary/5',
                             )}
                             onClick={() => setDrawerSub(s)}
                           >
@@ -552,16 +605,16 @@ export default function SubmissionsPage() {
                                 type="checkbox"
                                 checked={selected.includes(s.id)}
                                 onChange={() => toggle(s.id)}
-                                className="rounded border-border"
+                                className="rounded border-border accent-primary"
                               />
                             </td>
                             <td className={dc.padding}>
-                              <div className="flex items-center gap-2">
-                                <div className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center text-xs font-semibold text-primary shrink-0">
+                              <div className="flex items-center gap-2.5">
+                                <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-xs font-bold text-primary shrink-0">
                                   {(s.user?.first_name ?? '?')[0].toUpperCase()}
                                 </div>
                                 <div className="min-w-0">
-                                  <p className="text-sm font-medium text-foreground truncate">
+                                  <p className="text-sm font-medium text-foreground truncate group-hover:text-primary transition-colors">
                                     {s.user?.first_name ?? '—'}
                                   </p>
                                   {s.user?.username && (
@@ -570,7 +623,7 @@ export default function SubmissionsPage() {
                                 </div>
                               </div>
                             </td>
-                            <td className={`${dc.padding} text-muted-foreground truncate max-w-[180px]`}>
+                            <td className={cn(dc.padding, 'text-muted-foreground truncate max-w-[180px]')}>
                               {s.product?.name_en ?? s.product?.name_uz ?? '—'}
                             </td>
                             <td className={dc.padding}>
@@ -578,14 +631,14 @@ export default function SubmissionsPage() {
                                 {s.status}
                               </StatusBadge>
                             </td>
-                            <td className={`${dc.padding} text-muted-foreground whitespace-nowrap`}>
+                            <td className={cn(dc.padding, 'text-muted-foreground whitespace-nowrap')}>
                               {formatDate(s.created_at)}
                             </td>
                             <td className={dc.padding} onClick={(e) => e.stopPropagation()}>
                               {images.length > 0 ? (
                                 <button
                                   onClick={() => setLightbox({ images, index: 0 })}
-                                  className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:text-primary/80 bg-primary/5 hover:bg-primary/10 px-2 py-1 rounded-md transition-colors"
+                                  className="inline-flex items-center gap-1.5 text-xs font-semibold text-primary hover:text-primary/80 bg-primary/5 hover:bg-primary/10 px-2.5 py-1.5 rounded-lg transition-colors"
                                 >
                                   <ImageIcon className="w-3 h-3" /> {images.length}
                                 </button>
@@ -599,7 +652,7 @@ export default function SubmissionsPage() {
                                   <button
                                     onClick={() => handleApprove(s.id)}
                                     disabled={approveMut.isPending}
-                                    className="p-1.5 rounded-md text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-500/10 transition-colors disabled:opacity-50"
+                                    className="p-1.5 rounded-lg text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-500/10 transition-colors disabled:opacity-50"
                                     title="Approve"
                                   >
                                     <CheckCircle2 className="w-4 h-4" />
@@ -610,14 +663,14 @@ export default function SubmissionsPage() {
                                       if (reason !== null) handleReject(s.id, reason || undefined)
                                     }}
                                     disabled={rejectMut.isPending}
-                                    className="p-1.5 rounded-md text-red-600 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors disabled:opacity-50"
+                                    className="p-1.5 rounded-lg text-destructive hover:bg-destructive/10 transition-colors disabled:opacity-50"
                                     title="Reject"
                                   >
                                     <XCircle className="w-4 h-4" />
                                   </button>
                                   <button
                                     onClick={() => setDrawerSub(s)}
-                                    className="p-1.5 rounded-md text-muted-foreground hover:bg-muted transition-colors"
+                                    className="p-1.5 rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
                                     title="View"
                                   >
                                     <Eye className="w-4 h-4" />
@@ -626,7 +679,7 @@ export default function SubmissionsPage() {
                               ) : (
                                 <button
                                   onClick={() => setDrawerSub(s)}
-                                  className="p-1.5 rounded-md text-muted-foreground hover:bg-muted transition-colors"
+                                  className="p-1.5 rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
                                   title="View"
                                 >
                                   <Eye className="w-4 h-4" />
@@ -644,7 +697,7 @@ export default function SubmissionsPage() {
 
             {/* ── Card view ── */}
             {view === 'card' && (
-              <div className={`grid gap-3 ${dc.gridCols}`}>
+              <div className={cn('grid gap-3', dc.gridCols)}>
                 {sorted.map((s: any) => {
                   const images = toImageUrls(s.images)
                   return (
@@ -656,32 +709,42 @@ export default function SubmissionsPage() {
                     >
                       {/* Image preview */}
                       {images.length > 0 && (
-                        <div className="h-28 bg-muted relative overflow-hidden rounded-t-xl">
+                        <div className="h-32 bg-muted relative overflow-hidden rounded-t-xl">
                           <img src={images[0]} alt="" className="w-full h-full object-cover" />
+                          <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
                           {images.length > 1 && (
-                            <div className="absolute top-2 right-2 bg-black/60 text-white text-xs px-1.5 py-0.5 rounded-full font-medium">
+                            <div className="absolute top-2.5 right-2.5 bg-black/60 backdrop-blur-sm text-white text-xs px-2 py-0.5 rounded-full font-semibold">
                               +{images.length - 1}
                             </div>
                           )}
+                          <button
+                            onClick={(e) => { e.stopPropagation(); setLightbox({ images, index: 0 }) }}
+                            className="absolute bottom-2.5 right-2.5 p-1.5 rounded-lg bg-white/20 backdrop-blur-sm text-white hover:bg-white/30 transition-colors"
+                          >
+                            <ZoomIn className="w-3.5 h-3.5" />
+                          </button>
                         </div>
                       )}
                       <div className="p-4">
-                        <div className="flex items-start justify-between mb-2">
-                          <div className="flex items-center gap-2">
+                        <div className="flex items-start justify-between mb-3">
+                          <div className="flex items-center gap-2.5">
                             <input
                               type="checkbox"
                               checked={selected.includes(s.id)}
                               onChange={(e) => { e.stopPropagation(); toggle(s.id) }}
                               onClick={(e) => e.stopPropagation()}
-                              className="rounded border-border"
+                              className="rounded border-border accent-primary"
                             />
-                            <div className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center text-xs font-semibold text-primary shrink-0">
+                            <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-xs font-bold text-primary shrink-0">
                               {(s.user?.first_name ?? '?')[0].toUpperCase()}
                             </div>
                             <div className="min-w-0">
-                              <p className="text-sm font-medium text-foreground truncate">
+                              <p className="text-sm font-semibold text-foreground truncate">
                                 {s.user?.first_name ?? '—'}
                               </p>
+                              {s.user?.username && (
+                                <p className="text-[10px] text-muted-foreground">@{s.user.username}</p>
+                              )}
                             </div>
                           </div>
                           <StatusBadge variant={statusVariantMap[s.status] ?? 'neutral'} dot size="sm">
@@ -691,13 +754,13 @@ export default function SubmissionsPage() {
                         <p className="text-xs text-muted-foreground mb-3 truncate">
                           {s.product?.name_en ?? s.product?.name_uz ?? '—'}
                         </p>
-                        <div className="flex items-center justify-between">
-                          <span className="text-xs text-muted-foreground">{formatDate(s.created_at)}</span>
+                        <div className="flex items-center justify-between pt-3 border-t border-border/50">
+                          <span className="text-[10px] text-muted-foreground font-medium">{formatDate(s.created_at)}</span>
                           {s.status === 'PENDING' && (
                             <div className="flex gap-1">
                               <button
                                 onClick={(e) => { e.stopPropagation(); handleApprove(s.id) }}
-                                className="p-1 rounded text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-500/10 transition-colors"
+                                className="p-1.5 rounded-lg text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-500/10 transition-colors"
                               >
                                 <CheckCircle2 className="w-4 h-4" />
                               </button>
@@ -707,7 +770,7 @@ export default function SubmissionsPage() {
                                   const reason = window.prompt('Rejection reason (optional):')
                                   if (reason !== null) handleReject(s.id, reason || undefined)
                                 }}
-                                className="p-1 rounded text-red-600 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors"
+                                className="p-1.5 rounded-lg text-destructive hover:bg-destructive/10 transition-colors"
                               >
                                 <XCircle className="w-4 h-4" />
                               </button>
@@ -727,27 +790,42 @@ export default function SubmissionsPage() {
                 columns={kanbanColumns}
                 getItemId={(item: any) => item.id}
                 onMove={handleKanbanMove}
-                renderCard={(item: any) => (
-                  <div
-                    className="cursor-pointer"
-                    onClick={() => setDrawerSub(item)}
-                  >
-                    <div className="flex items-center gap-2 mb-1.5">
-                      <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center text-[10px] font-semibold text-primary shrink-0">
-                        {(item.user?.first_name ?? '?')[0].toUpperCase()}
+                renderCard={(item: any) => {
+                  const images = toImageUrls(item.images)
+                  return (
+                    <div
+                      className="cursor-pointer"
+                      onClick={() => setDrawerSub(item)}
+                    >
+                      {/* Thumbnail */}
+                      {images.length > 0 && (
+                        <div className="h-20 -mx-3 -mt-2.5 mb-2.5 rounded-t-lg overflow-hidden relative">
+                          <img src={images[0]} alt="" className="w-full h-full object-cover" />
+                          <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent" />
+                          {images.length > 1 && (
+                            <div className="absolute top-1.5 right-1.5 bg-black/60 text-white text-[10px] px-1.5 py-0.5 rounded-full font-semibold">
+                              +{images.length - 1}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                      <div className="flex items-center gap-2 mb-1.5">
+                        <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center text-[10px] font-bold text-primary shrink-0">
+                          {(item.user?.first_name ?? '?')[0].toUpperCase()}
+                        </div>
+                        <span className="text-sm font-medium text-foreground truncate">
+                          {item.user?.first_name ?? '—'}
+                        </span>
                       </div>
-                      <span className="text-sm font-medium text-foreground truncate">
-                        {item.user?.first_name ?? '—'}
-                      </span>
+                      <p className="text-xs text-muted-foreground truncate mb-1">
+                        {item.product?.name_en ?? item.product?.name_uz ?? '—'}
+                      </p>
+                      <p className="text-[10px] text-muted-foreground">
+                        {formatDate(item.created_at)}
+                      </p>
                     </div>
-                    <p className="text-xs text-muted-foreground truncate mb-1">
-                      {item.product?.name_en ?? item.product?.name_uz ?? '—'}
-                    </p>
-                    <p className="text-[10px] text-muted-foreground">
-                      {formatDate(item.created_at)}
-                    </p>
-                  </div>
-                )}
+                  )
+                }}
               />
             )}
           </>
@@ -763,17 +841,17 @@ export default function SubmissionsPage() {
               <button
                 disabled={page === 1}
                 onClick={() => setPage((p) => p - 1)}
-                className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-border bg-background text-foreground text-xs font-medium disabled:opacity-40 hover:bg-muted transition-colors"
+                className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl border border-border bg-card text-foreground text-xs font-medium disabled:opacity-40 hover:bg-muted transition-colors"
               >
                 <ChevronLeft className="w-3.5 h-3.5" /> Prev
               </button>
-              <span className="px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-semibold">
-                {page} / {totalPages}
+              <span className="px-3 py-1.5 rounded-xl uzum-gradient text-white text-xs font-bold">
+                {page}/{totalPages}
               </span>
               <button
                 disabled={page >= totalPages}
                 onClick={() => setPage((p) => p + 1)}
-                className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-border bg-background text-foreground text-xs font-medium disabled:opacity-40 hover:bg-muted transition-colors"
+                className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl border border-border bg-card text-foreground text-xs font-medium disabled:opacity-40 hover:bg-muted transition-colors"
               >
                 Next <ChevronRight className="w-3.5 h-3.5" />
               </button>

@@ -4,68 +4,83 @@
 
 @layer base {
   /* ============================================
-     LIGHT THEME — Modern Minimal (Linear/Vercel)
+     LIGHT THEME — Uzum Brand Admin
+     Primary: #7000FF, clean Uzum surfaces
      ============================================ */
   :root {
-    --background: 0 0% 98.5%;
-    --foreground: 240 10% 4%;
+    --background: 240 15% 97%;
+    --foreground: 240 15% 8%;
     --card: 0 0% 100%;
-    --card-foreground: 240 10% 4%;
+    --card-foreground: 240 15% 8%;
     --popover: 0 0% 100%;
-    --popover-foreground: 240 10% 4%;
-    --primary: 263 70% 55%;
+    --popover-foreground: 240 15% 8%;
+    --primary: 266 100% 50%;
     --primary-foreground: 0 0% 100%;
-    --secondary: 240 5% 95%;
-    --secondary-foreground: 240 6% 15%;
-    --muted: 240 5% 95%;
-    --muted-foreground: 240 4% 46%;
-    --accent: 240 5% 95%;
-    --accent-foreground: 240 6% 15%;
-    --destructive: 0 84% 60%;
+    --secondary: 250 20% 95%;
+    --secondary-foreground: 250 12% 25%;
+    --muted: 240 10% 94%;
+    --muted-foreground: 240 8% 45%;
+    --accent: 266 50% 95%;
+    --accent-foreground: 266 70% 35%;
+    --destructive: 0 100% 50%;
     --destructive-foreground: 0 0% 100%;
-    --success: 152 69% 40%;
+    --success: 152 100% 34%;
     --success-foreground: 0 0% 100%;
-    --warning: 38 92% 50%;
+    --warning: 32 100% 50%;
     --warning-foreground: 0 0% 100%;
-    --border: 240 6% 90%;
-    --input: 240 6% 90%;
-    --ring: 263 70% 55%;
-    --radius: 0.625rem;
-    --sidebar: 0 0% 100%;
-    --sidebar-foreground: 240 10% 4%;
-    --sidebar-border: 240 6% 92%;
+    --info: 219 100% 60%;
+    --info-foreground: 0 0% 100%;
+    --border: 240 8% 90%;
+    --input: 240 8% 88%;
+    --ring: 266 100% 50%;
+    --radius: 0.75rem;
+    --sidebar: 266 100% 50%;
+    --sidebar-foreground: 0 0% 100%;
+    --sidebar-border: 266 80% 45%;
+    --sidebar-muted: 266 80% 42%;
+    --sidebar-accent: 266 80% 58%;
+
+    --uzum-gradient-from: #7000ff;
+    --uzum-gradient-to: #e8007c;
   }
 
   /* ============================================
      DARK THEME
      ============================================ */
   .dark {
-    --background: 240 16% 6%;
-    --foreground: 0 0% 95%;
+    --background: 240 15% 6%;
+    --foreground: 0 0% 94%;
     --card: 240 14% 9%;
-    --card-foreground: 0 0% 95%;
-    --popover: 240 14% 9%;
-    --popover-foreground: 0 0% 95%;
-    --primary: 263 70% 60%;
+    --card-foreground: 0 0% 94%;
+    --popover: 240 14% 10%;
+    --popover-foreground: 0 0% 94%;
+    --primary: 266 100% 55%;
     --primary-foreground: 0 0% 100%;
     --secondary: 240 12% 14%;
-    --secondary-foreground: 0 0% 90%;
-    --muted: 240 12% 14%;
-    --muted-foreground: 240 5% 55%;
-    --accent: 240 12% 14%;
-    --accent-foreground: 0 0% 90%;
-    --destructive: 0 62% 50%;
+    --secondary-foreground: 0 0% 88%;
+    --muted: 240 12% 13%;
+    --muted-foreground: 240 8% 52%;
+    --accent: 266 30% 16%;
+    --accent-foreground: 266 70% 78%;
+    --destructive: 0 90% 55%;
     --destructive-foreground: 0 0% 100%;
-    --success: 152 60% 45%;
+    --success: 152 80% 42%;
     --success-foreground: 0 0% 100%;
-    --warning: 38 92% 55%;
+    --warning: 32 100% 55%;
     --warning-foreground: 0 0% 100%;
+    --info: 219 100% 65%;
+    --info-foreground: 0 0% 100%;
     --border: 240 12% 16%;
-    --input: 240 12% 16%;
-    --ring: 263 70% 60%;
+    --input: 240 12% 14%;
+    --ring: 266 100% 55%;
     --sidebar: 240 14% 8%;
     --sidebar-foreground: 0 0% 90%;
     --sidebar-border: 240 12% 14%;
+    --sidebar-muted: 240 12% 12%;
+    --sidebar-accent: 266 50% 25%;
+
+    --uzum-gradient-from: #8a2bff;
+    --uzum-gradient-to: #ff1a8c;
   }
 
   * {
@@ -74,12 +89,52 @@
 
   body {
     @apply bg-background text-foreground;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
     font-feature-settings: "rlig" 1, "calt" 1;
   }
 }
 
+/* ============================================
+   Custom Scrollbar
+   ============================================ */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: hsl(var(--muted-foreground) / 0.2);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--muted-foreground) / 0.35);
+}
+
+/* ============================================
+   Admin Utilities
+   ============================================ */
 @layer utilities {
   .glass {
     @apply bg-card/80 backdrop-blur-xl border border-border/50;
+  }
+  .uzum-gradient {
+    background: linear-gradient(135deg, var(--uzum-gradient-from), var(--uzum-gradient-to));
+  }
+  .uzum-gradient-text {
+    background: linear-gradient(135deg, var(--uzum-gradient-from), var(--uzum-gradient-to));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .card-elevated {
+    @apply bg-card border border-border rounded-xl;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04), 0 4px 12px rgba(0, 0, 0, 0.02);
+  }
+  .dark .card-elevated {
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2), 0 4px 12px rgba(0, 0, 0, 0.12);
   }
 }

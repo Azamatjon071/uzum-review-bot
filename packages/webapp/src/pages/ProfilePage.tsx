@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { motion, AnimatePresence } from 'framer-motion'
 import { formatDistanceToNow, parseISO } from 'date-fns'
-import { Globe, ChevronDown, Copy, Share2, Trophy, Star, Users, Disc3 } from 'lucide-react'
+import { Globe, ChevronDown, Copy, Share2, Users, Disc3, Moon, Settings } from 'lucide-react'
 import { t, currentLang, setLang, prizeName } from '@/i18n'
 import { getMe, getReferralStats, getSpinHistory } from '@/api'
 import ThemeToggle from '@/components/ui/ThemeToggle'
@@ -34,7 +34,7 @@ function initials(name?: string) {
   return name.split(' ').map((w) => w[0]).slice(0, 2).join('').toUpperCase()
 }
 
-// ── Feature 6: Achievement/Badge System ──
+// ── Achievement/Badge System ──
 interface AchievementDef {
   key: string
   emoji: string
@@ -53,7 +53,7 @@ const ACHIEVEMENTS: AchievementDef[] = [
   { key: 'streak_king', emoji: '👑', labelKey: 'badge_streak_king', check: ({ streak }) => streak >= 3 },
 ]
 
-function AchievementsSection({ user, referral, spinHistory }: { user: any; referral: any; spinHistory: any[] }) {
+function AchievementsSection({ user, referral }: { user: any; referral: any; spinHistory: any[] }) {
   const [streak, setStreak] = useState(0)
   useEffect(() => {
     const s = parseInt(localStorage.getItem('spin_streak') ?? '0', 10)
@@ -68,12 +68,17 @@ function AchievementsSection({ user, referral, spinHistory }: { user: any; refer
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: 0.13 }}
-      className="rounded-2xl p-4 mb-5 bg-card border border-border"
+      className="rounded-2xl p-4 mb-4 bg-card border border-border"
     >
-      <div className="flex items-center justify-between mb-3">
-        <h3 className="font-semibold text-sm text-foreground">{t('achievements_title' as any)}</h3>
-        <span className="text-xs px-2 py-0.5 rounded-full bg-primary/15 text-primary">
-          {(t('achievements_count' as any) as string).replace('{unlocked}', String(unlocked)).replace('{total}', String(ACHIEVEMENTS.length))}
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="font-bold text-sm text-foreground">{t('achievements_title' as any)}</h3>
+        <span
+          className="text-xs px-2.5 py-1 rounded-full font-semibold"
+          style={{ background: 'linear-gradient(135deg, #7000FF22, #e8007c22)', color: '#a855f7', border: '1px solid #7000FF33' }}
+        >
+          {(t('achievements_count' as any) as string)
+            .replace('{unlocked}', String(unlocked))
+            .replace('{total}', String(ACHIEVEMENTS.length))}
         </span>
       </div>
       <div className="grid grid-cols-4 gap-2">
@@ -85,26 +90,24 @@ function AchievementsSection({ user, referral, spinHistory }: { user: any; refer
               initial={{ opacity: 0, scale: 0.8 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ delay: 0.15 + i * 0.04 }}
-              className={`flex flex-col items-center gap-1 py-2.5 px-1 rounded-xl relative ${
+              className={`flex flex-col items-center gap-1.5 py-3 px-1.5 rounded-xl relative ${
                 isUnlocked
-                  ? 'bg-primary/10 border border-primary/25 shadow-sm shadow-primary/15'
-                  : 'bg-card/30 border border-border/50'
+                  ? 'bg-primary/8 border border-primary/20'
+                  : 'bg-secondary/50 border border-border/50'
               }`}
             >
               <span
                 className="text-xl"
-                style={{
-                  filter: isUnlocked ? 'none' : 'grayscale(1) brightness(0.5)',
-                }}
+                style={{ filter: isUnlocked ? 'none' : 'grayscale(1) brightness(0.4)' }}
               >
                 {achievement.emoji}
               </span>
               {!isUnlocked && (
-                <span className="absolute top-1.5 right-1.5 text-xs opacity-50">🔒</span>
+                <span className="absolute top-1 right-1 text-[9px] opacity-40">🔒</span>
               )}
               <span
-                className={`text-center leading-tight text-[10px] ${
-                  isUnlocked ? 'text-primary/80' : 'text-muted-foreground/40'
+                className={`text-center leading-tight text-[9px] font-medium ${
+                  isUnlocked ? 'text-primary/75' : 'text-muted-foreground/35'
                 }`}
               >
                 {t(achievement.labelKey as any)}
@@ -149,7 +152,7 @@ export default function ProfilePage() {
       : 'User'
 
   const referralCode = referral?.referral_code ?? user?.referral_code ?? ''
-  const botUsername = 'UzumReviewBot' // replace with env var if available
+  const botUsername = 'UzumReviewBot'
   const referralLink = `https://t.me/${botUsername}?start=${referralCode}`
 
   function handleCopy() {
@@ -172,7 +175,6 @@ export default function ProfilePage() {
     setLang(code)
     setActiveLang(code)
     setLangMenuOpen(false)
-    // force re-render by re-mounting (simple approach via key)
     window.location.reload()
   }
 
@@ -181,90 +183,111 @@ export default function ProfilePage() {
       label: t('profile_spins'),
       value: user?.spin_count ?? referral?.total_spins ?? '—',
       icon: '🎡',
-      color: '#6c63ff',
+      color: '#7000FF',
+      bgColor: 'bg-primary/10',
+      borderColor: 'border-primary/20',
     },
     {
       label: t('profile_total_wins'),
       value: user?.total_wins ?? referral?.total_wins ?? '—',
       icon: '🏆',
       color: '#f59e0b',
+      bgColor: 'bg-amber-500/10',
+      borderColor: 'border-amber-500/20',
     },
     {
       label: t('profile_referrals'),
       value: referral?.referral_count ?? referral?.total_referrals ?? 0,
       icon: '👥',
       color: '#10b981',
+      bgColor: 'bg-success/10',
+      borderColor: 'border-success/20',
     },
     {
       label: t('profile_bonus_spins'),
       value: referral?.bonus_spins ?? referral?.earned_bonus_spins ?? 0,
       icon: '⭐',
       color: '#ec4899',
+      bgColor: 'bg-pink-500/10',
+      borderColor: 'border-pink-500/20',
     },
   ]
 
   const visibleHistory = historyExpanded ? spinHistory : spinHistory.slice(0, 4)
 
-  return (
-    <div className="px-4 pt-6 pb-28 min-h-screen relative bg-background">
-      {/* Ambient glow */}
-      <div className="fixed -top-24 -left-24 w-80 h-80 rounded-full pointer-events-none bg-primary/10 blur-[35px]" />
-      <div className="fixed bottom-32 right-0 w-64 h-64 rounded-full pointer-events-none bg-purple-500/8 blur-[30px]" />
+  const primaryBg = avatarBg(user?.first_name)
+  const secondaryBg = avatarBg(user?.username)
 
-      {/* ── Avatar & Name ── */}
+  return (
+    <div className="px-4 pt-4 pb-28 min-h-screen relative bg-background">
+      {/* Ambient glow */}
+      <div className="fixed -top-24 -left-24 w-80 h-80 rounded-full pointer-events-none bg-primary/8 blur-[40px]" />
+      <div className="fixed bottom-32 right-0 w-64 h-64 rounded-full pointer-events-none bg-purple-500/6 blur-[35px]" />
+
+      {/* ── Profile header: large avatar + gradient bg ── */}
       <motion.div
         initial={{ opacity: 0, y: -14 }}
         animate={{ opacity: 1, y: 0 }}
-        className="flex flex-col items-center mb-6 relative"
+        className="flex flex-col items-center mb-6 relative pt-4"
       >
-        {/* Avatar */}
+        {/* Avatar ring glow */}
         <div
-          className="w-20 h-20 rounded-full flex items-center justify-center text-3xl font-bold mb-3 relative"
-          style={{
-            background: `linear-gradient(135deg, ${avatarBg(user?.first_name)}, ${avatarBg(user?.username)})`,
-            boxShadow: `0 0 32px ${avatarBg(user?.first_name)}55`,
-          }}
-        >
-          {user?.photo_url ? (
-            <img src={user.photo_url} alt="" className="w-full h-full rounded-full object-cover" />
-          ) : (
-            <span className="text-white">{initials(displayName)}</span>
-          )}
+          className="absolute top-0 w-36 h-36 rounded-full opacity-30 blur-2xl pointer-events-none"
+          style={{ background: `radial-gradient(circle, ${primaryBg}, transparent 70%)` }}
+        />
+
+        {/* Avatar */}
+        <div className="relative mb-3">
+          <div
+            className="w-24 h-24 rounded-full flex items-center justify-center text-3xl font-bold relative overflow-hidden"
+            style={{
+              background: `linear-gradient(135deg, ${primaryBg}, ${secondaryBg})`,
+              boxShadow: `0 0 0 3px rgba(112,0,255,0.2), 0 0 32px ${primaryBg}44`,
+            }}
+          >
+            {user?.photo_url ? (
+              <img src={user.photo_url} alt="" className="w-full h-full rounded-full object-cover" />
+            ) : (
+              <span className="text-white">{initials(displayName)}</span>
+            )}
+          </div>
           {/* Online badge */}
-          <span className="absolute bottom-1 right-1 w-4 h-4 rounded-full bg-success border-2 border-background" />
+          <span className="absolute bottom-1.5 right-1.5 w-4 h-4 rounded-full bg-success border-2 border-background" />
         </div>
 
         <h1 className="text-xl font-bold text-foreground">{displayName}</h1>
         {user?.username && (
-          <p className="text-sm mt-0.5 text-primary/60">@{user.username}</p>
+          <p className="text-sm mt-0.5 text-primary/50">@{user.username}</p>
         )}
       </motion.div>
 
-      {/* ── Stats grid ── */}
+      {/* ── Stats 2×2 grid ── */}
       <motion.div
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.08 }}
-        className="grid grid-cols-2 gap-3 mb-5"
+        className="grid grid-cols-2 gap-3 mb-4"
       >
-        {stats.map(({ label, value, icon, color }, i) => (
+        {stats.map(({ label, value, icon, color, bgColor, borderColor }, i) => (
           <motion.div
             key={label}
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ delay: 0.1 + i * 0.05 }}
-            className="rounded-2xl p-4 flex items-center gap-3 bg-card border border-border"
+            className={`rounded-2xl p-4 flex items-center gap-3 bg-card border ${borderColor}`}
           >
-            <span className="text-2xl">{icon}</span>
-            <div>
-              <p className="text-xs text-muted-foreground">{label}</p>
-              <p className="text-lg font-bold" style={{ color }}>{value}</p>
+            <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-xl shrink-0 ${bgColor}`}>
+              {icon}
+            </div>
+            <div className="min-w-0">
+              <p className="text-xs text-muted-foreground/50 font-medium truncate">{label}</p>
+              <p className="text-xl font-bold leading-tight" style={{ color }}>{value}</p>
             </div>
           </motion.div>
         ))}
       </motion.div>
 
-      {/* ── Feature 6: Achievements ── */}
+      {/* ── Achievements ── */}
       <AchievementsSection user={user} referral={referral} spinHistory={spinHistory} />
 
       {/* ── Referral card ── */}
@@ -272,35 +295,47 @@ export default function ProfilePage() {
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.18 }}
-        className="rounded-3xl p-5 mb-5 relative overflow-hidden bg-gradient-to-br from-[#1e1248] to-[#2d1b6e] border border-primary/30 shadow-lg shadow-primary/15"
+        className="rounded-3xl p-5 mb-4 relative overflow-hidden border border-primary/25 shadow-lg shadow-primary/10"
+        style={{
+          background: 'linear-gradient(135deg, rgba(20,10,50,0.95), rgba(40,20,90,0.95))',
+        }}
       >
-        <div className="absolute -top-6 -right-6 w-28 h-28 rounded-full bg-white/[0.04]" />
-        <div className="absolute -bottom-4 -left-4 w-20 h-20 rounded-full bg-white/[0.04]" />
+        {/* Decorative orbs */}
+        <div className="absolute -top-6 -right-6 w-28 h-28 rounded-full bg-primary/10" />
+        <div className="absolute -bottom-4 -left-4 w-20 h-20 rounded-full bg-purple-500/10" />
+        {/* Gradient border accent */}
+        <div
+          className="absolute top-0 left-0 right-0 h-0.5 rounded-t-3xl opacity-60"
+          style={{ background: 'linear-gradient(90deg, #7000FF, #e8007c)' }}
+        />
 
         <div className="relative">
           <div className="flex items-center gap-2 mb-1">
             <span className="text-xl">🎁</span>
             <h2 className="font-bold text-white">{t('profile_referral_code')}</h2>
           </div>
-          <p className="text-xs mb-3 text-primary/60">
+          <p className="text-xs mb-4 text-primary/50">
             {t('profile_referral_info')}
           </p>
 
-          {/* Code badge */}
+          {/* Code display */}
           {referralCode && (
-            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-xl mb-4 font-mono text-sm font-bold bg-primary/20 border border-primary/35 text-primary">
+            <div
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl mb-4 font-mono text-sm font-bold border border-primary/30"
+              style={{ background: 'rgba(112,0,255,0.15)', color: '#a78bfa' }}
+            >
               {referralCode}
             </div>
           )}
 
-          {/* Buttons */}
+          {/* Action buttons */}
           <div className="flex gap-2">
             <button
               onClick={handleCopy}
-              className={`flex-1 py-2.5 rounded-xl text-sm font-semibold transition-all active:scale-95 flex items-center justify-center gap-2 ${
+              className={`flex-1 py-2.5 rounded-xl text-sm font-semibold transition-all active:scale-95 flex items-center justify-center gap-2 border ${
                 copied
-                  ? 'bg-success/30 border border-success/40 text-success'
-                  : 'bg-primary/25 border border-primary/35 text-primary'
+                  ? 'bg-success/20 border-success/35 text-success'
+                  : 'bg-primary/20 border-primary/30 text-primary/80'
               }`}
             >
               {copied ? (
@@ -311,16 +346,17 @@ export default function ProfilePage() {
             </button>
             <button
               onClick={handleShare}
-              className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white transition-all active:scale-95 flex items-center justify-center gap-2 bg-gradient-to-r from-primary to-purple-500 shadow-md shadow-primary/30"
+              className="flex-1 py-2.5 rounded-xl text-sm font-bold text-white transition-all active:scale-95 flex items-center justify-center gap-2 shadow-md shadow-primary/30"
+              style={{ background: 'linear-gradient(135deg, #7000FF, #e8007c)' }}
             >
               <Share2 className="w-4 h-4" />
               {t('profile_invite_friends')}
             </button>
           </div>
 
-          {/* Referral count badge */}
+          {/* Referral count */}
           {(referral?.referral_count ?? 0) > 0 && (
-            <div className="mt-3 text-xs px-3 py-1.5 rounded-lg inline-flex items-center gap-1.5 bg-primary/15 text-primary/80">
+            <div className="mt-3 text-xs px-3 py-1.5 rounded-lg inline-flex items-center gap-1.5 bg-primary/12 text-primary/70 border border-primary/20">
               <Users className="w-3.5 h-3.5" />
               <span>
                 {referral.referral_count} {t('profile_referrals')} → {referral.bonus_spins ?? referral.earned_bonus_spins ?? referral.referral_count} {t('profile_bonus_spins')}
@@ -330,20 +366,28 @@ export default function ProfilePage() {
         </div>
       </motion.div>
 
-      {/* ── Spin history ── */}
+      {/* ── Spin history (collapsible) ── */}
       <motion.div
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.24 }}
-        className="rounded-2xl overflow-hidden mb-5 bg-card border border-border"
+        className="rounded-2xl overflow-hidden mb-4 bg-card border border-border"
       >
         <button
           onClick={() => setHistoryExpanded(!historyExpanded)}
           className="w-full flex items-center justify-between px-4 py-3.5 text-left"
         >
-          <span className="font-semibold text-sm text-foreground">{t('profile_spin_history')}</span>
+          <div className="flex items-center gap-2">
+            <Disc3 className="w-4 h-4 text-muted-foreground/50" />
+            <span className="font-semibold text-sm text-foreground">{t('profile_spin_history')}</span>
+            {spinHistory.length > 0 && (
+              <span className="text-xs px-2 py-0.5 rounded-full bg-secondary text-muted-foreground/60 border border-border">
+                {spinHistory.length}
+              </span>
+            )}
+          </div>
           <ChevronDown
-            className={`w-4 h-4 text-muted-foreground/50 transition-transform duration-200 ${
+            className={`w-4 h-4 text-muted-foreground/40 transition-transform duration-200 ${
               historyExpanded ? 'rotate-180' : ''
             }`}
           />
@@ -351,7 +395,7 @@ export default function ProfilePage() {
 
         {spinHistory.length === 0 ? (
           <div className="px-4 pb-4">
-            <p className="text-xs text-center py-4 text-muted-foreground/50">
+            <p className="text-xs text-center py-4 text-muted-foreground/40">
               {t('profile_no_history')}
             </p>
           </div>
@@ -368,17 +412,17 @@ export default function ProfilePage() {
                   initial={{ opacity: 0, x: -8 }}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: i * 0.04 }}
-                  className="flex items-center gap-3 px-4 py-3 border-t border-border/50"
+                  className="flex items-center gap-3 px-4 py-3 border-t border-border/40"
                 >
                   <div
                     className="w-8 h-8 rounded-full flex items-center justify-center text-sm shrink-0"
-                    style={{ background: `${color}22`, border: `1px solid ${color}44`, color }}
+                    style={{ background: `${color}20`, border: `1.5px solid ${color}40`, color }}
                   >
                     <Disc3 className="w-4 h-4" />
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-foreground truncate">{name}</p>
-                    <p className="text-xs text-muted-foreground/50">{date}</p>
+                    <p className="text-xs text-muted-foreground/40">{date}</p>
                   </div>
                   <span
                     className="text-xs px-2 py-0.5 rounded-full font-medium shrink-0"
@@ -393,28 +437,39 @@ export default function ProfilePage() {
             {spinHistory.length > 4 && (
               <button
                 onClick={() => setHistoryExpanded(!historyExpanded)}
-                className="w-full py-2.5 text-xs font-medium border-t border-border/50 transition-all text-muted-foreground/60 bg-secondary/30"
+                className="w-full py-2.5 text-xs font-medium border-t border-border/40 transition-all text-muted-foreground/50 bg-secondary/30 flex items-center justify-center gap-1"
               >
                 {historyExpanded
-                  ? '▲ Show less'
-                  : `▼ Show ${spinHistory.length - 4} more`}
+                  ? <><ChevronDown className="w-3 h-3 rotate-180" /> Show less</>
+                  : <><ChevronDown className="w-3 h-3" /> Show {spinHistory.length - 4} more</>
+                }
               </button>
             )}
           </div>
         )}
       </motion.div>
 
-      {/* ── Theme & Language section ── */}
+      {/* ── Settings: Theme + Language ── */}
       <motion.div
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.28 }}
         className="rounded-2xl overflow-hidden mb-4 bg-card border border-border"
       >
+        {/* Section header */}
+        <div className="flex items-center gap-2 px-4 py-2.5 border-b border-border/40">
+          <Settings className="w-3.5 h-3.5 text-muted-foreground/40" />
+          <span className="text-xs font-semibold uppercase tracking-widest text-muted-foreground/40">
+            Settings
+          </span>
+        </div>
+
         {/* Theme toggle row */}
-        <div className="flex items-center justify-between px-4 py-3.5 border-b border-border/50">
-          <div className="flex items-center gap-2.5">
-            <Star className="w-5 h-5 text-muted-foreground" />
+        <div className="flex items-center justify-between px-4 py-3.5 border-b border-border/40">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-secondary border border-border">
+              <Moon className="w-4 h-4 text-muted-foreground" />
+            </div>
             <span className="text-sm font-medium text-foreground">{t('profile_theme' as any) || 'Theme'}</span>
           </div>
           <ThemeToggle />
@@ -425,17 +480,19 @@ export default function ProfilePage() {
           onClick={() => setLangMenuOpen(!langMenuOpen)}
           className="w-full flex items-center justify-between px-4 py-3.5"
         >
-          <div className="flex items-center gap-2.5">
-            <Globe className="w-5 h-5 text-muted-foreground" />
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-secondary border border-border">
+              <Globe className="w-4 h-4 text-muted-foreground" />
+            </div>
             <span className="text-sm font-medium text-foreground">{t('profile_language')}</span>
           </div>
           <div className="flex items-center gap-2">
-            <span className="text-sm text-primary/70">
+            <span className="text-sm text-primary/60 font-medium">
               {LANG_OPTIONS.find((l) => l.code === activeLang)?.flag}{' '}
               {LANG_OPTIONS.find((l) => l.code === activeLang)?.label}
             </span>
             <ChevronDown
-              className={`w-4 h-4 text-muted-foreground/50 transition-transform duration-200 ${
+              className={`w-4 h-4 text-muted-foreground/40 transition-transform duration-200 ${
                 langMenuOpen ? 'rotate-180' : ''
               }`}
             />
@@ -451,20 +508,22 @@ export default function ProfilePage() {
               transition={{ duration: 0.2 }}
               className="overflow-hidden"
             >
-              <div className="border-t border-border/50">
+              <div className="border-t border-border/40">
                 {LANG_OPTIONS.map(({ code, label, flag }) => (
                   <button
                     key={code}
                     onClick={() => handleLangSelect(code)}
                     className={`w-full flex items-center gap-3 px-4 py-3 text-sm text-left transition-all border-t border-border/30 ${
                       activeLang === code
-                        ? 'bg-primary/12 text-primary'
-                        : 'text-foreground/70'
+                        ? 'bg-primary/10 text-primary'
+                        : 'text-foreground/60 hover:bg-secondary/50'
                     }`}
                   >
                     <span className="text-xl">{flag}</span>
-                    <span className="font-medium">{label}</span>
-                    {activeLang === code && <span className="ml-auto text-xs text-primary">✓</span>}
+                    <span className="font-medium flex-1">{label}</span>
+                    {activeLang === code && (
+                      <span className="text-xs font-bold text-primary">✓</span>
+                    )}
                   </button>
                 ))}
               </div>
@@ -478,7 +537,7 @@ export default function ProfilePage() {
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ delay: 0.4 }}
-        className="text-center text-xs mt-2 text-muted-foreground/30"
+        className="text-center text-xs mt-2 text-muted-foreground/25 font-mono"
       >
         UzumBot v1.0.0
       </motion.p>

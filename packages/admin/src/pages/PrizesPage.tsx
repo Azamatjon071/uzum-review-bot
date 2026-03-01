@@ -2,8 +2,8 @@ import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { getPrizes, createPrize, updatePrize, deletePrize, togglePrize } from '@/api'
-import { Trophy, Plus, X, Pencil, Trash2 } from 'lucide-react'
-import { clsx } from 'clsx'
+import { Trophy, Plus, X, Pencil, Trash2, AlertTriangle } from 'lucide-react'
+import { cn } from '@/lib/utils'
 import PageHeader from '@/components/ui/PageHeader'
 import StatusBadge from '@/components/ui/StatusBadge'
 import FilterBar from '@/components/ui/FilterBar'
@@ -90,15 +90,15 @@ function ToggleSwitch({ checked, onChange, disabled }: { checked: boolean; onCha
       type="button"
       onClick={(e) => { e.stopPropagation(); onChange() }}
       disabled={disabled}
-      className={clsx(
-        'relative inline-flex h-5 w-9 items-center rounded-full transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-ring/30 disabled:opacity-50',
-        checked ? 'bg-emerald-500 dark:bg-emerald-600' : 'bg-muted-foreground/30'
+      className={cn(
+        'relative inline-flex h-5 w-9 items-center rounded-full transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-primary/30 disabled:opacity-50',
+        checked ? 'bg-emerald-500 dark:bg-emerald-600' : 'bg-muted-foreground/30',
       )}
     >
       <span
-        className={clsx(
+        className={cn(
           'inline-block h-3.5 w-3.5 rounded-full bg-white shadow-sm transition-transform duration-200',
-          checked ? 'translate-x-[18px]' : 'translate-x-[2px]'
+          checked ? 'translate-x-[18px]' : 'translate-x-[2px]',
         )}
       />
     </button>
@@ -122,22 +122,27 @@ function ConfirmDialog({
 }) {
   return (
     <>
-      <div className="fixed inset-0 bg-black/40 z-50" onClick={onCancel} />
+      <div className="fixed inset-0 bg-black/40 backdrop-blur-[2px] z-50 animate-fade-in" onClick={onCancel} />
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-        <div className="bg-card border border-border rounded-lg shadow-lg w-full max-w-sm p-5 animate-fade-in">
-          <h3 className="text-sm font-semibold text-foreground">{title}</h3>
-          <p className="mt-1.5 text-sm text-muted-foreground">{message}</p>
-          <div className="flex gap-2 mt-4 justify-end">
+        <div className="bg-card border border-border rounded-2xl shadow-xl w-full max-w-sm p-6 animate-scale-in">
+          <div className="flex items-center gap-3 mb-3">
+            <div className="w-10 h-10 rounded-xl bg-destructive/10 flex items-center justify-center shrink-0">
+              <AlertTriangle className="w-5 h-5 text-destructive" />
+            </div>
+            <h3 className="text-sm font-semibold text-foreground">{title}</h3>
+          </div>
+          <p className="text-sm text-muted-foreground ml-[52px]">{message}</p>
+          <div className="flex gap-2 mt-5 justify-end">
             <button
               onClick={onCancel}
-              className="px-3 py-1.5 text-sm font-medium rounded-md border border-border bg-background text-foreground hover:bg-muted transition-colors"
+              className="px-4 py-2 text-sm font-medium rounded-xl border border-border bg-background text-foreground hover:bg-muted transition-colors"
             >
               Cancel
             </button>
             <button
               onClick={onConfirm}
               disabled={isPending}
-              className="px-3 py-1.5 text-sm font-medium rounded-md bg-destructive text-destructive-foreground hover:bg-destructive/90 transition-colors disabled:opacity-50"
+              className="px-4 py-2 text-sm font-semibold rounded-xl bg-destructive text-destructive-foreground hover:bg-destructive/90 transition-colors disabled:opacity-50 shadow-sm"
             >
               {isPending ? 'Deleting...' : 'Delete'}
             </button>
@@ -188,18 +193,27 @@ function PrizeFormDrawer({
 
   return (
     <>
-      <div className="fixed inset-0 bg-black/40 z-40" onClick={onClose} />
-      <div className="fixed inset-y-0 right-0 w-full max-w-md bg-card border-l border-border shadow-lg z-50 flex flex-col animate-slide-in-right">
-        <div className="flex items-center justify-between px-5 py-4 border-b border-border">
-          <h2 className="text-sm font-semibold text-foreground">
-            {editing ? 'Edit Prize' : 'New Prize'}
-          </h2>
-          <button
-            onClick={onClose}
-            className="w-7 h-7 flex items-center justify-center rounded-md hover:bg-muted text-muted-foreground transition-colors"
-          >
-            <X className="w-4 h-4" />
-          </button>
+      <div className="fixed inset-0 bg-black/40 backdrop-blur-[2px] z-40 animate-fade-in" onClick={onClose} />
+      <div className="fixed inset-y-0 right-0 w-full max-w-md bg-card border-l border-border shadow-2xl z-50 flex flex-col animate-slide-in-right">
+        {/* Header with accent */}
+        <div className="relative">
+          <div className="absolute inset-x-0 top-0 h-1 uzum-gradient" />
+          <div className="flex items-center justify-between px-5 py-4 border-b border-border">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-xl bg-primary/10 flex items-center justify-center">
+                <Trophy className="w-4 h-4 text-primary" />
+              </div>
+              <h2 className="text-sm font-semibold text-foreground">
+                {editing ? 'Edit Prize' : 'New Prize'}
+              </h2>
+            </div>
+            <button
+              onClick={onClose}
+              className="p-1.5 rounded-xl hover:bg-muted text-muted-foreground transition-colors"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
         </div>
 
         <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-5 space-y-4">
@@ -209,24 +223,24 @@ function PrizeFormDrawer({
             { name: 'name_en', label: 'Name (EN)', placeholder: 'Gift Card' },
           ].map(({ name, label, placeholder }) => (
             <div key={name}>
-              <label className="block text-xs font-medium text-muted-foreground mb-1.5">{label}</label>
+              <label className="block text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">{label}</label>
               <input
                 name={name}
                 placeholder={placeholder}
                 defaultValue={editing?.[name as keyof Prize] as string ?? ''}
                 required
-                className="w-full px-3 py-2 text-sm rounded-md border border-input bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/30 focus:border-ring transition-colors"
+                className="w-full px-3.5 py-2.5 text-sm rounded-xl border border-input bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/50 transition-all"
               />
             </div>
           ))}
 
           <div>
-            <label className="block text-xs font-medium text-muted-foreground mb-1.5">Prize Type</label>
+            <label className="block text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Prize Type</label>
             <select
               name="prize_type"
               defaultValue={getPrizeType(editing ?? { prize_type: 'GIFT' } as Prize) || 'GIFT'}
               required
-              className="w-full px-3 py-2 text-sm rounded-md border border-input bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring/30 focus:border-ring transition-colors"
+              className="w-full px-3.5 py-2.5 text-sm rounded-xl border border-input bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/50 transition-all"
             >
               {PRIZE_TYPES.map((t) => (
                 <option key={t.value} value={t.value}>{t.label}</option>
@@ -235,7 +249,7 @@ function PrizeFormDrawer({
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-muted-foreground mb-1.5">Value</label>
+            <label className="block text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Value</label>
             <input
               name="value"
               type="number"
@@ -243,13 +257,13 @@ function PrizeFormDrawer({
               step="any"
               placeholder="e.g. 50000 or 10"
               defaultValue={editing?.value ?? 0}
-              className="w-full px-3 py-2 text-sm rounded-md border border-input bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/30 focus:border-ring transition-colors"
+              className="w-full px-3.5 py-2.5 text-sm rounded-xl border border-input bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/50 transition-all"
             />
-            <p className="text-xs text-muted-foreground mt-1">For discounts use percentage, for gifts/cashback use UZS amount</p>
+            <p className="text-[10px] text-muted-foreground mt-1.5">For discounts use percentage, for gifts/cashback use UZS amount</p>
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-muted-foreground mb-1.5">Weight (probability)</label>
+            <label className="block text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Weight (probability)</label>
             <input
               name="weight"
               type="number"
@@ -258,19 +272,19 @@ function PrizeFormDrawer({
               placeholder="10"
               defaultValue={editing?.weight ?? 10}
               required
-              className="w-full px-3 py-2 text-sm rounded-md border border-input bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/30 focus:border-ring transition-colors"
+              className="w-full px-3.5 py-2.5 text-sm rounded-xl border border-input bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/50 transition-all"
             />
-            <p className="text-xs text-muted-foreground mt-1">Higher weight = more frequent on the wheel</p>
+            <p className="text-[10px] text-muted-foreground mt-1.5">Higher weight = more frequent on the wheel</p>
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-muted-foreground mb-1.5">Color</label>
+            <label className="block text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Color</label>
             <div className="flex items-center gap-3">
               <input
                 name="color_picker"
                 type="color"
                 defaultValue={editing?.color ?? '#6366f1'}
-                className="w-10 h-10 rounded-md border border-input cursor-pointer p-0.5 bg-background"
+                className="w-10 h-10 rounded-xl border border-input cursor-pointer p-0.5 bg-background"
                 onChange={(e) => {
                   const hex = e.currentTarget.parentElement?.querySelector<HTMLInputElement>('input[name=color_hex]')
                   if (hex) hex.value = e.currentTarget.value
@@ -282,7 +296,7 @@ function PrizeFormDrawer({
                 defaultValue={editing?.color ?? '#6366f1'}
                 placeholder="#6366f1"
                 pattern="^#[0-9a-fA-F]{6}$"
-                className="flex-1 px-3 py-2 text-sm rounded-md border border-input bg-background text-foreground font-mono placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/30 focus:border-ring transition-colors"
+                className="flex-1 px-3.5 py-2.5 text-sm rounded-xl border border-input bg-background text-foreground font-mono placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/50 transition-all"
                 onChange={(e) => {
                   const picker = e.currentTarget.parentElement?.querySelector<HTMLInputElement>('input[type=color]')
                   if (picker && /^#[0-9a-fA-F]{6}$/.test(e.currentTarget.value)) {
@@ -294,34 +308,34 @@ function PrizeFormDrawer({
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-muted-foreground mb-1.5">Stock Limit</label>
+            <label className="block text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Stock Limit</label>
             <input
               name="stock_limit"
               type="number"
               min="0"
               placeholder="Leave empty for unlimited"
               defaultValue={editing?.stock_limit ?? ''}
-              className="w-full px-3 py-2 text-sm rounded-md border border-input bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/30 focus:border-ring transition-colors"
+              className="w-full px-3.5 py-2.5 text-sm rounded-xl border border-input bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/50 transition-all"
             />
           </div>
 
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between rounded-xl bg-muted/30 border border-border/50 px-4 py-3">
             <label className="text-xs font-medium text-muted-foreground">Active</label>
             <ToggleSwitch checked={isActive} onChange={() => setIsActive(!isActive)} />
           </div>
 
-          <div className="flex gap-2 pt-3 border-t border-border">
+          <div className="flex gap-2 pt-4 border-t border-border">
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 px-3 py-2 text-sm font-medium rounded-md border border-border bg-background text-foreground hover:bg-muted transition-colors"
+              className="flex-1 px-4 py-2.5 text-sm font-medium rounded-xl border border-border bg-background text-foreground hover:bg-muted transition-colors"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={isPending}
-              className="flex-1 px-3 py-2 text-sm font-medium rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50"
+              className="flex-1 px-4 py-2.5 text-sm font-semibold rounded-xl uzum-gradient text-white shadow-sm hover:opacity-90 transition-opacity disabled:opacity-50"
             >
               {isPending ? 'Saving...' : editing ? 'Save Changes' : 'Create Prize'}
             </button>
@@ -395,7 +409,7 @@ export default function PrizesPage() {
 
   const filtered = prizes.filter((p) => {
     const matchesSearch = !search || [p.name_uz, p.name_ru, p.name_en].some(
-      (n) => n?.toLowerCase().includes(search.toLowerCase())
+      (n) => n?.toLowerCase().includes(search.toLowerCase()),
     )
     const matchesType = typeFilter === 'all' || getPrizeType(p).toUpperCase() === typeFilter
     return matchesSearch && matchesType
@@ -426,24 +440,29 @@ export default function PrizesPage() {
     return p.value.toLocaleString()
   }
 
-  // ── Render ─────────────────────────────────────────────────────────────────
-
   return (
-    <div className="space-y-4">
+    <div className={dc.spacing}>
       <PageHeader
         title="Prizes"
         description="Configure wheel prizes and probabilities"
-        badge={
-          <StatusBadge variant="neutral">{prizes.length} total</StatusBadge>
-        }
+        icon={<Trophy className="w-5 h-5 text-primary" />}
+        badge={<StatusBadge variant="info" size="sm">{prizes.length} total</StatusBadge>}
         actions={
-          <button
-            onClick={openCreate}
-            className="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
-          >
-            <Plus className="w-4 h-4" />
-            Add Prize
-          </button>
+          <div className="flex items-center gap-2">
+            <DensityToggle current={density} onChange={setDensity} />
+            <ViewToggle
+              current={view}
+              onChange={(m) => setView('prizes', m)}
+              options={['table', 'card']}
+            />
+            <button
+              onClick={openCreate}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 text-sm font-semibold rounded-xl uzum-gradient text-white shadow-sm hover:opacity-90 transition-opacity"
+            >
+              <Plus className="w-4 h-4" />
+              Add Prize
+            </button>
+          </div>
         }
       />
 
@@ -453,39 +472,25 @@ export default function PrizesPage() {
         searchPlaceholder="Search prizes..."
         chips={filterChips}
         onChipToggle={(key) => setTypeFilter(key)}
-      >
-        <div className="flex items-center gap-2">
-          <ViewToggle
-            current={view}
-            onChange={(m) => setView('prizes', m)}
-            options={['table', 'card']}
-          />
-          <DensityToggle current={density} onChange={setDensity} />
-        </div>
-      </FilterBar>
+      />
 
       {/* Content */}
       {isLoading ? (
-        <div className="rounded-lg border border-border bg-card">
-          {[...Array(5)].map((_, i) => (
-            <div key={i} className={clsx('flex gap-4 border-b border-border last:border-b-0', dc.padding)}>
-              <div className="h-4 w-4 bg-muted rounded-full animate-pulse" />
-              <div className="h-4 w-32 bg-muted rounded animate-pulse" />
-              <div className="h-4 w-16 bg-muted rounded animate-pulse" />
-              <div className="h-4 w-20 bg-muted rounded animate-pulse" />
-            </div>
+        <div className="space-y-2.5">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <div key={i} className="h-14 rounded-xl bg-muted/50 animate-pulse" />
           ))}
         </div>
       ) : filtered.length === 0 ? (
         <EmptyState
-          icon={<Trophy className="w-6 h-6 text-muted-foreground" />}
+          icon={<Trophy className="w-6 h-6 text-muted-foreground/60" />}
           title={search || typeFilter !== 'all' ? 'No prizes match your filters' : 'No prizes yet'}
           description={search || typeFilter !== 'all' ? 'Try different filters' : 'Add your first prize to get started'}
           action={
             !search && typeFilter === 'all' ? (
               <button
                 onClick={openCreate}
-                className="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 text-sm font-semibold rounded-xl uzum-gradient text-white shadow-sm hover:opacity-90 transition-opacity"
               >
                 <Plus className="w-4 h-4" />
                 Add Prize
@@ -494,18 +499,18 @@ export default function PrizesPage() {
           }
         />
       ) : view === 'table' ? (
-        /* ── Table View ──────────────────────────────────────────────────── */
-        <div className="rounded-lg border border-border bg-card overflow-hidden">
+        /* ── Table View ── */
+        <div className="rounded-xl border border-border bg-card shadow-card overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="w-full">
+            <table className={cn('w-full', dc.text)}>
               <thead>
-                <tr className="border-b border-border bg-muted/50">
+                <tr className="border-b border-border bg-muted/30">
                   {['Color', 'Name', 'Type', 'Value', 'Weight', 'Stock', 'Active', 'Actions'].map((h) => (
                     <th
                       key={h}
-                      className={clsx(
+                      className={cn(
+                        dc.padding,
                         'text-left text-xs font-medium text-muted-foreground uppercase tracking-wider whitespace-nowrap',
-                        dc.padding
                       )}
                     >
                       {h}
@@ -523,26 +528,26 @@ export default function PrizesPage() {
 
                   return (
                     <tr key={p.id} className="hover:bg-muted/30 transition-colors group">
-                      <td className={clsx(dc.padding)}>
+                      <td className={dc.padding}>
                         <span
-                          className="inline-block w-4 h-4 rounded-full border border-border"
+                          className="inline-block w-5 h-5 rounded-lg border border-border shadow-sm"
                           style={{ backgroundColor: p.color }}
                         />
                       </td>
-                      <td className={clsx(dc.padding, dc.text)}>
-                        <span className="font-medium text-foreground">
-                          {p.name_uz || p.name_en || p.name_ru || '--'}
+                      <td className={cn(dc.padding, dc.text)}>
+                        <span className="font-medium text-foreground group-hover:text-primary transition-colors">
+                          {p.name_uz || p.name_en || p.name_ru || '—'}
                         </span>
                       </td>
-                      <td className={clsx(dc.padding)}>
-                        <StatusBadge variant={TYPE_VARIANTS[typeKey] ?? 'neutral'}>
+                      <td className={dc.padding}>
+                        <StatusBadge variant={TYPE_VARIANTS[typeKey] ?? 'neutral'} size="sm">
                           {TYPE_LABELS[typeKey] ?? typeKey}
                         </StatusBadge>
                       </td>
-                      <td className={clsx(dc.padding, dc.text, 'text-foreground font-medium tabular-nums')}>
+                      <td className={cn(dc.padding, dc.text, 'text-foreground font-semibold tabular-nums')}>
                         {formatValue(p)}
                       </td>
-                      <td className={clsx(dc.padding, 'min-w-[120px]')}>
+                      <td className={cn(dc.padding, 'min-w-[130px]')}>
                         <div className="flex items-center gap-2">
                           <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
                             <div
@@ -550,22 +555,22 @@ export default function PrizesPage() {
                               style={{ width: `${Math.max(pct, 1)}%`, backgroundColor: p.color }}
                             />
                           </div>
-                          <span className="text-xs text-muted-foreground tabular-nums w-12 text-right">
+                          <span className="text-xs text-muted-foreground tabular-nums w-12 text-right font-medium">
                             {pct.toFixed(1)}%
                           </span>
                         </div>
                       </td>
-                      <td className={clsx(dc.padding, 'min-w-[100px]')}>
+                      <td className={cn(dc.padding, 'min-w-[110px]')}>
                         {stockLimit !== null ? (
                           <div className="space-y-1">
-                            <span className="text-xs text-muted-foreground tabular-nums">
+                            <span className="text-xs text-muted-foreground tabular-nums font-medium">
                               {stockUsed}/{stockLimit} used
                             </span>
                             <div className="h-1 bg-muted rounded-full overflow-hidden">
                               <div
-                                className={clsx(
+                                className={cn(
                                   'h-full rounded-full transition-all duration-300',
-                                  stockPct > 90 ? 'bg-destructive' : stockPct > 70 ? 'bg-warning' : 'bg-emerald-500'
+                                  stockPct > 90 ? 'bg-destructive' : stockPct > 70 ? 'bg-warning' : 'bg-emerald-500',
                                 )}
                                 style={{ width: `${Math.min(stockPct, 100)}%` }}
                               />
@@ -575,24 +580,24 @@ export default function PrizesPage() {
                           <span className="text-xs text-muted-foreground">Unlimited</span>
                         )}
                       </td>
-                      <td className={clsx(dc.padding)}>
+                      <td className={dc.padding}>
                         <ToggleSwitch
                           checked={p.is_active}
                           onChange={() => toggleMut.mutate(p.id)}
                           disabled={toggleMut.isPending}
                         />
                       </td>
-                      <td className={clsx(dc.padding)}>
+                      <td className={dc.padding}>
                         <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                           <button
                             onClick={() => openEdit(p)}
-                            className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                            className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
                           >
                             <Pencil className="w-3.5 h-3.5" />
                           </button>
                           <button
                             onClick={() => setDeleteTarget(p)}
-                            className="p-1.5 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                            className="p-1.5 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
                           </button>
@@ -606,8 +611,8 @@ export default function PrizesPage() {
           </div>
         </div>
       ) : (
-        /* ── Card View ───────────────────────────────────────────────────── */
-        <div className={clsx('grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3', dc.gap)}>
+        /* ── Card View ── */
+        <div className={cn('grid gap-3', dc.gridCols)}>
           {filtered.map((p) => {
             const pct = totalWeight > 0 ? (p.weight / totalWeight) * 100 : 0
             const rarity = getRarityLabel(p.weight, totalWeight)
@@ -617,16 +622,16 @@ export default function PrizesPage() {
             const stockPct = stockLimit ? (stockUsed / stockLimit) * 100 : 0
 
             return (
-              <DataCard key={p.id} padding="none" className={clsx(!p.is_active && 'opacity-60')}>
+              <DataCard key={p.id} padding="none" className={cn(!p.is_active && 'opacity-60')}>
                 {/* Color stripe */}
-                <div className="h-1 rounded-t-xl" style={{ backgroundColor: p.color }} />
+                <div className="h-1.5 rounded-t-xl" style={{ backgroundColor: p.color }} />
 
                 <div className="p-4 space-y-3">
                   {/* Header */}
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0">
-                      <p className="text-sm font-medium text-foreground truncate">
-                        {p.name_uz || p.name_en || p.name_ru || '--'}
+                      <p className="text-sm font-semibold text-foreground truncate">
+                        {p.name_uz || p.name_en || p.name_ru || '—'}
                       </p>
                       <p className="text-xs text-muted-foreground truncate">
                         {p.name_ru || p.name_en || ''}
@@ -641,24 +646,24 @@ export default function PrizesPage() {
 
                   {/* Type + value */}
                   <div className="flex items-center gap-2 flex-wrap">
-                    <StatusBadge variant={TYPE_VARIANTS[typeKey] ?? 'neutral'}>
+                    <StatusBadge variant={TYPE_VARIANTS[typeKey] ?? 'neutral'} size="sm">
                       {TYPE_LABELS[typeKey] ?? typeKey}
                     </StatusBadge>
-                    <span className="text-sm font-medium text-foreground tabular-nums">
+                    <span className="text-sm font-bold text-foreground tabular-nums">
                       {formatValue(p)}
                     </span>
                   </div>
 
                   {/* Weight bar */}
-                  <div>
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="text-xs text-muted-foreground">Weight</span>
+                  <div className="rounded-xl bg-muted/30 border border-border/50 p-3">
+                    <div className="flex items-center justify-between mb-1.5">
+                      <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Weight</span>
                       <div className="flex items-center gap-1.5">
-                        <span className="text-xs font-medium text-foreground tabular-nums">{pct.toFixed(1)}%</span>
+                        <span className="text-xs font-bold text-foreground tabular-nums">{pct.toFixed(1)}%</span>
                         <StatusBadge variant={rarity.variant} size="sm">{rarity.label}</StatusBadge>
                       </div>
                     </div>
-                    <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+                    <div className="h-2 bg-muted rounded-full overflow-hidden">
                       <div
                         className="h-full rounded-full transition-all duration-300"
                         style={{ width: `${Math.max(pct, 1)}%`, backgroundColor: p.color }}
@@ -670,14 +675,14 @@ export default function PrizesPage() {
                   {stockLimit !== null ? (
                     <div>
                       <div className="flex items-center justify-between mb-1">
-                        <span className="text-xs text-muted-foreground">Stock</span>
-                        <span className="text-xs text-muted-foreground tabular-nums">{stockUsed}/{stockLimit} used</span>
+                        <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Stock</span>
+                        <span className="text-xs text-muted-foreground tabular-nums font-medium">{stockUsed}/{stockLimit} used</span>
                       </div>
-                      <div className="h-1 bg-muted rounded-full overflow-hidden">
+                      <div className="h-1.5 bg-muted rounded-full overflow-hidden">
                         <div
-                          className={clsx(
+                          className={cn(
                             'h-full rounded-full transition-all duration-300',
-                            stockPct > 90 ? 'bg-destructive' : stockPct > 70 ? 'bg-warning' : 'bg-emerald-500'
+                            stockPct > 90 ? 'bg-destructive' : stockPct > 70 ? 'bg-warning' : 'bg-emerald-500',
                           )}
                           style={{ width: `${Math.min(stockPct, 100)}%` }}
                         />
@@ -685,23 +690,23 @@ export default function PrizesPage() {
                     </div>
                   ) : (
                     <div className="flex items-center justify-between">
-                      <span className="text-xs text-muted-foreground">Stock</span>
+                      <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Stock</span>
                       <span className="text-xs text-muted-foreground">Unlimited</span>
                     </div>
                   )}
 
                   {/* Actions */}
-                  <div className="flex items-center gap-1.5 pt-2 border-t border-border">
+                  <div className="flex items-center gap-1.5 pt-3 border-t border-border/50">
                     <button
                       onClick={() => openEdit(p)}
-                      className="flex-1 inline-flex items-center justify-center gap-1.5 px-2.5 py-1.5 text-xs font-medium rounded-md border border-border bg-background text-foreground hover:bg-muted transition-colors"
+                      className="flex-1 inline-flex items-center justify-center gap-1.5 px-2.5 py-2 text-xs font-medium rounded-xl border border-border bg-background text-foreground hover:bg-muted transition-colors"
                     >
                       <Pencil className="w-3 h-3" />
                       Edit
                     </button>
                     <button
                       onClick={() => setDeleteTarget(p)}
-                      className="inline-flex items-center justify-center p-1.5 rounded-md border border-border text-muted-foreground hover:text-destructive hover:border-destructive/30 transition-colors"
+                      className="inline-flex items-center justify-center p-2 rounded-xl border border-border text-muted-foreground hover:text-destructive hover:border-destructive/30 transition-colors"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>

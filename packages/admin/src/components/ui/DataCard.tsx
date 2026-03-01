@@ -1,4 +1,4 @@
-import { clsx } from 'clsx'
+import { cn } from '@/lib/utils'
 
 interface DataCardProps {
   children: React.ReactNode
@@ -18,13 +18,14 @@ const paddingMap = {
 export default function DataCard({ children, className, onClick, selected, padding = 'md' }: DataCardProps) {
   return (
     <div
-      className={clsx(
-        'rounded-xl border bg-card text-card-foreground transition-all',
+      className={cn(
+        'rounded-xl border bg-card text-card-foreground transition-all duration-200',
         paddingMap[padding],
-        onClick && 'cursor-pointer hover:shadow-md hover:border-primary/30 active:scale-[0.99]',
-        selected && 'ring-2 ring-primary border-primary/50',
-        !selected && 'border-border shadow-sm',
-        className
+        onClick && 'cursor-pointer hover:shadow-card-hover hover:border-primary/20 active:scale-[0.99]',
+        selected
+          ? 'ring-2 ring-primary/50 border-primary/40 shadow-uzum'
+          : 'border-border shadow-card',
+        className,
       )}
       onClick={onClick}
     >
