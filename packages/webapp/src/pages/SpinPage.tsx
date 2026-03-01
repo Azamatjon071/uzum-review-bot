@@ -1,9 +1,9 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Zap, Trophy, ChevronDown, Shield } from 'lucide-react'
+import { Zap, Trophy, ChevronDown, Shield, AlertCircle } from 'lucide-react'
 import { t, prizeName } from '@/i18n'
-import { getSpinCommitments, commitSpin, executeSpin, getPrizeOdds, getMyRewards } from '@/api'
+import { getSpinCommitments, commitSpin, executeSpin, getPrizeOdds, getMyRewards, api } from '@/api'
 import PrizeWheel from '@/components/wheel/PrizeWheel'
 
 const PLACEHOLDER_SEGMENTS = [
@@ -189,6 +189,7 @@ export default function SpinPage() {
   const [showConfetti, setShowConfetti] = useState(false)
   const [copied, setCopied] = useState(false)
   const [streak, setStreak] = useState(0)
+  const [spinError, setSpinError] = useState<string | null>(null)
 
   // Streak: track from localStorage
   useEffect(() => {
@@ -196,9 +197,10 @@ export default function SpinPage() {
     setStreak(s)
   }, [])
 
-  const { data: commitmentsData } = useQuery({
+  const { data: commitmentsData, isError: commitmentsError } = useQuery({
     queryKey: ['spin-commitments'],
     queryFn: () => getSpinCommitments().then((r) => r.data),
+    retry: 1,
   })
 
   const { data: oddsData } = useQuery({
@@ -209,18 +211,38 @@ export default function SpinPage() {
   const { data: rewardsData } = useQuery({
     queryKey: ['rewards'],
     queryFn: () => getMyRewards().then((r) => r.data),
+    retry: 1,
+  })
+
+  // Check spin eligibility so we can show a meaningful message
+  const { data: eligibilityData } = useQuery({
+    queryKey: ['spin-eligibility'],
+    queryFn: () => api.get('/spins/eligibility').then((r) => r.data),
+    retry: 1,
   })
 
   const commitMut = useMutation({
     mutationFn: commitSpin,
     onSuccess: () => {
+      setSpinError(null)
       qc.invalidateQueries({ queryKey: ['spin-commitments'] })
+    },
+    onError: (err: any) => {
+      const detail = err?.response?.data?.detail ?? ''
+      if (detail.includes('no_eligible_submission') || detail.includes('eligible_submission')) {
+        setSpinError(t('spin_no_eligible_submission' as any) as string || 'Iltimos avval sharh yuboring va tasdiqlashni kuting.')
+      } else if (detail) {
+        setSpinError(detail)
+      } else {
+        setSpinError('Spin tayyorlashda xatolik yuz berdi.')
+      }
     },
   })
 
   const spinMut = useMutation({
     mutationFn: (commitment_id: string) => executeSpin(commitment_id),
     onSuccess: (res) => {
+      setSpinError(null)
       const spinResult = res.data
       const prizes: any[] = oddsData?.prizes ?? PLACEHOLDER_SEGMENTS
       const idx = prizes.findIndex((p: any) => p.id === spinResult.prize?.id)
@@ -228,6 +250,17 @@ export default function SpinPage() {
       setSpinning(true)
       setResult(spinResult)
       try { (window as any).Telegram?.WebApp?.HapticFeedback?.impactOccurred?.('heavy') } catch {}
+    },
+    onError: (err: any) => {
+      const detail = err?.response?.data?.detail ?? ''
+      if (detail.includes('expired') || detail.includes('not found')) {
+        setSpinError('Spin muddati tugadi. Qaytadan urinib ko\'ring.')
+        qc.invalidateQueries({ queryKey: ['spin-commitments'] })
+      } else if (detail) {
+        setSpinError(detail)
+      } else {
+        setSpinError('Spin bajarishda xatolik yuz berdi.')
+      }
     },
   })
 
@@ -241,6 +274,7 @@ export default function SpinPage() {
 
   function handleSpin() {
     if (spinning || pendingCommitments.length === 0) return
+    setSpinError(null)
     const commitment = activeCommitment ?? pendingCommitments[0]
     spinMut.mutate(commitment.id)
   }
@@ -387,6 +421,18 @@ export default function SpinPage() {
 
       {/* ── Spin button area ── */}
       <div className="mt-6 w-full max-w-xs relative z-10">
+        {/* Error banner */}
+        {spinError && (
+          <motion.div
+            initial={{ opacity: 0, y: -6 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="flex items-start gap-2 px-4 py-3 rounded-xl bg-destructive/10 border border-destructive/20 text-destructive text-xs mb-3"
+          >
+            <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+            <span>{spinError}</span>
+          </motion.div>
+        )}
+
         {hasSpins ? (
           <>
             {pendingCommitments.length > 1 && (
@@ -461,21 +507,30 @@ export default function SpinPage() {
                 🎡
               </div>
               <p className="font-semibold text-foreground/80 text-sm">{t('spin_no_spins')}</p>
-              <p className="text-xs mt-1.5 text-muted-foreground/50 leading-relaxed">{t('spin_no_spins_sub')}</p>
+              {eligibilityData?.eligible === false && eligibilityData?.reason === 'no_eligible_submission' ? (
+                <p className="text-xs mt-1.5 text-amber-500/80 leading-relaxed">
+                  Spin olish uchun bitta sharhingiz tasdiqlanishi kerak.
+                </p>
+              ) : (
+                <p className="text-xs mt-1.5 text-muted-foreground/50 leading-relaxed">{t('spin_no_spins_sub')}</p>
+              )}
             </motion.div>
-            <motion.button
-              whileTap={{ scale: 0.97 }}
-              onClick={() => commitMut.mutate()}
-              disabled={commitMut.isPending}
-              className="w-full py-3.5 rounded-2xl text-sm font-semibold text-foreground border border-primary/30 bg-primary/10 transition-all hover:bg-primary/15 disabled:opacity-50"
-            >
-              {commitMut.isPending ? (
-                <span className="flex items-center justify-center gap-2">
-                  <span className="w-4 h-4 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
-                  {t('spin_prepare')}
-                </span>
-              ) : t('spin_commit_btn')}
-            </motion.button>
+            {/* Only show commit button if user is eligible */}
+            {eligibilityData?.eligible !== false && (
+              <motion.button
+                whileTap={{ scale: 0.97 }}
+                onClick={() => { setSpinError(null); commitMut.mutate() }}
+                disabled={commitMut.isPending}
+                className="w-full py-3.5 rounded-2xl text-sm font-semibold text-foreground border border-primary/30 bg-primary/10 transition-all hover:bg-primary/15 disabled:opacity-50"
+              >
+                {commitMut.isPending ? (
+                  <span className="flex items-center justify-center gap-2">
+                    <span className="w-4 h-4 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
+                    {t('spin_prepare')}
+                  </span>
+                ) : t('spin_commit_btn')}
+              </motion.button>
+            )}
           </>
         )}
       </div>

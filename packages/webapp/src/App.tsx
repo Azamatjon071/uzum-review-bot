@@ -1,6 +1,9 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
+import { useEffect, useRef, useState } from 'react'
 import { useTelegramAuth } from '@/hooks/useTelegramAuth'
 import { useTheme } from '@/hooks/useTheme'
+import { useAuth } from '@/hooks/useAuth'
+import { authWithTelegramWidget } from '@/api'
 import BottomNav from '@/components/layout/BottomNav'
 import SpinPage from '@/pages/SpinPage'
 import WalletPage from '@/pages/WalletPage'
@@ -29,7 +32,50 @@ function AlertIcon() {
   )
 }
 
-function NotInTelegramScreen() {
+function NotInTelegramScreen({ onLogin }: { onLogin: () => void }) {
+  const widgetRef = useRef<HTMLDivElement>(null)
+  const [widgetError, setWidgetError] = useState(false)
+  const [loggingIn, setLoggingIn] = useState(false)
+  const [loginError, setLoginError] = useState<string | null>(null)
+  const setAuth = useAuth((s) => s.setAuth)
+
+  useEffect(() => {
+    // Expose callback for Telegram widget before injecting script
+    ;(window as any).onTelegramWidgetAuth = async (user: Record<string, string | number>) => {
+      setLoggingIn(true)
+      setLoginError(null)
+      try {
+        const res = await authWithTelegramWidget(user)
+        setAuth(res.data.access_token, res.data.user ?? {})
+        onLogin()
+      } catch {
+        setLoginError("Login amalga oshmadi. Qaytadan urinib ko'ring.")
+      } finally {
+        setLoggingIn(false)
+      }
+    }
+
+    if (!widgetRef.current) return
+
+    try {
+      const script = document.createElement('script')
+      script.src = 'https://telegram.org/js/telegram-widget.js?22'
+      script.async = true
+      script.setAttribute('data-telegram-login', BOT_USERNAME)
+      script.setAttribute('data-size', 'large')
+      script.setAttribute('data-onauth', 'onTelegramWidgetAuth(user)')
+      script.setAttribute('data-request-access', 'write')
+      script.onerror = () => setWidgetError(true)
+      widgetRef.current.appendChild(script)
+    } catch {
+      setWidgetError(true)
+    }
+
+    return () => {
+      delete (window as any).onTelegramWidgetAuth
+    }
+  }, [])
+
   return (
     <div className="flex flex-col items-center justify-center min-h-screen p-8 text-center uzum-gradient">
       {/* Logo mark */}
@@ -39,11 +85,36 @@ function NotInTelegramScreen() {
 
       {/* Brand name + subtitle */}
       <h1 className="text-3xl font-bold text-white mb-2 tracking-tight">UzumBot</h1>
-      <p className="text-white/75 text-sm leading-relaxed max-w-[260px] mb-10">
+      <p className="text-white/75 text-sm leading-relaxed max-w-[260px] mb-8">
         Uzum Market sharhlar uchun sovrinlar platformasi
       </p>
 
-      {/* Telegram CTA */}
+      {/* Telegram Login Widget */}
+      <div className="mb-4 min-h-[48px] flex items-center justify-center">
+        {loggingIn ? (
+          <div className="flex items-center gap-2 px-6 py-3 rounded-xl bg-white/20 text-white text-sm">
+            <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+            <span>Kirish...</span>
+          </div>
+        ) : (
+          <div ref={widgetRef} />
+        )}
+      </div>
+      {loginError && (
+        <p className="text-white/70 text-xs mb-3">{loginError}</p>
+      )}
+      {widgetError && (
+        <p className="text-white/60 text-xs mb-3">Widget yuklanmadi. Quyidagi tugmadan foydalaning.</p>
+      )}
+
+      {/* Divider */}
+      <div className="flex items-center gap-3 w-full max-w-[220px] mb-4">
+        <div className="flex-1 h-px bg-white/20" />
+        <span className="text-white/40 text-xs">yoki</span>
+        <div className="flex-1 h-px bg-white/20" />
+      </div>
+
+      {/* Open in Telegram CTA */}
       <a
         href={`https://t.me/${BOT_USERNAME}`}
         target="_blank"
@@ -56,7 +127,7 @@ function NotInTelegramScreen() {
       </a>
 
       <p className="text-white/35 text-xs mt-8">
-        Bu ilova faqat Telegram ichida ishlaydi
+        Kirish uchun Telegram akkauntingiz kerak
       </p>
     </div>
   )
@@ -91,9 +162,9 @@ function LoadingScreen() {
 
 function AppShell() {
   useTheme()
-  const { ready, error, notInTelegram } = useTelegramAuth()
+  const { ready, error, notInTelegram, forceReady } = useTelegramAuth()
 
-  if (notInTelegram) return <NotInTelegramScreen />
+  if (notInTelegram) return <NotInTelegramScreen onLogin={forceReady} />
   if (error) return <ErrorScreen message={error} />
   if (!ready) return <LoadingScreen />
 
