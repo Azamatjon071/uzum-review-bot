@@ -95,9 +95,6 @@ class FraudService:
         new_score_delta = sum(SIGNAL_SCORES.get(s.signal_type, 10) for s in signals)
         composite = min(existing_score + new_score_delta, 100)
 
-        # Update user.fraud_score
-        user.fraud_score = composite  # type: ignore[assignment]
-
         if signals:
             await self.db.commit()
             log.info(
@@ -271,9 +268,6 @@ class FraudService:
         user_result = await self.db.execute(select(User).where(User.id == user_id))
         user = user_result.scalar_one_or_none()
         if user:
-            user.fraud_score = score  # type: ignore[assignment]
-            await self.db.commit()
-
             if score >= AUTO_BAN_THRESHOLD and not user.is_banned:
                 user.is_banned = True
                 user.ban_reason = f"Auto-banned: fraud score {score}/100"
