@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import builtins
 import uuid
 from datetime import datetime, date, timedelta, timezone
 from typing import Optional
@@ -321,7 +322,7 @@ async def analytics_heatmap(
     rows = (await db.execute(q)).all()
 
     # Build 7×24 grid (ISO: Mon=1..Sun=7 → we shift to 0=Mon)
-    grid = [[0] * 24 for _ in range(7)]
+    grid = [[0] * 24 for _ in builtins.range(7)]
     for row in rows:
         dow = int(row.dow)  # 0=Sun..6=Sat (postgres extract)
         # Convert postgres Sunday=0 → ISO Monday=0

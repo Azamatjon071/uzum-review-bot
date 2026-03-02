@@ -163,7 +163,7 @@ async def create_submission(
 
     # Anti-fraud check — runs after all images are attached
     fraud_svc = FraudService(db)
-    await fraud_svc.check_submission(submission, user)
+    await fraud_svc.check_submission(user, submission.order_number, uploaded_hashes)
     await db.commit()
 
     return {

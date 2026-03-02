@@ -32,23 +32,12 @@ async def get_fraud_stats(
     _admin: AdminUser = Depends(get_current_admin),
 ):
     """Return aggregate fraud statistics."""
-    pending = await db.scalar(
-        select(func.count(FraudSignal.id)).where(
-            and_(FraudSignal.is_false_positive == False)
-        )
-    )
     auto_banned = await db.scalar(
-        select(func.count(User.id)).where(
-            and_(User.is_banned == True, User.fraud_score >= 80)
-        )
+        select(func.count(User.id)).where(User.is_banned == True)
     )
     false_positives = await db.scalar(
         select(func.count(FraudSignal.id)).where(FraudSignal.is_false_positive == True)
     )
-    avg_score_r = await db.execute(
-        select(func.avg(User.fraud_score)).where(User.fraud_score > 0)
-    )
-    avg_score = avg_score_r.scalar() or 0.0
 
     return {
         "pending_review": await db.scalar(
@@ -61,7 +50,7 @@ async def get_fraud_stats(
         ) or 0,
         "auto_banned": auto_banned or 0,
         "false_positives": false_positives or 0,
-        "avg_score": round(float(avg_score), 1),
+        "avg_score": 0.0,
     }
 
 
