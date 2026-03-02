@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Zap, Trophy, ChevronDown, Shield, AlertCircle } from 'lucide-react'
 import { t, prizeName } from '@/i18n'
-import { getSpinCommitments, commitSpin, executeSpin, getPrizeOdds, getMyRewards, api } from '@/api'
+import { getSpinCommitments, commitSpin, executeSpin, getPrizeOdds, getMyRewards, getMe, api } from '@/api'
 import PrizeWheel from '@/components/wheel/PrizeWheel'
 
 const PLACEHOLDER_SEGMENTS = [
@@ -214,6 +214,12 @@ export default function SpinPage() {
     retry: 1,
   })
 
+  const { data: meData } = useQuery({
+    queryKey: ['me'],
+    queryFn: () => getMe().then((r) => r.data),
+    retry: 1,
+  })
+
   // Check spin eligibility so we can show a meaningful message
   const { data: eligibilityData } = useQuery({
     queryKey: ['spin-eligibility'],
@@ -272,6 +278,25 @@ export default function SpinPage() {
 
   const recentWins = (rewardsData?.rewards ?? []).slice(0, 3)
 
+  // The user's actual spin_count from /me (may differ from pending commitments)
+  const meUser = meData?.user ?? meData ?? null
+  const userSpinCount: number = meUser?.spin_count ?? 0
+
+  // Auto-commit: if user has eligible spins (spin_count > 0) but no pending commitments,
+  // automatically trigger a commit so they can spin right away
+  useEffect(() => {
+    if (
+      userSpinCount > 0 &&
+      pendingCommitments.length === 0 &&
+      !commitMut.isPending &&
+      !commitMut.isError &&
+      eligibilityData?.eligible !== false
+    ) {
+      commitMut.mutate()
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userSpinCount, pendingCommitments.length, eligibilityData?.eligible])
+
   function handleSpin() {
     if (spinning || pendingCommitments.length === 0) return
     setSpinError(null)
@@ -283,6 +308,7 @@ export default function SpinPage() {
     setSpinning(false)
     qc.invalidateQueries({ queryKey: ['spin-commitments'] })
     qc.invalidateQueries({ queryKey: ['rewards'] })
+    qc.invalidateQueries({ queryKey: ['me'] })
     if (result?.prize) {
       setShowConfetti(true)
       setTimeout(() => setShowConfetti(false), 3500)
@@ -310,7 +336,7 @@ export default function SpinPage() {
     setTimeout(() => setCopied(false), 2000)
   }
 
-  const hasSpins = pendingCommitments.length > 0
+  const hasSpins = pendingCommitments.length > 0 || (userSpinCount > 0 && commitMut.isPending)
 
   return (
     <div className="flex flex-col items-center pb-24 pt-4 px-4 min-h-screen relative overflow-hidden bg-background">
@@ -379,7 +405,7 @@ export default function SpinPage() {
           <div>
             <p className="text-[10px] font-medium uppercase tracking-wide text-primary/60">{t('spin_available')}</p>
             <p className="text-2xl font-bold text-foreground leading-none mt-0.5">
-              <AnimatedNumber value={pendingCommitments.length} />
+              <AnimatedNumber value={userSpinCount} />
             </p>
           </div>
         </div>
@@ -504,10 +530,18 @@ export default function SpinPage() {
               className="text-center py-8 px-6 rounded-2xl bg-card/50 border border-border mb-4"
             >
               <div className="w-14 h-14 rounded-2xl flex items-center justify-center text-3xl mx-auto mb-3 bg-muted/50">
-                🎡
+                {commitMut.isPending ? (
+                  <span className="w-8 h-8 border-2 border-primary/30 border-t-primary rounded-full animate-spin inline-block" />
+                ) : '🎡'}
               </div>
-              <p className="font-semibold text-foreground/80 text-sm">{t('spin_no_spins')}</p>
-              {eligibilityData?.eligible === false && eligibilityData?.reason === 'no_eligible_submission' ? (
+              <p className="font-semibold text-foreground/80 text-sm">
+                {commitMut.isPending ? t('spin_prepare') : t('spin_no_spins')}
+              </p>
+              {commitMut.isPending ? (
+                <p className="text-xs mt-1.5 text-primary/70 leading-relaxed">
+                  {t('spin_preparing_sub' as any) as string || 'Spin tayyorlanmoqda…'}
+                </p>
+              ) : eligibilityData?.eligible === false && eligibilityData?.reason === 'no_eligible_submission' ? (
                 <p className="text-xs mt-1.5 text-amber-500/80 leading-relaxed">
                   Spin olish uchun bitta sharhingiz tasdiqlanishi kerak.
                 </p>
@@ -515,20 +549,15 @@ export default function SpinPage() {
                 <p className="text-xs mt-1.5 text-muted-foreground/50 leading-relaxed">{t('spin_no_spins_sub')}</p>
               )}
             </motion.div>
-            {/* Only show commit button if user is eligible */}
-            {eligibilityData?.eligible !== false && (
+            {/* Only show manual commit button if user is eligible and auto-commit isn't running */}
+            {eligibilityData?.eligible !== false && !commitMut.isPending && (
               <motion.button
                 whileTap={{ scale: 0.97 }}
                 onClick={() => { setSpinError(null); commitMut.mutate() }}
                 disabled={commitMut.isPending}
                 className="w-full py-3.5 rounded-2xl text-sm font-semibold text-foreground border border-primary/30 bg-primary/10 transition-all hover:bg-primary/15 disabled:opacity-50"
               >
-                {commitMut.isPending ? (
-                  <span className="flex items-center justify-center gap-2">
-                    <span className="w-4 h-4 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
-                    {t('spin_prepare')}
-                  </span>
-                ) : t('spin_commit_btn')}
+                {t('spin_commit_btn')}
               </motion.button>
             )}
           </>

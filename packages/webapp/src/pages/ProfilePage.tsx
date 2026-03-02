@@ -143,7 +143,7 @@ export default function ProfilePage() {
 
   const user = meData?.user ?? meData ?? null
   const referral = referralData ?? null
-  const spinHistory: any[] = historyData?.history ?? historyData?.spins ?? []
+  const spinHistory: any[] = historyData?.items ?? historyData?.history ?? historyData?.spins ?? []
 
   const displayName = user?.first_name
     ? [user.first_name, user.last_name].filter(Boolean).join(' ')
@@ -404,11 +404,11 @@ export default function ProfilePage() {
             {visibleHistory.map((spin: any, i: number) => {
               const prizeType = spin.prize?.prize_type ?? spin.prize_type ?? 'no_prize'
               const color = PRIZE_TYPE_COLORS[prizeType] ?? PRIZE_TYPE_COLORS.no_prize
-              const name = spin.prize ? prizeName(spin.prize) : '—'
+              const name = spin.prize_name ?? (spin.prize ? prizeName(spin.prize) : '—')
               const date = spin.created_at ? formatDistanceToNow(parseISO(spin.created_at), { addSuffix: true }) : ''
               return (
                 <motion.div
-                  key={spin.id ?? i}
+                  key={spin.spin_id ?? spin.id ?? i}
                   initial={{ opacity: 0, x: -8 }}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: i * 0.04 }}

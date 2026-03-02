@@ -141,10 +141,33 @@ function ReviewCard({ s, i }: { s: any; i: number }) {
                 </div>
               )}
 
-              {/* Photo count */}
-              {s.photo_count != null && s.photo_count > 0 && (
+              {/* Photo thumbnails */}
+              {s.image_urls && s.image_urls.length > 0 && (
+                <div className="flex gap-2 flex-wrap mt-1">
+                  {s.image_urls.map((url: string, idx: number) => (
+                    <a
+                      key={idx}
+                      href={url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="block rounded-lg overflow-hidden border border-border/40 shrink-0"
+                      style={{ width: 72, height: 72 }}
+                    >
+                      <img
+                        src={url}
+                        alt={`Review photo ${idx + 1}`}
+                        className="w-full h-full object-cover"
+                        loading="lazy"
+                      />
+                    </a>
+                  ))}
+                </div>
+              )}
+
+              {/* Photo count fallback if no URLs */}
+              {(!s.image_urls || s.image_urls.length === 0) && (s.image_count ?? s.photo_count ?? 0) > 0 && (
                 <p className="text-xs text-muted-foreground/50">
-                  📷 {s.photo_count} photo{s.photo_count !== 1 ? 's' : ''}
+                  📷 {s.image_count ?? s.photo_count} photo{(s.image_count ?? s.photo_count) !== 1 ? 's' : ''}
                 </p>
               )}
             </div>

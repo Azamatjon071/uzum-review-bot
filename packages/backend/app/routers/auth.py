@@ -152,6 +152,8 @@ async def auth_telegram(
         user.first_name = tg_user.get("first_name", user.first_name)
         user.last_name = tg_user.get("last_name")
 
+    await db.commit()
+    await db.refresh(user)
     access = create_user_access_token(str(user.id))
     refresh = create_user_refresh_token(str(user.id))
     return TokenResponse(access_token=access, refresh_token=refresh)
@@ -217,6 +219,8 @@ async def auth_telegram_login_widget(
         user.first_name = payload.first_name or user.first_name
         user.last_name = payload.last_name
 
+    await db.commit()
+    await db.refresh(user)
     access = create_user_access_token(str(user.id))
     refresh = create_user_refresh_token(str(user.id))
     return TokenResponse(access_token=access, refresh_token=refresh)
