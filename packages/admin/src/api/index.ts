@@ -153,6 +153,7 @@ export const getAuditLogs = (params?: Record<string, unknown>) =>
 // ── Admin users ───────────────────────────────────────────────────────────────
 export const getAdmins = () => api.get('/admin/admins')
 export const createAdmin = (data: unknown) => api.post('/admin/admins', data)
+export const updateAdmin = (id: string, data: unknown) => api.patch(`/admin/admins/${id}`, data)
 export const deleteAdmin = (id: string) => api.delete(`/admin/admins/${id}`)
 export const getRoles = () => api.get('/admin/admins/roles')
 export const createRole = (data: unknown) => api.post('/admin/admins/roles', data)

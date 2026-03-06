@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
 import { Eye, EyeOff, Loader2, Lock, Mail, Shield, Zap, ArrowLeft } from 'lucide-react'
-import { adminLogin, adminVerify2FA } from '@/api'
+import { adminLogin, adminVerify2FA, adminInitForcedSetup, adminConfirmForcedSetup } from '@/api'
 import { useAuth } from '@/hooks/useAuth'
 import { cn } from '@/lib/utils'
 
@@ -10,7 +10,8 @@ export default function LoginPage() {
   const navigate = useNavigate()
   const setToken = useAuth((s) => s.setToken)
 
-  const [step, setStep] = useState<'login' | 'totp'>('login')
+  const [step, setStep] = useState<'login' | 'totp' | 'setup'>('login')
+  const [qrData, setQrData] = useState<{ secret: string; uri: string } | null>(null)
   const [tempToken, setTempToken] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -26,7 +27,17 @@ export default function LoginPage() {
     setLoading(true)
     try {
       const res = await adminLogin(email, password)
-      if (res.data.requires_2fa) {
+      if (res.data.requires_2fa_setup) {
+        setTempToken(res.data.temp_token)
+        // Fetch QR code immediately
+        try {
+          const setupRes = await adminInitForcedSetup(res.data.temp_token)
+          setQrData({ secret: setupRes.data.secret, uri: setupRes.data.qr_data_uri })
+          setStep('setup')
+        } catch {
+          toast.error('Failed to initiate 2FA setup')
+        }
+      } else if (res.data.requires_2fa) {
         setTempToken(res.data.temp_token)
         setStep('totp')
       } else {
@@ -52,6 +63,23 @@ export default function LoginPage() {
     } catch {
       setError('Invalid verification code. Please try again.')
       toast.error('Invalid 2FA code')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  async function handleSetup(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault()
+    setError('')
+    setLoading(true)
+    try {
+      const res = await adminConfirmForcedSetup(tempToken, totpCode)
+      setToken(res.data.access_token)
+      toast.success('2FA enabled successfully')
+      navigate('/')
+    } catch {
+      setError('Invalid verification code. Please try again.')
+      toast.error('Invalid code')
     } finally {
       setLoading(false)
     }
@@ -154,7 +182,7 @@ export default function LoginPage() {
                 {/* Email field */}
                 <div className="space-y-1.5">
                   <label htmlFor="email" className="block text-sm font-medium text-foreground">
-                    Email address
+                    Email or Username
                   </label>
                   <div className="relative group">
                     <div className="absolute left-3.5 top-1/2 -translate-y-1/2 w-8 h-8 rounded-lg bg-muted/60 flex items-center justify-center transition-colors group-focus-within:bg-primary/10">
@@ -162,12 +190,12 @@ export default function LoginPage() {
                     </div>
                     <input
                       id="email"
-                      type="email"
+                      type="text"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       required
-                      autoComplete="email"
-                      placeholder="admin@example.com"
+                      autoComplete="username"
+                      placeholder="admin@a.com"
                       className="w-full rounded-xl border border-input bg-background pl-14 pr-4 py-3 text-sm text-foreground placeholder:text-muted-foreground/50 outline-none focus:ring-2 focus:ring-ring/30 focus:border-primary transition-all"
                     />
                   </div>
@@ -232,6 +260,86 @@ export default function LoginPage() {
                   Contact a superadmin if you need to reset your password or get access.
                 </p>
               </div>
+            </div>
+          ) : step === 'setup' ? (
+            <div className="animate-fade-in">
+              <button
+                onClick={() => {
+                  setStep('login')
+                  setError('')
+                  setTotpCode('')
+                }}
+                className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors mb-6 group"
+              >
+                <ArrowLeft size={14} className="transition-transform group-hover:-translate-x-0.5" />
+                Back to login
+              </button>
+
+              <div className="mb-6">
+                <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center mb-4">
+                  <ShieldCheck size={22} className="text-primary" />
+                </div>
+                <h2 className="text-2xl font-bold text-foreground tracking-tight">
+                  Set up 2FA
+                </h2>
+                <p className="text-muted-foreground text-sm mt-1.5">
+                  Scan the QR code with your authenticator app
+                </p>
+              </div>
+
+              {qrData && (
+                <div className="flex flex-col items-center justify-center mb-8 p-4 bg-white rounded-xl border border-border">
+                  <img src={qrData.uri} alt="QR Code" className="w-48 h-48" />
+                  <p className="mt-2 text-xs font-mono text-muted-foreground break-all text-center max-w-[200px]">
+                    {qrData.secret}
+                  </p>
+                </div>
+              )}
+
+              <form onSubmit={handleSetup} className="space-y-5">
+                <div className="space-y-1.5">
+                  <label htmlFor="setup-totp" className="block text-sm font-medium text-foreground">
+                    Verification code
+                  </label>
+                  <input
+                    id="setup-totp"
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    value={totpCode}
+                    onChange={(e) => setTotpCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                    required
+                    maxLength={6}
+                    autoFocus
+                    placeholder="000000"
+                    className="w-full rounded-xl border border-input bg-background px-4 py-4 text-center text-2xl font-mono tracking-[0.5em] text-foreground placeholder:text-muted-foreground/30 outline-none focus:ring-2 focus:ring-ring/30 focus:border-primary transition-all"
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={loading || totpCode.length < 6}
+                  className={cn(
+                    'w-full flex items-center justify-center gap-2 rounded-xl py-3 text-sm font-semibold transition-all',
+                    'uzum-gradient text-white shadow-lg shadow-primary/20',
+                    'hover:shadow-xl hover:shadow-primary/30 hover:brightness-110',
+                    'active:scale-[0.98]',
+                    'disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none',
+                  )}
+                >
+                  {loading ? (
+                    <>
+                      <Loader2 size={16} className="animate-spin" />
+                      Verifying...
+                    </>
+                  ) : (
+                    <>
+                      <ShieldCheck size={15} />
+                      Verify & Enable
+                    </>
+                  )}
+                </button>
+              </form>
             </div>
           ) : (
             <div className="animate-fade-in">

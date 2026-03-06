@@ -24,6 +24,8 @@ class UpdateAdmin(BaseModel):
     full_name: Optional[str] = None
     role_id: Optional[uuid.UUID] = None
     is_active: Optional[bool] = None
+    force_2fa_setup: Optional[bool] = None
+    password: Optional[str] = None  # Add password reset capability
 
 
 class CreateRoleRequest(BaseModel):
@@ -45,6 +47,7 @@ async def list_admins(
                 "full_name": a.full_name,
                 "role_id": str(a.role_id),
                 "is_totp_enabled": a.is_totp_enabled,
+                "force_2fa_setup": a.force_2fa_setup,
                 "is_active": a.is_active,
                 "last_login_at": a.last_login_at.isoformat() if a.last_login_at else None,
                 "last_login_ip": a.last_login_ip,
@@ -96,7 +99,10 @@ async def update_admin(
         raise HTTPException(status_code=404, detail="Admin not found")
 
     for k, v in payload.model_dump(exclude_unset=True).items():
-        setattr(target, k, v)
+        if k == 'password':
+            target.password_hash = hash_password(v)
+        else:
+            setattr(target, k, v)
 
     audit = AuditService(db)
     await audit.log("update_admin", "admin_user", str(admin_id), admin_id=admin.id,

@@ -39,7 +39,10 @@ def _onboarding_product_keyboard(products: list[dict], lang: str) -> InlineKeybo
             or p.get("name_uz") or p.get("name_ru") or p.get("name_en") or "?"
         )
         label = name[:48] + "…" if len(name) > 48 else name
-        builder.button(text=label, callback_data=f"onboard:prod:{p['id']}:{name[:40]}")
+        # Truncate name in callback_data to avoid BUTTON_DATA_INVALID (max 64 bytes)
+        # uuid is 36 chars, "onboard:prod:" is 13. leaves ~15 bytes.
+        safe_name = name[:5] 
+        builder.button(text=label, callback_data=f"onboard:prod:{p['id']}:{safe_name}")
     builder.adjust(1)
     return builder.as_markup()
 

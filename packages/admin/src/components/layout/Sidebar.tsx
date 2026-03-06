@@ -175,9 +175,9 @@ function SidebarContent({
       >
         {!collapsed ? (
           <div className="flex items-center gap-3 min-w-0 w-full">
-            <div className="relative w-9 h-9 shrink-0">
+            <div className="relative w-9 h-9 shrink-0 group">
               <div
-                className="w-9 h-9 rounded-xl flex items-center justify-center shadow-lg shadow-black/25"
+                className="w-9 h-9 rounded-xl flex items-center justify-center shadow-lg shadow-black/25 transition-all duration-300 group-hover:scale-110 group-hover:rotate-3 group-hover:shadow-orange-500/20"
                 style={{ background: 'linear-gradient(135deg, #FF6B35, #ff9a5c)' }}
               >
                 <span className="text-white font-black text-lg leading-none select-none">U</span>

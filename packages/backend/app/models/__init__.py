@@ -58,6 +58,7 @@ class NotificationType(str, enum.Enum):
 
 class AchievementRarity(str, enum.Enum):
     COMMON = "common"
+    UNCOMMON = "uncommon"
     RARE = "rare"
     EPIC = "epic"
     LEGENDARY = "legendary"
@@ -316,6 +317,7 @@ class AdminUser(Base):
     role_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("admin_roles.id"), nullable=False)
     totp_secret: Mapped[Optional[str]] = mapped_column(String(64))
     is_totp_enabled: Mapped[bool] = mapped_column(Boolean, default=False)
+    force_2fa_setup: Mapped[bool] = mapped_column(Boolean, default=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     last_login_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
     last_login_ip: Mapped[Optional[str]] = mapped_column(String(45))

@@ -124,11 +124,33 @@ function ErrorScreen({ message }: { message: string }) {
 
 function LoadingScreen() {
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen gap-4 bg-background">
-      <div className="w-12 h-12 rounded-full border-[3px] border-primary/20 border-t-primary animate-spin" />
-      <div className="flex flex-col items-center gap-1">
-        <span className="text-sm font-semibold text-foreground">UzumBot</span>
-        <span className="text-xs text-muted-foreground">{t('loading')}</span>
+    <div className="flex flex-col items-center justify-center min-h-screen gap-6 bg-background relative overflow-hidden">
+      {/* Background ambient glow */}
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[300px] h-[300px] bg-primary/10 rounded-full blur-[100px] animate-pulse" />
+      
+      <div className="relative z-10 flex flex-col items-center gap-4">
+        {/* Animated Logo Container */}
+        <div className="w-20 h-20 rounded-3xl bg-card border border-border/50 shadow-2xl shadow-primary/20 flex items-center justify-center relative overflow-hidden group">
+          <div className="absolute inset-0 bg-gradient-to-tr from-primary/10 to-transparent opacity-50" />
+          <div className="w-10 h-10 rounded-xl bg-primary animate-spin-slow flex items-center justify-center">
+            <div className="w-4 h-4 rounded-full bg-white animate-ping" />
+          </div>
+        </div>
+
+        {/* Text */}
+        <div className="flex flex-col items-center gap-1.5 animate-fade-in">
+          <span className="text-lg font-bold bg-gradient-to-r from-primary to-purple-600 bg-clip-text text-transparent">
+            UzumBot
+          </span>
+          <span className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase">
+            {t('loading')}...
+          </span>
+        </div>
+      </div>
+      
+      {/* Bottom indicator */}
+      <div className="absolute bottom-12 w-32 h-1 bg-muted rounded-full overflow-hidden">
+        <div className="h-full bg-primary/50 w-1/3 animate-slide-indeterminate rounded-full" />
       </div>
     </div>
   )

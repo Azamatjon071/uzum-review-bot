@@ -282,9 +282,9 @@ async def admin_login(
     )
 
     # ── Mandatory TOTP enforcement ────────────────────────────────────────────
-    # If the platform requires TOTP and this admin hasn't set it up yet,
+    # If the platform requires TOTP OR admin has forced setup flag, and this admin hasn't set it up yet,
     # return a special flag so the frontend redirects to the 2FA setup wizard.
-    if _settings.ADMIN_TOTP_REQUIRED and not admin.is_totp_enabled:
+    if (_settings.ADMIN_TOTP_REQUIRED or admin.force_2fa_setup) and not admin.is_totp_enabled:
         temp_token = create_admin_token(str(admin.id), "pending_2fa_setup", {"pending_2fa_setup": True})
         return {"requires_2fa_setup": True, "temp_token": temp_token}
 

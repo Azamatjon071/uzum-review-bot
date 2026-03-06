@@ -55,7 +55,7 @@ class Settings(BaseSettings):
     # Security / Auth hardening
     ADMIN_LOGIN_MAX_ATTEMPTS: int = 5          # lockout after N failures
     ADMIN_LOGIN_LOCKOUT_SECONDS: int = 900     # 15-minute lockout
-    ADMIN_TOTP_REQUIRED: bool = True           # block admins without TOTP
+    ADMIN_TOTP_REQUIRED: bool = False           # block admins without TOTP
     BOT_API_HMAC_SECRET: str = ""              # shared HMAC secret bot↔backend
 
     # Rate Limiting

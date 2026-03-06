@@ -280,6 +280,7 @@ services:
           memory: 32M
     networks:
       - uzumbot
+      - edums_network
 
   prometheus:
     image: prom/prometheus:latest
@@ -342,3 +343,6 @@ volumes:
 networks:
   uzumbot:
     driver: bridge
+  edums_network:
+    external: true
+    name: edums_edums-network

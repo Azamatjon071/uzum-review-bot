@@ -3,10 +3,10 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { formatDistanceToNow } from 'date-fns'
 import {
-  UserPlus, Trash2, Shield, ShieldCheck, ShieldOff, X, Loader2,
+  UserPlus, Trash2, Pencil, Shield, ShieldCheck, ShieldOff, X, Loader2,
   Eye, EyeOff, AlertTriangle, Mail, KeyRound, UserCircle2,
 } from 'lucide-react'
-import { getAdmins, createAdmin, deleteAdmin, getRoles } from '@/api'
+import { getAdmins, createAdmin, updateAdmin, deleteAdmin, getRoles } from '@/api'
 import { useViewPreferences, densityClasses } from '@/hooks/useViewPreferences'
 import { cn } from '@/lib/utils'
 import PageHeader from '@/components/ui/PageHeader'
@@ -32,6 +32,7 @@ interface Admin {
   role?: Role
   is_active: boolean
   is_totp_enabled: boolean
+  force_2fa_setup?: boolean
   is_superadmin?: boolean
   last_login_at?: string
   created_at: string
@@ -282,6 +283,151 @@ function AddAdminDrawer({ open, onClose, roles, onSubmit, isPending }: AddAdminD
   )
 }
 
+/* ── Edit Admin Drawer ──────────────────────────────────────────────────── */
+
+interface EditAdminDrawerProps {
+  admin: Admin | null
+  open: boolean
+  onClose: () => void
+  roles: Role[]
+  onSubmit: (id: string, data: any) => void
+  isPending: boolean
+}
+
+function EditAdminDrawer({ admin, open, onClose, roles, onSubmit, isPending }: EditAdminDrawerProps) {
+  const [showPassword, setShowPassword] = useState(false)
+
+  if (!open || !admin) return null
+
+  function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault()
+    const fd = new FormData(e.currentTarget)
+    const data: any = {
+      full_name: (fd.get('full_name') as string).trim(),
+      role_id: fd.get('role_id') ? Number(fd.get('role_id')) : null,
+      force_2fa_setup: fd.get('force_2fa_setup') === 'on',
+    }
+    const pwd = (fd.get('password') as string).trim()
+    if (pwd) data.password = pwd
+
+    onSubmit(admin!.id, data)
+  }
+
+  return (
+    <>
+      <div className="fixed inset-0 z-40 bg-black/20 backdrop-blur-[1px]" onClick={onClose} />
+      <aside className="fixed inset-y-0 right-0 z-50 w-full max-w-md bg-background border-l border-border shadow-2xl animate-slide-in-right">
+        <div className="flex flex-col h-full">
+          {/* Header */}
+          <div className="flex items-center justify-between px-6 py-4 border-b border-border">
+            <div>
+              <h2 className="text-lg font-semibold text-foreground">Edit Administrator</h2>
+              <p className="text-sm text-muted-foreground">Modify account details</p>
+            </div>
+            <button onClick={onClose} className="p-2 -mr-2 text-muted-foreground hover:text-foreground rounded-full hover:bg-muted transition-colors">
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+
+          {/* Form */}
+          <form id="edit-admin-form" onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-6 space-y-6">
+            {/* Full Name */}
+            <div>
+              <label htmlFor="ea-fullname" className={LABEL_CLS}>Full Name</label>
+              <div className="relative">
+                <UserCircle2 className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+                <input
+                  id="ea-fullname"
+                  name="full_name"
+                  type="text"
+                  defaultValue={admin.full_name}
+                  autoComplete="off"
+                  placeholder="Jane Doe"
+                  className={cn(INPUT_CLS, 'pl-10')}
+                />
+              </div>
+            </div>
+
+            {/* Password */}
+            <div>
+              <label htmlFor="ea-password" className={LABEL_CLS}>New Password (Optional)</label>
+              <div className="relative">
+                <KeyRound className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+                <input
+                  id="ea-password"
+                  name="password"
+                  type={showPassword ? 'text' : 'password'}
+                  autoComplete="new-password"
+                  placeholder="Leave blank to keep current"
+                  className={cn(INPUT_CLS, 'pl-10 pr-11')}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((v) => !v)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 p-0.5 text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
+            </div>
+
+            {/* Role */}
+            <div>
+              <label htmlFor="ea-role" className={LABEL_CLS}>Role Assignment</label>
+              <select id="ea-role" name="role_id" defaultValue={admin.role_id || ''} className={INPUT_CLS}>
+                <option value="">No role assigned</option>
+                {roles.map((r) => (
+                  <option key={r.id} value={r.id}>{r.name}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Force 2FA */}
+            <div className="flex items-center gap-3 p-3 rounded-xl border border-border bg-muted/30">
+              <ShieldCheck className="w-5 h-5 text-primary" />
+              <div className="flex-1">
+                <label htmlFor="ea-force-2fa" className="text-sm font-medium text-foreground cursor-pointer">
+                  Force 2FA on Next Login
+                </label>
+                <p className="text-[11px] text-muted-foreground">
+                  User will be required to set up 2FA immediately.
+                </p>
+              </div>
+              <input
+                id="ea-force-2fa"
+                name="force_2fa_setup"
+                type="checkbox"
+                defaultChecked={admin.force_2fa_setup}
+                className="w-4 h-4 rounded border-input text-primary focus:ring-primary/30"
+              />
+            </div>
+          </form>
+
+          {/* Footer */}
+          <div className="flex items-center justify-end gap-2.5 px-6 py-4 border-t border-border bg-muted/20">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-2 text-sm font-medium rounded-xl border border-border bg-background text-foreground hover:bg-muted transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              form="edit-admin-form"
+              disabled={isPending}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 text-sm font-semibold rounded-xl uzum-gradient text-white shadow-sm hover:opacity-90 transition-opacity disabled:opacity-60"
+            >
+              {isPending && <Loader2 className="w-4 h-4 animate-spin" />}
+              {isPending ? 'Saving...' : 'Save Changes'}
+            </button>
+          </div>
+        </div>
+      </aside>
+    </>
+  )
+}
+
 /* ── Delete Confirm Dialog ──────────────────────────────────────────────── */
 
 interface ConfirmDialogProps {
@@ -373,6 +519,7 @@ export default function AdminsPage() {
   const dc = densityClasses[density]
 
   const [drawerOpen, setDrawerOpen] = useState(false)
+  const [editTarget, setEditTarget] = useState<Admin | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<Admin | null>(null)
 
   /* ── Queries ── */
@@ -398,6 +545,17 @@ export default function AdminsPage() {
     },
     onError: (err: any) =>
       toast.error(err?.response?.data?.detail ?? 'Failed to create administrator'),
+  })
+
+  const updateMut = useMutation({
+    mutationFn: ({ id, data }: { id: string; data: any }) => updateAdmin(id, data),
+    onSuccess: () => {
+      toast.success('Administrator updated successfully')
+      setEditTarget(null)
+      qc.invalidateQueries({ queryKey: ['admins'] })
+    },
+    onError: (err: any) =>
+      toast.error(err?.response?.data?.detail ?? 'Failed to update administrator'),
   })
 
   const deleteMut = useMutation({
@@ -505,14 +663,22 @@ export default function AdminsPage() {
                   {/* Actions */}
                   <td className={cn(dc.padding)}>
                     {!a.is_superadmin && (
-                      <button
-                        onClick={() => setDeleteTarget(a)}
-                        className="rounded-lg p-1.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors opacity-0 group-hover:opacity-100"
-                        title="Remove administrator"
-                        aria-label={`Remove ${a.email}`}
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
+                      <div className="flex items-center justify-end gap-1">
+                        <button
+                          onClick={() => setEditTarget(a)}
+                          className="rounded-lg p-1.5 text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors opacity-0 group-hover:opacity-100"
+                          title="Edit administrator"
+                        >
+                          <Pencil className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => setDeleteTarget(a)}
+                          className="rounded-lg p-1.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors opacity-0 group-hover:opacity-100"
+                          title="Remove administrator"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
                     )}
                   </td>
                 </tr>
@@ -576,14 +742,22 @@ export default function AdminsPage() {
                 Last login: <span className="text-foreground/70">{relativeLogin(a)}</span>
               </p>
               {!a.is_superadmin && (
-                <button
-                  onClick={() => setDeleteTarget(a)}
-                  className="rounded-lg p-1.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors opacity-0 group-hover:opacity-100"
-                  title="Remove administrator"
-                  aria-label={`Remove ${a.email}`}
-                >
-                  <Trash2 className="w-3.5 h-3.5" />
-                </button>
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => setEditTarget(a)}
+                    className="rounded-lg p-1.5 text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors opacity-0 group-hover:opacity-100"
+                    title="Edit administrator"
+                  >
+                    <Pencil className="w-3.5 h-3.5" />
+                  </button>
+                  <button
+                    onClick={() => setDeleteTarget(a)}
+                    className="rounded-lg p-1.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors opacity-0 group-hover:opacity-100"
+                    title="Remove administrator"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                </div>
               )}
             </div>
           </DataCard>
@@ -648,6 +822,15 @@ export default function AdminsPage() {
         roles={roles}
         onSubmit={(data) => createMut.mutate(data)}
         isPending={createMut.isPending}
+      />
+
+      <EditAdminDrawer
+        admin={editTarget}
+        open={!!editTarget}
+        onClose={() => setEditTarget(null)}
+        roles={roles}
+        onSubmit={(id, data) => updateMut.mutate({ id, data })}
+        isPending={updateMut.isPending}
       />
 
       <ConfirmDialog

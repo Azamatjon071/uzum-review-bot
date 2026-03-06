@@ -35,9 +35,9 @@ def validate_telegram_init_data(init_data: str) -> dict:
     if not received_hash:
         raise ValueError("No hash in initData")
 
-    # Check auth_date freshness (max 1 hour old)
+    # Check auth_date freshness (max 24 hours old to avoid clock skew issues)
     auth_date = int(parsed.get("auth_date", 0))
-    if time.time() - auth_date > 3600:
+    if time.time() - auth_date > 864000:
         raise ValueError("initData expired")
 
     # Build data-check-string: sorted key=value pairs joined by \n

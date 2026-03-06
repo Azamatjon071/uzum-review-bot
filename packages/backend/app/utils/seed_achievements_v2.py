@@ -1,27 +1,12 @@
-"""
-Seed script: insert all 25 achievement definitions into the database.
-
-Run once after migration 0003:
-    python -m app.utils.seed_achievements
-
-Or from the backend container:
-    docker compose exec backend python -m app.utils.seed_achievements
-"""
-from __future__ import annotations
-
 import asyncio
+import uuid
 from typing import Any
 
-from sqlalchemy import select
+from sqlalchemy import select, text
 from app.database import AsyncSessionLocal
-from app.models import Achievement, AchievementRarity
-
-# ── Achievement definitions ───────────────────────────────────────────────────
-# Fields: key, name_uz, name_ru, name_en, description, icon_emoji, rarity,
-#         target_value, xp_reward
+from app.models import Achievement
 
 ACHIEVEMENTS: list[dict[str, Any]] = [
-    # ── Streaks ───────────────────────────────────────────────────────────────
     {
         "key": "streak_3",
         "name_uz": "3 kunlik seriya",
@@ -29,7 +14,7 @@ ACHIEVEMENTS: list[dict[str, Any]] = [
         "name_en": "3-Day Streak",
         "description": "Submit reviews 3 days in a row",
         "icon_emoji": "🔥",
-        "rarity": AchievementRarity.COMMON,
+        "rarity": "common",
         "target_value": 3,
         "xp_reward": 30,
     },
@@ -40,7 +25,7 @@ ACHIEVEMENTS: list[dict[str, Any]] = [
         "name_en": "Week Streak",
         "description": "Submit reviews 7 days in a row",
         "icon_emoji": "🔥",
-        "rarity": AchievementRarity.COMMON,
+        "rarity": "common",
         "target_value": 7,
         "xp_reward": 70,
     },
@@ -51,7 +36,7 @@ ACHIEVEMENTS: list[dict[str, Any]] = [
         "name_en": "Month Streak",
         "description": "Submit reviews 30 days in a row",
         "icon_emoji": "🔥",
-        "rarity": AchievementRarity.RARE,
+        "rarity": "rare",
         "target_value": 30,
         "xp_reward": 300,
     },
@@ -62,11 +47,10 @@ ACHIEVEMENTS: list[dict[str, Any]] = [
         "name_en": "100-Day Streak",
         "description": "Submit reviews 100 days in a row",
         "icon_emoji": "💯",
-        "rarity": AchievementRarity.LEGENDARY,
+        "rarity": "legendary",
         "target_value": 100,
         "xp_reward": 1000,
     },
-    # ── Submissions ───────────────────────────────────────────────────────────
     {
         "key": "first_submission",
         "name_uz": "Birinchi sharh",
@@ -74,7 +58,7 @@ ACHIEVEMENTS: list[dict[str, Any]] = [
         "name_en": "First Review",
         "description": "Submit your very first review",
         "icon_emoji": "🌟",
-        "rarity": AchievementRarity.COMMON,
+        "rarity": "common",
         "target_value": 1,
         "xp_reward": 50,
     },
@@ -85,7 +69,7 @@ ACHIEVEMENTS: list[dict[str, Any]] = [
         "name_en": "10 Reviews",
         "description": "Get 10 reviews approved",
         "icon_emoji": "📝",
-        "rarity": AchievementRarity.COMMON,
+        "rarity": "common",
         "target_value": 10,
         "xp_reward": 100,
     },
@@ -96,7 +80,7 @@ ACHIEVEMENTS: list[dict[str, Any]] = [
         "name_en": "50 Reviews",
         "description": "Get 50 reviews approved",
         "icon_emoji": "📚",
-        "rarity": AchievementRarity.UNCOMMON,
+        "rarity": "uncommon",
         "target_value": 50,
         "xp_reward": 250,
     },
@@ -107,7 +91,7 @@ ACHIEVEMENTS: list[dict[str, Any]] = [
         "name_en": "100 Reviews",
         "description": "Get 100 reviews approved",
         "icon_emoji": "🏆",
-        "rarity": AchievementRarity.RARE,
+        "rarity": "rare",
         "target_value": 100,
         "xp_reward": 500,
     },
@@ -118,11 +102,10 @@ ACHIEVEMENTS: list[dict[str, Any]] = [
         "name_en": "500 Reviews",
         "description": "Get 500 reviews approved",
         "icon_emoji": "👑",
-        "rarity": AchievementRarity.LEGENDARY,
+        "rarity": "legendary",
         "target_value": 500,
         "xp_reward": 2000,
     },
-    # ── Referrals ─────────────────────────────────────────────────────────────
     {
         "key": "referral_1",
         "name_uz": "Birinchi taklif",
@@ -130,7 +113,7 @@ ACHIEVEMENTS: list[dict[str, Any]] = [
         "name_en": "First Referral",
         "description": "Refer your first friend",
         "icon_emoji": "🤝",
-        "rarity": AchievementRarity.COMMON,
+        "rarity": "common",
         "target_value": 1,
         "xp_reward": 50,
     },
@@ -141,7 +124,7 @@ ACHIEVEMENTS: list[dict[str, Any]] = [
         "name_en": "5 Referrals",
         "description": "Refer 5 friends",
         "icon_emoji": "👥",
-        "rarity": AchievementRarity.UNCOMMON,
+        "rarity": "uncommon",
         "target_value": 5,
         "xp_reward": 150,
     },
@@ -152,7 +135,7 @@ ACHIEVEMENTS: list[dict[str, Any]] = [
         "name_en": "10 Referrals",
         "description": "Refer 10 friends",
         "icon_emoji": "🌐",
-        "rarity": AchievementRarity.RARE,
+        "rarity": "rare",
         "target_value": 10,
         "xp_reward": 300,
     },
@@ -163,11 +146,10 @@ ACHIEVEMENTS: list[dict[str, Any]] = [
         "name_en": "25 Referrals",
         "description": "Refer 25 friends",
         "icon_emoji": "🚀",
-        "rarity": AchievementRarity.EPIC,
+        "rarity": "epic",
         "target_value": 25,
         "xp_reward": 750,
     },
-    # ── Spins ─────────────────────────────────────────────────────────────────
     {
         "key": "spin_10",
         "name_uz": "10 ta aylanish",
@@ -175,7 +157,7 @@ ACHIEVEMENTS: list[dict[str, Any]] = [
         "name_en": "10 Spins",
         "description": "Spin the wheel 10 times",
         "icon_emoji": "🎡",
-        "rarity": AchievementRarity.COMMON,
+        "rarity": "common",
         "target_value": 10,
         "xp_reward": 50,
     },
@@ -186,11 +168,10 @@ ACHIEVEMENTS: list[dict[str, Any]] = [
         "name_en": "100 Spins",
         "description": "Spin the wheel 100 times",
         "icon_emoji": "🎰",
-        "rarity": AchievementRarity.RARE,
+        "rarity": "rare",
         "target_value": 100,
         "xp_reward": 500,
     },
-    # ── Levels ────────────────────────────────────────────────────────────────
     {
         "key": "level_5",
         "name_uz": "5-daraja",
@@ -198,7 +179,7 @@ ACHIEVEMENTS: list[dict[str, Any]] = [
         "name_en": "Level 5",
         "description": "Reach level 5",
         "icon_emoji": "⭐",
-        "rarity": AchievementRarity.COMMON,
+        "rarity": "common",
         "target_value": 5,
         "xp_reward": 0,
     },
@@ -209,7 +190,7 @@ ACHIEVEMENTS: list[dict[str, Any]] = [
         "name_en": "Level 25",
         "description": "Reach level 25",
         "icon_emoji": "🌠",
-        "rarity": AchievementRarity.UNCOMMON,
+        "rarity": "uncommon",
         "target_value": 25,
         "xp_reward": 0,
     },
@@ -220,7 +201,7 @@ ACHIEVEMENTS: list[dict[str, Any]] = [
         "name_en": "Level 50",
         "description": "Reach level 50",
         "icon_emoji": "💎",
-        "rarity": AchievementRarity.EPIC,
+        "rarity": "epic",
         "target_value": 50,
         "xp_reward": 0,
     },
@@ -231,11 +212,10 @@ ACHIEVEMENTS: list[dict[str, Any]] = [
         "name_en": "Level 100",
         "description": "Reach the maximum level",
         "icon_emoji": "👑",
-        "rarity": AchievementRarity.LEGENDARY,
+        "rarity": "legendary",
         "target_value": 100,
         "xp_reward": 0,
     },
-    # ── Bonus / misc ──────────────────────────────────────────────────────────
     {
         "key": "early_adopter",
         "name_uz": "Dastlabki foydalanuvchi",
@@ -243,7 +223,7 @@ ACHIEVEMENTS: list[dict[str, Any]] = [
         "name_en": "Early Adopter",
         "description": "One of the first 1000 users on the platform",
         "icon_emoji": "🏅",
-        "rarity": AchievementRarity.RARE,
+        "rarity": "rare",
         "target_value": 1000,
         "xp_reward": 200,
     },
@@ -254,7 +234,7 @@ ACHIEVEMENTS: list[dict[str, Any]] = [
         "name_en": "Night Owl",
         "description": "Submit a review between midnight and 4 AM",
         "icon_emoji": "🦉",
-        "rarity": AchievementRarity.UNCOMMON,
+        "rarity": "uncommon",
         "target_value": 1,
         "xp_reward": 30,
     },
@@ -265,7 +245,7 @@ ACHIEVEMENTS: list[dict[str, Any]] = [
         "name_en": "Lucky Winner",
         "description": "Win a prize from the wheel",
         "icon_emoji": "🍀",
-        "rarity": AchievementRarity.COMMON,
+        "rarity": "common",
         "target_value": 1,
         "xp_reward": 50,
     },
@@ -276,7 +256,7 @@ ACHIEVEMENTS: list[dict[str, Any]] = [
         "name_en": "Charity Donor",
         "description": "Make your first charity donation",
         "icon_emoji": "💝",
-        "rarity": AchievementRarity.UNCOMMON,
+        "rarity": "uncommon",
         "target_value": 1,
         "xp_reward": 75,
     },
@@ -287,7 +267,7 @@ ACHIEVEMENTS: list[dict[str, Any]] = [
         "name_en": "Perfect Week",
         "description": "Complete all 7 daily missions in a single week",
         "icon_emoji": "✨",
-        "rarity": AchievementRarity.EPIC,
+        "rarity": "epic",
         "target_value": 7,
         "xp_reward": 500,
     },
@@ -298,19 +278,31 @@ ACHIEVEMENTS: list[dict[str, Any]] = [
         "name_en": "Top Reviewer",
         "description": "Reach #1 on the weekly leaderboard",
         "icon_emoji": "🥇",
-        "rarity": AchievementRarity.EPIC,
+        "rarity": "epic",
         "target_value": 1,
         "xp_reward": 500,
     },
 ]
 
-
 async def seed() -> None:
-    print(f"DEBUG: AchievementRarity.COMMON.value = {AchievementRarity.COMMON.value}")
-    print(f"DEBUG: Type of AchievementRarity.COMMON = {type(AchievementRarity.COMMON)}")
     async with AsyncSessionLocal() as session:
         inserted = 0
         skipped = 0
+        
+        insert_stmt = text("""
+            INSERT INTO achievements (
+                id, key, name_uz, name_ru, name_en, 
+                description_uz, description_ru, description_en, 
+                icon_emoji, rarity, target_value, xp_reward, 
+                spin_bonus, is_active, created_at
+            ) VALUES (
+                :id, :key, :name_uz, :name_ru, :name_en, 
+                :description, :description, :description, 
+                :icon_emoji, :rarity, :target_value, :xp_reward, 
+                0, true, now()
+            )
+        """)
+
         for data in ACHIEVEMENTS:
             existing = await session.scalar(
                 select(Achievement).where(Achievement.key == data["key"])
@@ -318,25 +310,25 @@ async def seed() -> None:
             if existing:
                 skipped += 1
                 continue
-            ach = Achievement(
-                key=data["key"],
-                name_uz=data["name_uz"],
-                name_ru=data["name_ru"],
-                name_en=data["name_en"],
-                description_uz=data["description"],
-                description_ru=data["description"],
-                description_en=data["description"],
-                icon_emoji=data["icon_emoji"],
-                rarity=str(data["rarity"].value if hasattr(data["rarity"], "value") else data["rarity"]).lower(),
-                target_value=data["target_value"],
-                xp_reward=data["xp_reward"],
-            )
-            session.add(ach)
+            
+            params = {
+                "id": uuid.uuid4(),
+                "key": data["key"],
+                "name_uz": data["name_uz"],
+                "name_ru": data["name_ru"],
+                "name_en": data["name_en"],
+                "description": data["description"],
+                "icon_emoji": data["icon_emoji"],
+                "rarity": data["rarity"],
+                "target_value": data["target_value"],
+                "xp_reward": data["xp_reward"],
+            }
+            
+            await session.execute(insert_stmt, params)
             inserted += 1
 
         await session.commit()
         print(f"Achievements seeded: {inserted} inserted, {skipped} already existed.")
-
 
 if __name__ == "__main__":
     asyncio.run(seed())

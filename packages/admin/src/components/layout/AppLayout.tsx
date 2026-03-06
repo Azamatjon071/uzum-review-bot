@@ -14,23 +14,7 @@ import {
 import ThemeToggle from '@/components/ui/ThemeToggle'
 import { cn } from '@/lib/utils'
 
-/* ── Command palette items ── */
-const COMMAND_ITEMS = [
-  { path: '/', label: 'Dashboard', icon: LayoutDashboard, section: 'Overview' },
-  { path: '/submissions', label: 'Submissions', icon: FileCheck, section: 'Content' },
-  { path: '/products', label: 'Products', icon: Package, section: 'Content' },
-  { path: '/prizes', label: 'Prizes', icon: Trophy, section: 'Commerce' },
-  { path: '/reports', label: 'Rewards', icon: Gift, section: 'Commerce' },
-  { path: '/users', label: 'Users', icon: Users, section: 'Community' },
-  { path: '/charity', label: 'Charity', icon: Heart, section: 'Community' },
-  { path: '/broadcast', label: 'Broadcast', icon: Megaphone, section: 'Community' },
-  { path: '/analytics', label: 'Analytics', icon: TrendingUp, section: 'Analytics' },
-  { path: '/admins', label: 'Admins', icon: ShieldCheck, section: 'System' },
-  { path: '/settings', label: 'Settings', icon: Settings, section: 'System' },
-  { path: '/audit', label: 'Audit Log', icon: ScrollText, section: 'System' },
-  { path: '/fraud', label: 'Fraud Signals', icon: ShieldAlert, section: 'System' },
-]
-
+/* ── Main Layout ── */
 const ROUTE_LABELS: Record<string, string> = {
   '/': 'Dashboard',
   '/submissions': 'Submissions',
@@ -47,136 +31,7 @@ const ROUTE_LABELS: Record<string, string> = {
   '/fraud': 'Fraud Signals',
 }
 
-/* ── Command Palette ── */
-function CommandPalette({ onClose }: { onClose: () => void }) {
-  const [query, setQuery] = useState('')
-  const navigate = useNavigate()
-  const location = useLocation()
-  const [selectedIndex, setSelectedIndex] = useState(0)
-
-  const filtered = COMMAND_ITEMS.filter((item) =>
-    item.label.toLowerCase().includes(query.toLowerCase()),
-  )
-
-  useEffect(() => {
-    setSelectedIndex(0)
-  }, [query])
-
-  function handleSelect(path: string) {
-    navigate(path)
-    onClose()
-  }
-
-  // Group by section
-  const sections = filtered.reduce<Record<string, typeof COMMAND_ITEMS>>((acc, item) => {
-    const key = item.section
-    if (!acc[key]) acc[key] = []
-    acc[key].push(item)
-    return acc
-  }, {})
-
-  let globalIndex = -1
-
-  return (
-    <>
-      {/* Backdrop */}
-      <div
-        className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[80] animate-fade-in"
-        onClick={onClose}
-      />
-      {/* Panel */}
-      <div className="fixed inset-0 z-[90] flex items-start justify-center pt-[18vh] p-4 pointer-events-none">
-        <div className="bg-popover text-popover-foreground border border-border rounded-2xl shadow-2xl shadow-black/20 w-full max-w-lg pointer-events-auto animate-scale-in overflow-hidden">
-          {/* Search header */}
-          <div className="flex items-center gap-3 px-5 py-4 border-b border-border">
-            <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-              <Search size={15} className="text-primary" />
-            </div>
-            <input
-              autoFocus
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Where would you like to go?"
-              className="flex-1 text-sm bg-transparent placeholder:text-muted-foreground/60 outline-none"
-              onKeyDown={(e) => {
-                if (e.key === 'Escape') onClose()
-                if (e.key === 'ArrowDown') {
-                  e.preventDefault()
-                  setSelectedIndex((i) => Math.min(i + 1, filtered.length - 1))
-                }
-                if (e.key === 'ArrowUp') {
-                  e.preventDefault()
-                  setSelectedIndex((i) => Math.max(i - 1, 0))
-                }
-                if (e.key === 'Enter' && filtered.length > 0) {
-                  handleSelect(filtered[selectedIndex].path)
-                }
-              }}
-            />
-            <kbd className="text-[10px] font-mono text-muted-foreground/60 bg-muted border border-border rounded-md px-1.5 py-0.5">
-              ESC
-            </kbd>
-          </div>
-
-          {/* Results grouped by section */}
-          <div className="max-h-80 overflow-y-auto py-2">
-            {filtered.length === 0 ? (
-              <div className="flex flex-col items-center py-10 gap-2">
-                <Search size={20} className="text-muted-foreground/40" />
-                <p className="text-sm text-muted-foreground">No matching pages</p>
-              </div>
-            ) : (
-              Object.entries(sections).map(([sectionName, items]) => (
-                <div key={sectionName}>
-                  <p className="text-[10px] font-semibold text-muted-foreground/50 uppercase tracking-[0.08em] px-5 pt-3 pb-1.5">
-                    {sectionName}
-                  </p>
-                  {items.map((item) => {
-                    globalIndex++
-                    const idx = globalIndex
-                    const Icon = item.icon
-                    const isCurrent = location.pathname === item.path
-                    return (
-                      <button
-                        key={item.path}
-                        onClick={() => handleSelect(item.path)}
-                        className={cn(
-                          'w-full flex items-center gap-3 px-5 py-2.5 text-left transition-all',
-                          idx === selectedIndex
-                            ? 'bg-primary/10 text-foreground'
-                            : 'text-foreground/80 hover:bg-accent',
-                        )}
-                      >
-                        <div className={cn(
-                          'w-7 h-7 rounded-lg flex items-center justify-center shrink-0 transition-colors',
-                          idx === selectedIndex ? 'bg-primary/15 text-primary' : 'bg-muted text-muted-foreground',
-                        )}>
-                          <Icon size={14} />
-                        </div>
-                        <span className="text-sm font-medium flex-1">{item.label}</span>
-                        {isCurrent && (
-                          <span className="text-[10px] font-medium text-primary bg-primary/10 rounded-full px-2 py-0.5">
-                            Current
-                          </span>
-                        )}
-                      </button>
-                    )
-                  })}
-                </div>
-              ))
-            )}
-          </div>
-
-          {/* Footer hint */}
-          <div className="flex items-center justify-between px-5 py-2.5 border-t border-border bg-muted/30 text-[10px] text-muted-foreground/50">
-            <span>Navigate with <kbd className="font-mono bg-muted border border-border rounded px-1 py-px mx-0.5">↑↓</kbd> keys</span>
-            <span><kbd className="font-mono bg-muted border border-border rounded px-1 py-px">Enter</kbd> to select</span>
-          </div>
-        </div>
-      </div>
-    </>
-  )
-}
+import { CommandPalette } from './CommandPalette'
 
 /* ── Main Layout ── */
 export default function AppLayout() {
@@ -433,7 +288,7 @@ export default function AppLayout() {
       </div>
 
       {/* Command palette */}
-      {showPalette && <CommandPalette onClose={() => setShowPalette(false)} />}
+      <CommandPalette open={showPalette} onOpenChange={setShowPalette} />
     </div>
   )
 }

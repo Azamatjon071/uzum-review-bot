@@ -123,7 +123,7 @@ def upgrade() -> None:
         sa.Column("user_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("users.id"), nullable=False, unique=True),
         sa.Column("total_xp", sa.Integer(), nullable=False, server_default="0"),
         sa.Column("current_level", sa.Integer(), nullable=False, server_default="1"),
-        sa.Column("xp_history", postgresql.JSONB(astext_type=sa.Text()), nullable=False, server_default="'[]'"),
+        sa.Column("xp_history", postgresql.JSONB(astext_type=sa.Text()), nullable=False, server_default=sa.text("'[]'")),
         sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.text("now()")),
     )
 
@@ -135,7 +135,7 @@ def upgrade() -> None:
             "submit_reviews", "refer_friends", "complete_profile",
             "spin_wheel", "charity_donation", name="missiontype", create_type=False
         ), nullable=False),
-        sa.Column("description_i18n", postgresql.JSONB(astext_type=sa.Text()), nullable=False, server_default="'{}'"),
+        sa.Column("description_i18n", postgresql.JSONB(astext_type=sa.Text()), nullable=False, server_default=sa.text("'{}'")),
         sa.Column("target", sa.Integer(), nullable=False, server_default="1"),
         sa.Column("reward_spins", sa.Integer(), nullable=False, server_default="1"),
         sa.Column("reward_xp", sa.Integer(), nullable=False, server_default="25"),
@@ -201,8 +201,8 @@ def upgrade() -> None:
             name="fraudsignaltype", create_type=False
         ), nullable=False),
         sa.Column("score", sa.Integer(), nullable=False, server_default="10"),
-        sa.Column("evidence", postgresql.JSONB(astext_type=sa.Text()), nullable=False, server_default="'{}'"),
-        sa.Column("detected_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), index=True),
+        sa.Column("evidence", postgresql.JSONB(astext_type=sa.Text()), nullable=False, server_default=sa.text("'{}'")),
+        sa.Column("detected_at", sa.DateTime(timezone=True), server_default=sa.text("now()")),
         sa.Column("reviewed_by", postgresql.UUID(as_uuid=True), sa.ForeignKey("admin_users.id"), nullable=True),
         sa.Column("reviewed_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column("is_false_positive", sa.Boolean(), nullable=False, server_default="false"),

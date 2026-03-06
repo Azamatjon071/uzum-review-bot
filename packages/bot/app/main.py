@@ -93,6 +93,13 @@ def main() -> None:
     if settings.ENVIRONMENT == "production" and settings.BOT_WEBHOOK_URL:
         # Webhook mode — run lightweight aiohttp server
         app = web.Application()
+        
+        # Health check endpoint
+        async def health_check(request):
+            return web.Response(text="OK")
+        
+        app.router.add_get("/health", health_check)
+
         handler = SimpleRequestHandler(dispatcher=dp, bot=bot, secret_token=settings.BOT_WEBHOOK_SECRET)
         handler.register(app, path=settings.BOT_WEBHOOK_PATH)
         setup_application(app, dp, bot=bot)

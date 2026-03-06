@@ -7,6 +7,11 @@
         }
     }
 
+    # ── Bot Webhook → bot ────────────────────────────────────────────────────
+    handle /api/v1/webhook/telegram {
+        reverse_proxy bot:8080
+    }
+
     # ── API → backend ────────────────────────────────────────────────────────
     handle /api/* {
         reverse_proxy backend:8000 {
@@ -44,4 +49,35 @@
         output stdout
         format console
     }
+}
+
+edu.n8nautomate.me {
+    # ── MinIO file proxy (rewrites /files/ to /edums-attachments/) ──────────
+    handle_path /files/* {
+        rewrite * /edums-attachments{path}
+        reverse_proxy edums-minio:9000
+    }
+
+    # ── API → backend (8091) ─────────────────────────────────────────────────
+    handle /api/* {
+        reverse_proxy edums-backend:8091
+    }
+    handle /swagger-ui* {
+        reverse_proxy edums-backend:8091
+    }
+    handle /v3/api-docs* {
+        reverse_proxy edums-backend:8091
+    }
+
+    # ── Telegram Webapp (80) ─────────────────────────────────────────────────
+    handle_path /webapp/* {
+        reverse_proxy edums-telegram-webapp:80
+    }
+
+    # ── Frontend (Next.js) ───────────────────────────────────────────────────
+    handle {
+        reverse_proxy edums-frontend:3000
+    }
+
+    encode gzip zstd
 }

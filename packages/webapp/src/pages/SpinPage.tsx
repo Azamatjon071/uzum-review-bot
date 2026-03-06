@@ -2,6 +2,8 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Zap, Trophy, ChevronDown, Shield, AlertCircle } from 'lucide-react'
+import { hapticFeedback } from '@telegram-apps/sdk-react'
+import confetti from 'canvas-confetti'
 import { t, prizeName } from '@/i18n'
 import { getSpinCommitments, commitSpin, executeSpin, getPrizeOdds, getMyRewards, getMe, api } from '@/api'
 import PrizeWheel from '@/components/wheel/PrizeWheel'
@@ -17,50 +19,9 @@ const PLACEHOLDER_SEGMENTS = [
 
 // ── Feature 1: Enhanced Confetti with Stars + Glitter ──
 function Confetti() {
-  const colors = ['#6c63ff', '#a78bfa', '#fbbf24', '#34d399', '#f472b6', '#60a5fa', '#FFD700', '#C0C0C0']
-  const shapes = ['circle', 'star', 'rect', 'diamond', 'sparkle'] as const
-  return (
-    <div className="fixed inset-0 pointer-events-none z-50 overflow-hidden">
-      {Array.from({ length: 60 }).map((_, i) => {
-        const shape = shapes[i % shapes.length]
-        const size = 4 + Math.random() * 8
-        const color = colors[i % colors.length]
-        const content = shape === 'star' ? '★' : shape === 'diamond' ? '◆' : shape === 'sparkle' ? '✨' : null
-        return (
-          <motion.div
-            key={i}
-            className="absolute flex items-center justify-center"
-            style={{
-              left: `${Math.random() * 100}%`,
-              top: '-14px',
-              width: size,
-              height: size,
-              ...(shape === 'circle'
-                ? { borderRadius: '50%', background: color }
-                : shape === 'rect'
-                  ? { borderRadius: '2px', background: color }
-                  : { fontSize: `${size}px`, lineHeight: 1, color }),
-            }}
-            animate={{
-              y: typeof window !== 'undefined' ? window.innerHeight + 20 : 800,
-              x: (Math.random() - 0.5) * 200,
-              rotate: Math.random() * 720,
-              opacity: [1, 1, 0],
-              scale: [1, 1.15, 0.8],
-            }}
-            transition={{
-              duration: 2 + Math.random() * 1.5,
-              delay: Math.random() * 0.8,
-              ease: 'easeIn',
-            }}
-          >
-            {content}
-          </motion.div>
-        )
-      })}
-    </div>
-  )
+  return null
 }
+
 
 // ── Feature 2: Rarity system ──
 type Rarity = 'common' | 'uncommon' | 'rare' | 'epic' | 'legendary'
@@ -255,7 +216,7 @@ export default function SpinPage() {
       setTargetIndex(idx >= 0 ? idx : 0)
       setSpinning(true)
       setResult(spinResult)
-      try { (window as any).Telegram?.WebApp?.HapticFeedback?.impactOccurred?.('heavy') } catch {}
+      try { if (hapticFeedback.isSupported()) hapticFeedback.impactOccurred('heavy') } catch {}
     },
     onError: (err: any) => {
       const detail = err?.response?.data?.detail ?? ''
@@ -311,6 +272,24 @@ export default function SpinPage() {
     qc.invalidateQueries({ queryKey: ['me'] })
     if (result?.prize) {
       setShowConfetti(true)
+      
+      // BOOM: Confetti explosion
+      const count = 200;
+      const defaults = { origin: { y: 0.7 } };
+      function fire(particleRatio: number, opts: any) {
+        confetti({ ...defaults, ...opts, particleCount: Math.floor(count * particleRatio) });
+      }
+      fire(0.25, { spread: 26, startVelocity: 55 });
+      fire(0.2, { spread: 60 });
+      fire(0.35, { spread: 100, decay: 0.91, scalar: 0.8 });
+      fire(0.1, { spread: 120, startVelocity: 25, decay: 0.92, scalar: 1.2 });
+      fire(0.1, { spread: 120, startVelocity: 45 });
+
+      // Haptic feedback
+      if (hapticFeedback.isSupported()) {
+        hapticFeedback.notificationOccurred('success')
+      }
+
       setTimeout(() => setShowConfetti(false), 3500)
       const today = new Date().toDateString()
       const lastSpinDate = localStorage.getItem('last_spin_date')

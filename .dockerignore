@@ -1,0 +1,9 @@
+packages/webapp/node_modules
+packages/webapp/dist
+packages/admin/node_modules
+packages/admin/dist
+packages/backend/__pycache__
+packages/bot/__pycache__
+.env
+.git
+.DS_Store
