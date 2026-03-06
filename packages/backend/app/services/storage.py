@@ -67,6 +67,9 @@ class StorageService:
         Replaces the internal minio:9000 hostname with the public-facing URL
         so browsers outside Docker can load images.
         """
+        if key.startswith("http://") or key.startswith("https://"):
+            return key
+
         url = self.s3.generate_presigned_url(
             "get_object",
             Params={"Bucket": self.bucket, "Key": key},

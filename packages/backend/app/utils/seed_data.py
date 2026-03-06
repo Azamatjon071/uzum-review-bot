@@ -6,7 +6,7 @@ from datetime import datetime, timedelta
 from sqlalchemy import select
 from app.database import AsyncSessionLocal
 from app.models import (
-    User, Product, Submission, SubmissionStatus, Prize, PrizeType,
+    User, Product, Submission, SubmissionStatus, SubmissionImage, Prize, PrizeType,
     Language, AchievementRarity
 )
 
@@ -15,16 +15,16 @@ from app.models import (
 # -----------------------------------------------------------------------------
 
 PRODUCT_NAMES = [
-    ("iPhone 15 Pro", "https://images.uzum.uz/iphone15.jpg"),
-    ("Samsung Galaxy S24", "https://images.uzum.uz/s24.jpg"),
-    ("MacBook Air M2", "https://images.uzum.uz/macbook.jpg"),
-    ("Sony WH-1000XM5", "https://images.uzum.uz/sony.jpg"),
-    ("Dyson Airwrap", "https://images.uzum.uz/dyson.jpg"),
-    ("PlayStation 5", "https://images.uzum.uz/ps5.jpg"),
-    ("AirPods Pro 2", "https://images.uzum.uz/airpods.jpg"),
-    ("Xiaomi Robot Vacuum", "https://images.uzum.uz/xiaomi.jpg"),
-    ("Nespresso Coffee Machine", "https://images.uzum.uz/nespresso.jpg"),
-    ("JBL Flip 6", "https://images.uzum.uz/jbl.jpg"),
+    ("iPhone 15 Pro", "https://images.unsplash.com/photo-1695048133142-1a20484d2569?q=80&w=600&auto=format&fit=crop"),
+    ("Samsung Galaxy S24", "https://images.unsplash.com/photo-1707227167623-1c32b53f65cc?q=80&w=600&auto=format&fit=crop"),
+    ("MacBook Air M2", "https://images.unsplash.com/photo-1662947036237-c1d0f5077427?q=80&w=600&auto=format&fit=crop"),
+    ("Sony WH-1000XM5", "https://images.unsplash.com/photo-1662650074697-3f3032890656?q=80&w=600&auto=format&fit=crop"),
+    ("Dyson Airwrap", "https://images.unsplash.com/photo-1628122368305-649065f4229a?q=80&w=600&auto=format&fit=crop"),
+    ("PlayStation 5", "https://images.unsplash.com/photo-1606144042614-b2417e99c4e3?q=80&w=600&auto=format&fit=crop"),
+    ("AirPods Pro 2", "https://images.unsplash.com/photo-1665487739556-912b7f0067c2?q=80&w=600&auto=format&fit=crop"),
+    ("Xiaomi Robot Vacuum", "https://images.unsplash.com/photo-1594917544078-43e493393f93?q=80&w=600&auto=format&fit=crop"),
+    ("Nespresso Coffee Machine", "https://images.unsplash.com/photo-1594266100147-3a1529d443db?q=80&w=600&auto=format&fit=crop"),
+    ("JBL Flip 6", "https://images.unsplash.com/photo-1631281895648-5c4794215707?q=80&w=600&auto=format&fit=crop"),
 ]
 
 PRIZES = [
@@ -55,6 +55,16 @@ REVIEWS = [
     "Works perfectly as described.",
     "Average quality.",
     "Absolutely love it!",
+]
+
+REVIEW_IMAGES = [
+    "https://images.unsplash.com/photo-1542291026-7eec264c27ff?q=80&w=600&auto=format&fit=crop",
+    "https://images.unsplash.com/photo-1511556820780-d912e42b4980?q=80&w=600&auto=format&fit=crop",
+    "https://images.unsplash.com/photo-1523275335684-37898b6baf30?q=80&w=600&auto=format&fit=crop",
+    "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?q=80&w=600&auto=format&fit=crop",
+    "https://images.unsplash.com/photo-1572635196237-14b3f281503f?q=80&w=600&auto=format&fit=crop",
+    "https://images.unsplash.com/photo-1526170375885-4d8ecf77b99f?q=80&w=600&auto=format&fit=crop",
+    "https://images.unsplash.com/photo-1581235720704-06d3acfcb36f?q=80&w=600&auto=format&fit=crop",
 ]
 
 # -----------------------------------------------------------------------------
@@ -155,6 +165,21 @@ async def seed_submissions(session, users, products):
                 created_at=datetime.utcnow() - timedelta(days=random.randint(0, 30))
             )
             session.add(sub)
+            await session.flush()  # Get ID
+
+            # Add 1-3 images for 80% of submissions
+            if random.random() < 0.8:
+                # Pick 1-3 unique images
+                sub_imgs = random.sample(REVIEW_IMAGES, k=random.randint(1, min(3, len(REVIEW_IMAGES))))
+                for img_url in sub_imgs:
+                    img = SubmissionImage(
+                        submission_id=sub.id,
+                        file_key=img_url,
+                        original_filename=f"photo_{random.randint(1,100)}.jpg",
+                        file_size=random.randint(500000, 2000000),
+                    )
+                    session.add(img)
+
             count += 1
             
             # Update user stats
