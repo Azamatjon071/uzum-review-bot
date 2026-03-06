@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
-import { Eye, EyeOff, Loader2, Lock, Mail, Shield, Zap, ArrowLeft } from 'lucide-react'
+import { Eye, EyeOff, Loader2, Lock, Mail, Shield, ShieldCheck, Zap, ArrowLeft } from 'lucide-react'
 import { adminLogin, adminVerify2FA, adminInitForcedSetup, adminConfirmForcedSetup } from '@/api'
 import { useAuth } from '@/hooks/useAuth'
 import { cn } from '@/lib/utils'

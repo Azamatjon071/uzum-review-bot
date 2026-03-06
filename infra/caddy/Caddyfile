@@ -2,19 +2,19 @@
     # ── MinIO file proxy (presigned URLs rewritten to /minio/*) ─────────────
     handle /minio/* {
         uri strip_prefix /minio
-        reverse_proxy minio:9000 {
+        reverse_proxy uzum-review-bot-minio-1:9000 {
             header_up Host minio:9000
         }
     }
 
     # ── Bot Webhook → bot ────────────────────────────────────────────────────
     handle /api/v1/webhook/telegram {
-        reverse_proxy bot:8080
+        reverse_proxy uzum-review-bot-bot-1:8080
     }
 
     # ── API → backend ────────────────────────────────────────────────────────
     handle /api/* {
-        reverse_proxy backend:8000 {
+        reverse_proxy uzum-review-bot-backend-1:8000 {
             header_up X-Real-IP {remote_host}
             header_up X-Forwarded-For {remote_host}
             header_up Host {host}
@@ -22,17 +22,17 @@
     }
 
     handle /metrics {
-        reverse_proxy backend:8000
+        reverse_proxy uzum-review-bot-backend-1:8000
     }
 
     # ── Telegram Mini App → webapp ───────────────────────────────────────────
     handle /app* {
-        reverse_proxy webapp:80
+        reverse_proxy uzum-review-bot-webapp-1:80
     }
 
     # ── Admin Panel → admin (everything else) ────────────────────────────────
     handle {
-        reverse_proxy admin:80
+        reverse_proxy uzum-review-bot-admin-1:80
     }
 
     # ── Security headers ─────────────────────────────────────────────────────
