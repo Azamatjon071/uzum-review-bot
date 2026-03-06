@@ -691,9 +691,19 @@ export default function SubmissionsPage() {
                               {images.length > 0 ? (
                                 <button
                                   onClick={() => setLightbox({ images, index: 0 })}
-                                  className="inline-flex items-center gap-1.5 text-xs font-semibold text-primary hover:text-primary/80 bg-primary/5 hover:bg-primary/10 px-2.5 py-1.5 rounded-lg transition-colors"
+                                  className="group relative w-12 h-12 rounded-lg bg-muted overflow-hidden border border-border hover:border-primary/50 transition-all shadow-sm"
+                                  title="View photos"
                                 >
-                                  <ImageIcon className="w-3 h-3" /> {images.length}
+                                  <img
+                                    src={images[0]}
+                                    alt=""
+                                    className="w-full h-full object-cover transition-transform group-hover:scale-110"
+                                  />
+                                  {images.length > 1 && (
+                                    <div className="absolute inset-0 bg-black/40 flex items-center justify-center backdrop-blur-[1px]">
+                                      <span className="text-[10px] font-bold text-white">+{images.length - 1}</span>
+                                    </div>
+                                  )}
                                 </button>
                               ) : (
                                 <span className="text-muted-foreground text-xs">—</span>
