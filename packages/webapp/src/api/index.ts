@@ -62,8 +62,6 @@ export const donateReward = (rewardId: string, campaignId?: string) =>
 export const getPublicCampaigns = () => api.get('/charity/campaigns')
 export const donateToCampaign = (campaign_id: string, amount: number) =>
   api.post('/charity/donate', { campaign_id, amount })
-/** @deprecated Use donateToCampaign instead */
-export const donateToCapmaign = donateToCampaign
 export const giveSadaqa = (amount: number) =>
   api.post('/charity/donate', { amount })
 export const getCharityLeaderboard = () => api.get('/charity/leaderboard')

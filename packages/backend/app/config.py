@@ -1,6 +1,7 @@
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from functools import lru_cache
 from typing import List, Optional
+from pydantic import model_validator
 
 
 class Settings(BaseSettings):
@@ -71,12 +72,30 @@ class Settings(BaseSettings):
     REFERRAL_BONUS_SPINS: int = 1             # spins granted to referrer per successful referral
 
     @property
+    def is_production(self) -> bool:
+        return self.ENVIRONMENT.lower() == "production"
+
+    @property
     def cors_origins_list(self) -> List[str]:
         return [o.strip() for o in self.CORS_ORIGINS.split(",")]
 
     @property
     def allowed_image_types_list(self) -> List[str]:
         return [t.strip() for t in self.ALLOWED_IMAGE_TYPES.split(",")]
+
+    @model_validator(mode="after")
+    def validate_production_security(self) -> "Settings":
+        if self.is_production:
+            if "changeme" in self.JWT_SECRET:
+                raise ValueError("JWT_SECRET must be changed in production")
+            if "changeme" in self.MINIO_SECRET_KEY:
+                raise ValueError("MINIO_SECRET_KEY must be changed in production")
+            if "localhost" in self.DATABASE_URL:
+                raise ValueError("DATABASE_URL should not be localhost in production")
+            if not self.BOT_API_HMAC_SECRET:
+                raise ValueError("BOT_API_HMAC_SECRET is required in production")
+        return self
+
 
 
 @lru_cache
