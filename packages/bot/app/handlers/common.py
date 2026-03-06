@@ -16,7 +16,7 @@ from app.config import get_settings
 from app.i18n import t
 from app.keyboards import main_menu, language_keyboard, open_webapp_keyboard, start_inline_keyboard
 from app.services.api import bot_register_user, get_user_info, get_products, update_user_language, APIError
-from app.states import OnboardingStates
+from app.states import OnboardingStates, SubmitStates
 
 router = Router(name="common")
 settings = get_settings()
@@ -71,10 +71,16 @@ async def cmd_start(message: Message, state: FSMContext, lang: str, bot: Bot):
 
     # Parse deep-link referral code: /start REFCODE
     referred_by_code: str | None = None
+    deep_link_product_id: str | None = None
+
     if message.text:
         parts = message.text.strip().split(maxsplit=1)
         if len(parts) == 2 and parts[1]:
-            referred_by_code = parts[1]
+            payload = parts[1]
+            if payload.startswith("review_") or payload.startswith("product_"):
+                deep_link_product_id = payload.split("_", 1)[1]
+            else:
+                referred_by_code = payload
 
     # Fetch profile photo lazily
     profile_photo_file_id = await _get_profile_photo_file_id(bot, tg_user.id)
@@ -110,6 +116,41 @@ async def cmd_start(message: Message, state: FSMContext, lang: str, bot: Bot):
                 pass  # non-critical; spin_count from register is still shown
     except APIError:
         pass  # Fall back to "new user" greeting on error
+
+    # ── Handle deep link for product review (skips onboarding/welcome) ──
+    if deep_link_product_id:
+        try:
+            # We fetch products to find the name
+            # Ideally we'd have get_product(id) but get_products(page_size=200) is okay for now
+            data = await get_products(search=None, page_size=200)
+            products = data.get("products", [])
+            product = next((p for p in products if str(p["id"]) == deep_link_product_id), None)
+            
+            if product:
+                name_display = (
+                    (lang == "ru" and product.get("name_ru")) and product["name_ru"]
+                    or (lang == "en" and product.get("name_en")) and product["name_en"]
+                    or product.get("name_uz") or product.get("name_ru") or product.get("name_en") or "?"
+                )
+                
+                await state.set_state(SubmitStates.waiting_for_order)
+                await state.update_data(product_id=deep_link_product_id, product_name=name_display, photos=[], order_number=None)
+                
+                skip_kb = InlineKeyboardBuilder()
+                skip_kb.button(text=t("submit.btn_skip", lang), callback_data="order:skip")
+                
+                await message.answer(
+                    t("submit.product_selected", lang, name=name_display),
+                    parse_mode="HTML",
+                )
+                await message.answer(
+                    t("submit.ask_order_number", lang),
+                    reply_markup=skip_kb.as_markup(),
+                    parse_mode="HTML",
+                )
+                return
+        except APIError:
+            pass
 
     if is_new:
         # ── NEW USER: trigger 5-step onboarding wizard ────────────────────

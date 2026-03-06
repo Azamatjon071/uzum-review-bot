@@ -2,9 +2,10 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Zap, Trophy, ChevronDown, Shield, AlertCircle } from 'lucide-react'
-import { hapticFeedback } from '@telegram-apps/sdk-react'
-import confetti from 'canvas-confetti'
 import { t, prizeName } from '@/i18n'
+import { useHapticFeedback } from '@/hooks/useHapticFeedback'
+import { useConfetti } from '@/hooks/useConfetti'
+import { PageTransition } from '@/components/ui/PageTransition'
 import { getSpinCommitments, commitSpin, executeSpin, getPrizeOdds, getMyRewards, getMe, api } from '@/api'
 import PrizeWheel from '@/components/wheel/PrizeWheel'
 
@@ -152,6 +153,9 @@ export default function SpinPage() {
   const [streak, setStreak] = useState(0)
   const [spinError, setSpinError] = useState<string | null>(null)
 
+  const { impactOccurred, notificationOccurred } = useHapticFeedback()
+  const { fireSuccess } = useConfetti()
+
   // Streak: track from localStorage
   useEffect(() => {
     const s = parseInt(localStorage.getItem('spin_streak') ?? '0', 10)
@@ -216,7 +220,7 @@ export default function SpinPage() {
       setTargetIndex(idx >= 0 ? idx : 0)
       setSpinning(true)
       setResult(spinResult)
-      try { if (hapticFeedback.isSupported()) hapticFeedback.impactOccurred('heavy') } catch {}
+      impactOccurred('heavy')
     },
     onError: (err: any) => {
       const detail = err?.response?.data?.detail ?? ''
@@ -271,26 +275,9 @@ export default function SpinPage() {
     qc.invalidateQueries({ queryKey: ['rewards'] })
     qc.invalidateQueries({ queryKey: ['me'] })
     if (result?.prize) {
-      setShowConfetti(true)
-      
-      // BOOM: Confetti explosion
-      const count = 200;
-      const defaults = { origin: { y: 0.7 } };
-      function fire(particleRatio: number, opts: any) {
-        confetti({ ...defaults, ...opts, particleCount: Math.floor(count * particleRatio) });
-      }
-      fire(0.25, { spread: 26, startVelocity: 55 });
-      fire(0.2, { spread: 60 });
-      fire(0.35, { spread: 100, decay: 0.91, scalar: 0.8 });
-      fire(0.1, { spread: 120, startVelocity: 25, decay: 0.92, scalar: 1.2 });
-      fire(0.1, { spread: 120, startVelocity: 45 });
+      fireSuccess()
+      notificationOccurred('success')
 
-      // Haptic feedback
-      if (hapticFeedback.isSupported()) {
-        hapticFeedback.notificationOccurred('success')
-      }
-
-      setTimeout(() => setShowConfetti(false), 3500)
       const today = new Date().toDateString()
       const lastSpinDate = localStorage.getItem('last_spin_date')
       const currentStreak = parseInt(localStorage.getItem('spin_streak') ?? '0', 10)
@@ -318,7 +305,7 @@ export default function SpinPage() {
   const hasSpins = pendingCommitments.length > 0 || (userSpinCount > 0 && commitMut.isPending)
 
   return (
-    <div className="flex flex-col items-center pb-24 pt-4 px-4 min-h-screen relative overflow-hidden bg-background">
+    <PageTransition className="flex flex-col items-center pb-24 pt-4 px-4 min-h-screen relative overflow-hidden bg-background">
       {/* Background ambient glows */}
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-96 h-96 rounded-full bg-primary/15 blur-[60px] pointer-events-none" />
       <div className="absolute bottom-1/3 right-0 w-56 h-56 rounded-full bg-purple-500/8 blur-[40px] pointer-events-none" />
@@ -780,6 +767,6 @@ export default function SpinPage() {
           </motion.div>
         )}
       </AnimatePresence>
-    </div>
+    </PageTransition>
   )
 }

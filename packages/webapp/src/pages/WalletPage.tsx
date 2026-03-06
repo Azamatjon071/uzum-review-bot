@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Gift, Banknote, Wallet, TrendingUp, CheckCircle, Clock, ChevronRight } from 'lucide-react'
 import { t, prizeName } from '@/i18n'
+import { PageTransition } from '@/components/ui/PageTransition'
 import { getMyRewards, donateReward, getPublicCampaigns } from '@/api'
 import { formatDistanceToNow, format, isPast } from 'date-fns'
 import { useViewPreferences } from '@/hooks/useViewPreferences'
@@ -243,7 +244,7 @@ export default function WalletPage() {
   }
 
   return (
-    <div className="px-4 pt-4 pb-28 min-h-screen bg-background">
+    <PageTransition className="px-4 pt-4 pb-28 min-h-screen bg-background">
       {/* Ambient glow */}
       <div className="fixed top-0 left-1/2 -translate-x-1/2 w-72 h-72 rounded-full pointer-events-none opacity-10 bg-primary/30 blur-[50px]" />
 
@@ -471,6 +472,6 @@ export default function WalletPage() {
           </motion.div>
         )}
       </AnimatePresence>
-    </div>
+    </PageTransition>
   )
 }

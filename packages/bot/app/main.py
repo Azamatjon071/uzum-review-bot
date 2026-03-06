@@ -16,7 +16,7 @@ from aiohttp import web
 
 from app.config import get_settings
 from app.middlewares import UserMiddleware
-from app.handlers import common, language, submit, status
+from app.handlers import common, language, submit, status, inline
 
 settings = get_settings()
 
@@ -41,6 +41,7 @@ def create_dispatcher() -> Dispatcher:
     dp.include_router(language.router)
     dp.include_router(submit.router)
     dp.include_router(status.router)
+    dp.include_router(inline.router)
 
     return dp
 
@@ -51,7 +52,7 @@ async def on_startup(bot: Bot) -> None:
         await bot.set_webhook(
             url=webhook_url,
             secret_token=settings.BOT_WEBHOOK_SECRET,
-            allowed_updates=["message", "callback_query"],
+            allowed_updates=["message", "callback_query", "inline_query"],
         )
         log.info("Webhook set", url=webhook_url)
     else:

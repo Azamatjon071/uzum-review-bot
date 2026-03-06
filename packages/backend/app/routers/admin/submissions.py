@@ -159,14 +159,18 @@ async def approve_submission(
     await db.commit()
 
     # Dispatch Telegram notification via Celery (after commit so data is persisted)
-    if user and user.telegram_id:
-        notify_submission_approved.delay(
-            telegram_id=user.telegram_id,
-            submission_id=str(submission_id),
-            lang=user.language.value if user.language else "uz",
-            spin_count=user.spin_count,
-            approved_total=user.approved_submissions,
-        )
+    try:
+        if user and user.telegram_id:
+            notify_submission_approved.delay(
+                telegram_id=user.telegram_id,
+                submission_id=str(submission_id),
+                lang=user.language.value if user.language else "uz",
+                spin_count=user.spin_count,
+                approved_total=user.approved_submissions,
+            )
+    except Exception as e:
+        # Log error but don't fail the request since the transaction is already committed
+        print(f"Failed to dispatch approval notification: {e}")
 
     return {"message": "Submission approved", "id": str(submission_id)}
 
@@ -323,25 +327,28 @@ async def bulk_action(
     await db.commit()
 
     # Send notifications
-    for item in notifications_data:
-        if not item["telegram_id"]:
-            continue
-            
-        if item["type"] == "approve":
-            notify_submission_approved.delay(
-                telegram_id=item["telegram_id"],
-                submission_id=item["submission_id"],
-                lang=item["lang"],
-                spin_count=item["spin_count"],
-                approved_total=item["approved_total"],
-            )
-        else:
-            notify_submission_rejected.delay(
-                telegram_id=item["telegram_id"],
-                submission_id=item["submission_id"],
-                reason=item["reason"],
-                lang=item["lang"],
-            )
+    try:
+        for item in notifications_data:
+            if not item["telegram_id"]:
+                continue
+                
+            if item["type"] == "approve":
+                notify_submission_approved.delay(
+                    telegram_id=item["telegram_id"],
+                    submission_id=item["submission_id"],
+                    lang=item["lang"],
+                    spin_count=item["spin_count"],
+                    approved_total=item["approved_total"],
+                )
+            else:
+                notify_submission_rejected.delay(
+                    telegram_id=item["telegram_id"],
+                    submission_id=item["submission_id"],
+                    reason=item["reason"],
+                    lang=item["lang"],
+                )
+    except Exception as e:
+        print(f"Failed to dispatch bulk notifications: {e}")
 
     return {"message": f"Bulk {payload.action} completed", "processed": processed_count}
 

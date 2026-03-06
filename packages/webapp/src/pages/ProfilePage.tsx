@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { formatDistanceToNow, parseISO } from 'date-fns'
 import { Globe, ChevronDown, Copy, Share2, Users, Disc3, Moon, Settings } from 'lucide-react'
 import { t, currentLang, setLang, prizeName } from '@/i18n'
+import { PageTransition } from '@/components/ui/PageTransition'
 import { getMe, getReferralStats, getSpinHistory } from '@/api'
 import ThemeToggle from '@/components/ui/ThemeToggle'
 
@@ -219,7 +220,7 @@ export default function ProfilePage() {
   const secondaryBg = avatarBg(user?.username)
 
   return (
-    <div className="px-4 pt-4 pb-28 min-h-screen relative bg-background">
+    <PageTransition className="px-4 pt-4 pb-28 min-h-screen relative bg-background">
       {/* Ambient glow */}
       <div className="fixed -top-24 -left-24 w-80 h-80 rounded-full pointer-events-none bg-primary/8 blur-[40px]" />
       <div className="fixed bottom-32 right-0 w-64 h-64 rounded-full pointer-events-none bg-purple-500/6 blur-[35px]" />
@@ -541,6 +542,6 @@ export default function ProfilePage() {
       >
         UzumBot v1.0.0
       </motion.p>
-    </div>
+    </PageTransition>
   )
 }

@@ -6,9 +6,12 @@ import { t } from '@/i18n'
 import { getMySubmissions } from '@/api'
 import { format } from 'date-fns'
 import { useViewPreferences, type ViewMode } from '@/hooks/useViewPreferences'
+import { useHapticFeedback } from '@/hooks/useHapticFeedback'
 import ViewToggle from '@/components/ui/ViewToggle'
 import StatusBadge from '@/components/ui/StatusBadge'
 import EmptyState from '@/components/ui/EmptyState'
+import { Skeleton } from '@/components/ui/Skeleton'
+import { PageTransition } from '@/components/ui/PageTransition'
 
 type FilterType = 'all' | 'pending' | 'approved' | 'rejected'
 
@@ -251,25 +254,45 @@ export default function ReviewsPage() {
     queryKey: ['my-submissions'],
     queryFn: () => getMySubmissions(1, 50).then((r) => r.data),
   })
+  
+  const { impactOccurred } = useHapticFeedback()
 
   const submissions: any[] = data?.items ?? data?.submissions ?? []
 
   const filtered = useMemo(() => {
     if (filter === 'all') return submissions
-    if (filter === 'rejected') return submissions.filter((s) => s.status === 'rejected' || s.status === 'duplicate')
-    return submissions.filter((s) => s.status === filter)
+    if (filter === 'rejected') return submissions.filter((s: any) => s.status === 'rejected' || s.status === 'duplicate')
+    return submissions.filter((s: any) => s.status === filter)
   }, [submissions, filter])
 
-  const approvedCount = submissions.filter((s) => s.status === 'approved').length
-  const pendingCount = submissions.filter((s) => s.status === 'pending').length
-  const rejectedCount = submissions.filter((s) => s.status === 'rejected' || s.status === 'duplicate').length
+  const approvedCount = submissions.filter((s: any) => s.status === 'approved').length
+  const pendingCount = submissions.filter((s: any) => s.status === 'pending').length
+  const rejectedCount = submissions.filter((s: any) => s.status === 'rejected' || s.status === 'duplicate').length
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-background">
-        <div className="flex flex-col items-center gap-3">
-          <div className="w-10 h-10 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
-          <p className="text-sm text-muted-foreground">{t('loading')}</p>
+      <div className="px-4 pt-4 pb-28 min-h-screen bg-background">
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex gap-3">
+             <Skeleton className="w-10 h-10 rounded-xl" />
+             <div className="space-y-2">
+                 <Skeleton className="w-32 h-5" />
+                 <Skeleton className="w-20 h-3" />
+             </div>
+          </div>
+          <Skeleton className="w-24 h-8 rounded-full" />
+        </div>
+
+        <div className="grid grid-cols-3 gap-2.5 mb-5">
+           <Skeleton className="h-24 rounded-2xl" />
+           <Skeleton className="h-24 rounded-2xl" />
+           <Skeleton className="h-24 rounded-2xl" />
+        </div>
+
+        <div className="space-y-3">
+          {[1, 2, 3, 4, 5].map((i) => (
+            <Skeleton key={i} className="h-24 rounded-2xl w-full" />
+          ))}
         </div>
       </div>
     )
@@ -299,7 +322,7 @@ export default function ReviewsPage() {
   ]
 
   return (
-    <div className="px-4 pt-4 pb-28 min-h-screen bg-background">
+    <PageTransition className="px-4 pt-4 pb-28 min-h-screen bg-background">
       {/* Ambient glow */}
       <div className="fixed top-0 left-1/2 -translate-x-1/2 w-64 h-64 rounded-full pointer-events-none opacity-10 bg-primary/30 blur-[40px]" />
 
@@ -415,7 +438,10 @@ export default function ReviewsPage() {
         {FILTER_TABS.map(({ key, label, count }) => (
           <button
             key={key}
-            onClick={() => setFilter(key)}
+            onClick={() => {
+              setFilter(key)
+              impactOccurred('light')
+            }}
             className={`shrink-0 px-4 py-1.5 rounded-full text-sm font-medium transition-all ${
               filter === key
                 ? 'bg-primary/20 text-primary border border-primary/30 shadow-sm'
@@ -501,6 +527,6 @@ export default function ReviewsPage() {
           </div>
         </AnimatePresence>
       )}
-    </div>
+    </PageTransition>
   )
 }

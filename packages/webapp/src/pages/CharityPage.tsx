@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { formatDistanceToNow, isPast, parseISO } from 'date-fns'
 import { Heart, Users, ChevronDown, Trophy, TrendingUp } from 'lucide-react'
 import { t, prizeName, currentLang } from '@/i18n'
+import { PageTransition } from '@/components/ui/PageTransition'
 import { getPublicCampaigns, donateToCampaign, giveSadaqa, getCharityLeaderboard } from '@/api'
 import { useViewPreferences, type ViewMode } from '@/hooks/useViewPreferences'
 import ViewToggle from '@/components/ui/ViewToggle'
@@ -287,7 +288,7 @@ export default function CharityPage() {
   ]
 
   return (
-    <div className="px-4 pt-4 pb-28 min-h-screen bg-background">
+    <PageTransition className="px-4 pt-4 pb-28 min-h-screen bg-background">
       {/* Ambient glow orbs */}
       <div className="fixed -top-20 left-1/3 w-72 h-72 rounded-full pointer-events-none bg-emerald-500/8 blur-[40px]" />
       <div className="fixed bottom-32 -right-20 w-56 h-56 rounded-full pointer-events-none bg-emerald-500/6 blur-[30px]" />
@@ -727,6 +728,6 @@ export default function CharityPage() {
           </motion.div>
         )}
       </AnimatePresence>
-    </div>
+    </PageTransition>
   )
 }
