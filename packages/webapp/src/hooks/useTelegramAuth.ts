@@ -58,7 +58,29 @@ export function useTelegramAuth() {
 
   // Initial auth on mount (skip if we already have a persisted token)
   useEffect(() => {
-    if (!token) runAuth()
+    if (token) {
+      setReady(true)
+      return
+    }
+
+    // Sometimes initData isn't available immediately. Retry a few times.
+    let retries = 0
+    const maxRetries = 10 // 10 * 100ms = 1s
+    const interval = setInterval(() => {
+      if (window.Telegram?.WebApp?.initData) {
+        clearInterval(interval)
+        runAuth()
+      } else {
+        retries++
+        if (retries >= maxRetries) {
+          clearInterval(interval)
+          // If still no initData, try running anyway (will hit fallback logic)
+          runAuth()
+        }
+      }
+    }, 100)
+
+    return () => clearInterval(interval)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
