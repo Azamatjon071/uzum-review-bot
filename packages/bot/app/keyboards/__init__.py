@@ -35,6 +35,24 @@ def main_menu(lang: str, webapp_url: str) -> ReplyKeyboardMarkup:
     return builder.as_markup(resize_keyboard=True)
 
 
+def start_inline_keyboard(lang: str, webapp_url: str) -> InlineKeyboardMarkup:
+    builder = InlineKeyboardBuilder()
+    builder.row(
+        InlineKeyboardButton(
+            text=t("btn.open_webapp", lang),
+            web_app=WebAppInfo(url=webapp_url),
+        )
+    )
+    builder.row(
+        InlineKeyboardButton(text="🔍 " + t("btn.search_products", lang), switch_inline_query_current_chat=""),
+        InlineKeyboardButton(text="📋 " + t("btn.my_status", lang), callback_data="cmd:status"),
+    )
+    builder.row(
+        InlineKeyboardButton(text="❓ " + t("btn.help", lang), callback_data="cmd:help"),
+    )
+    return builder.as_markup()
+
+
 def cancel_keyboard(lang: str) -> ReplyKeyboardMarkup:
     builder = ReplyKeyboardBuilder()
     builder.add(KeyboardButton(text=t("btn.cancel", lang)))

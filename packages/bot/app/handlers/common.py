@@ -14,7 +14,7 @@ from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 from app.config import get_settings
 from app.i18n import t
-from app.keyboards import main_menu, language_keyboard, open_webapp_keyboard
+from app.keyboards import main_menu, language_keyboard, open_webapp_keyboard, start_inline_keyboard
 from app.services.api import bot_register_user, get_user_info, get_products, update_user_language, APIError
 from app.states import OnboardingStates
 
@@ -132,6 +132,13 @@ async def cmd_start(message: Message, state: FSMContext, lang: str, bot: Bot):
     await message.answer(
         text,
         reply_markup=main_menu(lang, settings.WEBAPP_URL),
+        parse_mode="HTML",
+    )
+    
+    # Inline quick actions
+    await message.answer(
+        t("start.quick_actions", lang),
+        reply_markup=start_inline_keyboard(lang, settings.WEBAPP_URL),
         parse_mode="HTML",
     )
 

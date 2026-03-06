@@ -673,6 +673,16 @@ STRINGS: dict[str, dict[str, str]] = {
     "btn.my_rewards": {"uz": "💼 Mukofotlarim", "ru": "💼 Мои награды", "en": "💼 My rewards"},
     "btn.charity": {"uz": "🕌 Xayriya", "ru": "🕌 Благотворительность", "en": "🕌 Charity"},
     "btn.help": {"uz": "❓ Yordam", "ru": "❓ Помощь", "en": "❓ Help"},
+    "btn.search_products": {
+        "uz": "Mahsulot qidirish",
+        "ru": "Поиск товаров",
+        "en": "Search products",
+    },
+    "start.quick_actions": {
+        "uz": "👇 <b>Tezkor harakatlar:</b>",
+        "ru": "👇 <b>Быстрые действия:</b>",
+        "en": "👇 <b>Quick actions:</b>",
+    },
     "btn.done": {"uz": "✅ Tayyor", "ru": "✅ Готово", "en": "✅ Done"},
     "btn.cancel": {"uz": "❌ Bekor qilish", "ru": "❌ Отмена", "en": "❌ Cancel"},
     "btn.lang_uz": {"uz": "🇺🇿 O'zbek", "ru": "🇺🇿 O'zbek", "en": "🇺🇿 O'zbek"},

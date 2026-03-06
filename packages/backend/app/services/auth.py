@@ -60,12 +60,22 @@ def validate_telegram_init_data(init_data: str) -> dict:
     ).hexdigest()
 
     if not hmac.compare_digest(expected_hash, received_hash):
+        print(f"Auth failed: expected {expected_hash}, got {received_hash}")
+        print(f"Check string: {data_check_string!r}")
         raise ValueError("Invalid initData hash")
 
     # Parse user JSON
     user_data = parsed.get("user", "{}")
     if isinstance(user_data, str):
-        user_data = json.loads(unquote(user_data))
+        try:
+            user_data = json.loads(user_data)
+        except json.JSONDecodeError:
+            # Fallback for double-encoding cases
+            try:
+                user_data = json.loads(unquote(user_data))
+            except Exception as e:
+                print(f"Failed to parse user data: {user_data!r} - {e}")
+                user_data = {}
 
     return user_data
 

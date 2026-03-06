@@ -233,44 +233,83 @@ async def bulk_action(
     admin=Depends(require_permission("submissions.write")),
     db: AsyncSession = Depends(get_db),
 ):
-    processed = 0
-    notifications_to_send = []
+    print(f"DEBUG: bulk_action called with {payload}")
+    
+    # Fetch all submissions to process
+    stmt = select(Submission).where(Submission.id.in_(payload.ids))
+    result = await db.execute(stmt)
+    submissions = result.scalars().all()
+    
+    processed_count = 0
+    notifications_data = []
 
-    for sub_id in payload.ids:
-        result = await db.execute(select(Submission).where(Submission.id == sub_id))
-        sub = result.scalar_one_or_none()
-        if not sub:
-            continue
-        if payload.action == "approve" and sub.status in (SubmissionStatus.PENDING, SubmissionStatus.DUPLICATE):
+    for sub in submissions:
+        if payload.action == "approve":
+            if sub.status not in (SubmissionStatus.PENDING, SubmissionStatus.DUPLICATE):
+                continue
+            
             sub.status = SubmissionStatus.APPROVED
             sub.reviewed_by_admin_id = admin.id
             sub.reviewed_at = datetime.now(timezone.utc)
             sub.spin_granted = True
-            user_r = await db.execute(select(User).where(User.id == sub.user_id))
-            user = user_r.scalar_one_or_none()
+            
+            # Fetch user
+            user_stmt = select(User).where(User.id == sub.user_id)
+            user = (await db.execute(user_stmt)).scalar_one_or_none()
+            
             if user:
                 user.approved_submissions += 1
                 user.spin_count += 1
                 user.total_spins += 1
+                
+                # Gamification
                 gam_svc = GamificationService(db)
                 await gam_svc.on_submission_approved(user.id)
-                notifications_to_send.append(("approve", user, sub_id))
+                
+                notifications_data.append({
+                    "type": "approve",
+                    "telegram_id": user.telegram_id,
+                    "submission_id": str(sub.id),
+                    "lang": user.language.value if user.language else "uz",
+                    "spin_count": user.spin_count,
+                    "approved_total": user.approved_submissions
+                })
+            
+            # Notification record
             db.add(Notification(
                 user_id=sub.user_id,
                 notification_type=NotificationType.SUBMISSION_APPROVED,
-                payload={"submission_id": str(sub_id)},
+                payload={"submission_id": str(sub.id)},
             ))
-            processed += 1
-        elif payload.action == "reject" and sub.status != SubmissionStatus.APPROVED:
+            processed_count += 1
+            
+        elif payload.action == "reject":
+            if sub.status == SubmissionStatus.APPROVED:
+                continue
+                
             sub.status = SubmissionStatus.REJECTED
             sub.rejection_reason = payload.reason or "Rejected by admin"
             sub.reviewed_by_admin_id = admin.id
             sub.reviewed_at = datetime.now(timezone.utc)
-            user_r = await db.execute(select(User).where(User.id == sub.user_id))
-            user = user_r.scalar_one_or_none()
+            
+            user_stmt = select(User).where(User.id == sub.user_id)
+            user = (await db.execute(user_stmt)).scalar_one_or_none()
+            
             if user:
-                notifications_to_send.append(("reject", user, sub_id))
-            processed += 1
+                 notifications_data.append({
+                    "type": "reject",
+                    "telegram_id": user.telegram_id,
+                    "submission_id": str(sub.id),
+                    "reason": payload.reason or "Rejected by admin",
+                    "lang": user.language.value if user.language else "uz",
+                })
+            
+            db.add(Notification(
+                user_id=sub.user_id,
+                notification_type=NotificationType.SUBMISSION_REJECTED,
+                payload={"submission_id": str(sub.id), "reason": payload.reason or ""},
+            ))
+            processed_count += 1
 
     audit = AuditService(db)
     await audit.log(
@@ -278,33 +317,33 @@ async def bulk_action(
         resource_type="submission",
         admin_id=admin.id,
         ip_address=request.client.host if request.client else None,
-        after_data={"count": processed, "ids": [str(i) for i in payload.ids]},
+        after_data={"count": processed_count, "ids": [str(i) for i in payload.ids]},
     )
 
     await db.commit()
 
-    # Dispatch notifications after commit
-    for action, user, sub_id in notifications_to_send:
-        if not user or not user.telegram_id:
+    # Send notifications
+    for item in notifications_data:
+        if not item["telegram_id"]:
             continue
-        lang = user.language.value if user.language else "uz"
-        if action == "approve":
+            
+        if item["type"] == "approve":
             notify_submission_approved.delay(
-                telegram_id=user.telegram_id,
-                submission_id=str(sub_id),
-                lang=lang,
-                spin_count=user.spin_count,
-                approved_total=user.approved_submissions,
+                telegram_id=item["telegram_id"],
+                submission_id=item["submission_id"],
+                lang=item["lang"],
+                spin_count=item["spin_count"],
+                approved_total=item["approved_total"],
             )
         else:
             notify_submission_rejected.delay(
-                telegram_id=user.telegram_id,
-                submission_id=str(sub_id),
-                reason=payload.reason or "Rejected by admin",
-                lang=lang,
+                telegram_id=item["telegram_id"],
+                submission_id=item["submission_id"],
+                reason=item["reason"],
+                lang=item["lang"],
             )
 
-    return {"message": f"Bulk {payload.action} completed", "processed": processed}
+    return {"message": f"Bulk {payload.action} completed", "processed": processed_count}
 
 
 @router.delete("/{submission_id}", status_code=204)
