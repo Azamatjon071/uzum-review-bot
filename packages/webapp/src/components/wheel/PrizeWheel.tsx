@@ -16,58 +16,50 @@ interface Props {
   targetIndex: number | null   // which segment to land on (null = idle)
   spinning: boolean
   onSpinEnd: () => void
+  size?: number
 }
 
 const TWO_PI = 2 * Math.PI
-const SIZE = 300
-const CENTER = SIZE / 2
-const RADIUS = CENTER - 12
 
-function buildArcs(segments: WheelSegment[]) {
-  // Each segment gets an EQUAL visual slice regardless of weight.
-  // Weight is purely a backend/logic concern — the wheel always looks fair.
-  const count = segments.length || 1
-  const equalSweep = TWO_PI / count
-  let angle = 0
-  return segments.map((seg) => {
-    const start = angle
-    angle += equalSweep
-    return { ...seg, start, sweep: equalSweep, mid: start + equalSweep / 2 }
-  })
-}
-
-function polarToCartesian(cx: number, cy: number, r: number, angle: number) {
-  return {
-    x: cx + r * Math.cos(angle - Math.PI / 2),
-    y: cy + r * Math.sin(angle - Math.PI / 2),
-  }
-}
-
-function arcPath(cx: number, cy: number, r: number, start: number, sweep: number) {
-  const s = polarToCartesian(cx, cy, r, start)
-  const e = polarToCartesian(cx, cy, r, start + sweep)
-  const large = sweep > Math.PI ? 1 : 0
-  return [
-    `M ${cx} ${cy}`,
-    `L ${s.x} ${s.y}`,
-    `A ${r} ${r} 0 ${large} 1 ${e.x} ${e.y}`,
-    'Z',
-  ].join(' ')
-}
-
-// Lighten a hex color for the segment highlight
-function lightenColor(hex: string, amount = 30): string {
-  const num = parseInt(hex.replace('#', ''), 16)
-  const r = Math.min(255, (num >> 16) + amount)
-  const g = Math.min(255, ((num >> 8) & 0xff) + amount)
-  const b = Math.min(255, (num & 0xff) + amount)
-  return `rgb(${r},${g},${b})`
-}
-
-export default function PrizeWheel({ segments, targetIndex, spinning, onSpinEnd }: Props) {
+export default function PrizeWheel({ segments, targetIndex, spinning, onSpinEnd, size = 300 }: Props) {
   const controls = useAnimation()
   const rotationRef = useRef(0)
   const [currentRotation, setCurrentRotation] = useState(0)
+
+  const SIZE = size
+  const CENTER = SIZE / 2
+  const RADIUS = CENTER - 12
+  
+  function polarToCartesian(cx: number, cy: number, r: number, angle: number) {
+    return {
+      x: cx + r * Math.cos(angle - Math.PI / 2),
+      y: cy + r * Math.sin(angle - Math.PI / 2),
+    }
+  }
+
+  function arcPath(cx: number, cy: number, r: number, start: number, sweep: number) {
+    const s = polarToCartesian(cx, cy, r, start)
+    const e = polarToCartesian(cx, cy, r, start + sweep)
+    const large = sweep > Math.PI ? 1 : 0
+    return [
+      `M ${cx} ${cy}`,
+      `L ${s.x} ${s.y}`,
+      `A ${r} ${r} 0 ${large} 1 ${e.x} ${e.y}`,
+      'Z',
+    ].join(' ')
+  }
+
+  function buildArcs(segments: WheelSegment[]) {
+    // Each segment gets an EQUAL visual slice regardless of weight.
+    const count = segments.length || 1
+    const equalSweep = TWO_PI / count
+    let angle = 0
+    return segments.map((seg) => {
+      const start = angle
+      angle += equalSweep
+      return { ...seg, start, sweep: equalSweep, mid: start + equalSweep / 2 }
+    })
+  }
 
   const arcs = buildArcs(segments)
 
@@ -81,19 +73,33 @@ export default function PrizeWheel({ segments, targetIndex, spinning, onSpinEnd 
     const target = extraSpins + (360 - midAngle) - (rotationRef.current % 360)
     const finalRotation = rotationRef.current + target
 
+    // Make it faster and more dynamic (Spin duration: 3.5s)
     controls
       .start({
         rotate: finalRotation,
         transition: {
-          duration: 5,
-          ease: [0.12, 0.8, 0.25, 1.0],
+          duration: 3.5, 
+          ease: [0.15, 0, 0.25, 1], // Custom cubic-bezier for fast start, slow stop
         },
       })
       .then(() => {
         rotationRef.current = finalRotation
         setCurrentRotation(finalRotation)
-        prevSpinning.current = false
-        onSpinEnd()
+        
+        // Overshoot slightly for realism
+        controls.start({
+             rotate: finalRotation + 3,
+             transition: { duration: 0.2, ease: "easeOut" }
+        }).then(() => {
+             // Settle back
+             controls.start({
+                 rotate: finalRotation, 
+                 transition: { type: "spring", stiffness: 150, damping: 12 }
+             }).then(() => {
+                 prevSpinning.current = false
+                 setTimeout(onSpinEnd, 600) 
+             })
+        })
       })
   }
   if (!spinning) prevSpinning.current = false
@@ -203,7 +209,7 @@ export default function PrizeWheel({ segments, targetIndex, spinning, onSpinEnd 
               textAnchor="middle"
               dominantBaseline="middle"
               fill="white"
-              fontSize={arc.sweep > 0.6 ? 11 : 9}
+              fontSize={arc.sweep > 0.6 ? Math.max(9, SIZE / 27) : Math.max(7, SIZE / 33)}
               fontWeight="700"
               style={{ pointerEvents: 'none', userSelect: 'none', textShadow: '0 1px 3px rgba(0,0,0,0.5)' }}
             >
@@ -215,7 +221,11 @@ export default function PrizeWheel({ segments, targetIndex, spinning, onSpinEnd 
         {/* Center boss (metallic button) */}
         <circle cx={CENTER} cy={CENTER} r={22} fill="#1a1830" />
         <circle cx={CENTER} cy={CENTER} r={20} fill="url(#centerGrad)" />
-        <circle cx={CENTER} cy={CENTER} r={9} fill="#6c63ff" />
+        <motion.circle 
+          cx={CENTER} cy={CENTER} r={9} fill="#6c63ff" 
+          animate={{ scale: [1, 1.2, 1] }}
+          transition={{ duration: 1.5, repeat: Infinity }}
+        />
         <circle cx={CENTER} cy={CENTER} r={5} fill="rgba(255,255,255,0.8)" />
       </motion.svg>
     </div>

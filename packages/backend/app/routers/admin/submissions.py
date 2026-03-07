@@ -248,72 +248,81 @@ async def bulk_action(
     notifications_data = []
 
     for sub in submissions:
-        if payload.action == "approve":
-            if sub.status not in (SubmissionStatus.PENDING, SubmissionStatus.DUPLICATE):
-                continue
-            
-            sub.status = SubmissionStatus.APPROVED
-            sub.reviewed_by_admin_id = admin.id
-            sub.reviewed_at = datetime.now(timezone.utc)
-            sub.spin_granted = True
-            
-            # Fetch user
-            user_stmt = select(User).where(User.id == sub.user_id)
-            user = (await db.execute(user_stmt)).scalar_one_or_none()
-            
-            if user:
-                user.approved_submissions += 1
-                user.spin_count += 1
-                user.total_spins += 1
+        try:
+            if payload.action == "approve":
+                if sub.status not in (SubmissionStatus.PENDING, SubmissionStatus.DUPLICATE):
+                    continue
                 
-                # Gamification
-                gam_svc = GamificationService(db)
-                await gam_svc.on_submission_approved(user.id)
+                print(f"DEBUG: Approving submission {sub.id}")
+                sub.status = SubmissionStatus.APPROVED
+                sub.reviewed_by_admin_id = admin.id
+                sub.reviewed_at = datetime.now(timezone.utc)
+                sub.spin_granted = True
                 
-                notifications_data.append({
-                    "type": "approve",
-                    "telegram_id": user.telegram_id,
-                    "submission_id": str(sub.id),
-                    "lang": user.language.value if user.language else "uz",
-                    "spin_count": user.spin_count,
-                    "approved_total": user.approved_submissions
-                })
-            
-            # Notification record
-            db.add(Notification(
-                user_id=sub.user_id,
-                notification_type=NotificationType.SUBMISSION_APPROVED,
-                payload={"submission_id": str(sub.id)},
-            ))
-            processed_count += 1
-            
-        elif payload.action == "reject":
-            if sub.status == SubmissionStatus.APPROVED:
-                continue
+                # Fetch user
+                user_stmt = select(User).where(User.id == sub.user_id)
+                user = (await db.execute(user_stmt)).scalar_one_or_none()
                 
-            sub.status = SubmissionStatus.REJECTED
-            sub.rejection_reason = payload.reason or "Rejected by admin"
-            sub.reviewed_by_admin_id = admin.id
-            sub.reviewed_at = datetime.now(timezone.utc)
-            
-            user_stmt = select(User).where(User.id == sub.user_id)
-            user = (await db.execute(user_stmt)).scalar_one_or_none()
-            
-            if user:
-                 notifications_data.append({
-                    "type": "reject",
-                    "telegram_id": user.telegram_id,
-                    "submission_id": str(sub.id),
-                    "reason": payload.reason or "Rejected by admin",
-                    "lang": user.language.value if user.language else "uz",
-                })
-            
-            db.add(Notification(
-                user_id=sub.user_id,
-                notification_type=NotificationType.SUBMISSION_REJECTED,
-                payload={"submission_id": str(sub.id), "reason": payload.reason or ""},
-            ))
-            processed_count += 1
+                if user:
+                    print(f"DEBUG: Processing gamification for user {user.id}")
+                    user.approved_submissions += 1
+                    user.spin_count += 1
+                    user.total_spins += 1
+                    
+                    # Gamification
+                    gam_svc = GamificationService(db)
+                    await gam_svc.on_submission_approved(user.id)
+                    
+                    notifications_data.append({
+                        "type": "approve",
+                        "telegram_id": user.telegram_id,
+                        "submission_id": str(sub.id),
+                        "lang": user.language.value if user.language else "uz",
+                        "spin_count": user.spin_count,
+                        "approved_total": user.approved_submissions
+                    })
+                
+                # Notification record
+                db.add(Notification(
+                    user_id=sub.user_id,
+                    notification_type=NotificationType.SUBMISSION_APPROVED,
+                    payload={"submission_id": str(sub.id)},
+                ))
+                processed_count += 1
+                
+            elif payload.action == "reject":
+                if sub.status == SubmissionStatus.APPROVED:
+                    continue
+                    
+                print(f"DEBUG: Rejecting submission {sub.id}")
+                sub.status = SubmissionStatus.REJECTED
+                sub.rejection_reason = payload.reason or "Rejected by admin"
+                sub.reviewed_by_admin_id = admin.id
+                sub.reviewed_at = datetime.now(timezone.utc)
+                
+                user_stmt = select(User).where(User.id == sub.user_id)
+                user = (await db.execute(user_stmt)).scalar_one_or_none()
+                
+                if user:
+                     notifications_data.append({
+                        "type": "reject",
+                        "telegram_id": user.telegram_id,
+                        "submission_id": str(sub.id),
+                        "reason": payload.reason or "Rejected by admin",
+                        "lang": user.language.value if user.language else "uz",
+                    })
+                
+                db.add(Notification(
+                    user_id=sub.user_id,
+                    notification_type=NotificationType.SUBMISSION_REJECTED,
+                    payload={"submission_id": str(sub.id), "reason": payload.reason or ""},
+                ))
+                processed_count += 1
+        except Exception as e:
+            print(f"ERROR: Failed to process submission {sub.id}: {e}")
+            import traceback
+            traceback.print_exc()
+            raise e
 
     audit = AuditService(db)
     await audit.log(

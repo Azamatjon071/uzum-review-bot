@@ -220,7 +220,15 @@ export default function SpinPage() {
       setTargetIndex(idx >= 0 ? idx : 0)
       setSpinning(true)
       setResult(spinResult)
-      impactOccurred('heavy')
+      impactOccurred('medium') // Start spinning feedback
+      
+      // Start intense haptics during spin
+      const hapticInterval = setInterval(() => {
+          impactOccurred('light')
+      }, 150)
+      
+      // Clear interval when spin ends (approximate duration)
+      setTimeout(() => clearInterval(hapticInterval), 3000)
     },
     onError: (err: any) => {
       const detail = err?.response?.data?.detail ?? ''
@@ -234,6 +242,17 @@ export default function SpinPage() {
       }
     },
   })
+
+  const [containerWidth, setContainerWidth] = useState(300)
+  const containerRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (containerRef.current) {
+        // Simple resize logic or initial set
+        const w = Math.min(containerRef.current.offsetWidth, 360) 
+        setContainerWidth(w > 0 ? w : 300)
+    }
+  }, [])
 
   const pendingCommitments = (commitmentsData?.commitments ?? []).filter(
     (c: any) => !c.is_used
@@ -395,7 +414,7 @@ export default function SpinPage() {
         initial={{ opacity: 0, scale: 0.88 }}
         animate={{ opacity: 1, scale: 1 }}
         transition={{ delay: 0.15, type: 'spring', stiffness: 160, damping: 20 }}
-        className="relative z-10"
+        className="relative z-10 w-full flex justify-center py-4"
         style={{
           filter: spinning
             ? 'drop-shadow(0 0 40px rgba(112,0,255,0.55)) drop-shadow(0 0 80px rgba(112,0,255,0.25))'
@@ -408,6 +427,7 @@ export default function SpinPage() {
           targetIndex={targetIndex}
           spinning={spinning}
           onSpinEnd={handleSpinEnd}
+          size={Math.min(window.innerWidth - 32, 340)}
         />
       </motion.div>
 

@@ -67,7 +67,18 @@ class SpinService:
 
     async def check_eligibility(self, user_id: uuid.UUID) -> Tuple[bool, str]:
         """Check if user can spin. Returns (eligible, reason)."""
-        # Check for unapproved submission (spin requires approved submission)
+        # First check spin balance (primary source of truth)
+        user_result = await self.db.execute(select(User).where(User.id == user_id))
+        user = user_result.scalar_one_or_none()
+        
+        if user and user.spin_count > 0:
+            return True, "has_spins"
+
+        # Fallback: Check for unapproved submission (legacy logic, maybe redundant if spin_count wasn't incremented)
+        # But if spin_count is 0, they shouldn't spin even if they have an unused submission 
+        # (the submission approval should have incremented spin_count).
+        
+        # If we want to be safe and auto-correct:
         result = await self.db.execute(
             select(Submission).where(
                 and_(
@@ -78,10 +89,13 @@ class SpinService:
             ).limit(1)
         )
         eligible_submission = result.scalar_one_or_none()
-        if not eligible_submission:
-            return False, "no_eligible_submission"
+        if eligible_submission:
+            # Auto-correct: user has eligible submission but 0 spins. 
+            # We should probably grant them the spin and let them use it.
+            # ideally this should happen at approval time, but for safety:
+            return True, "eligible_submission_found"
 
-        return True, "eligible"
+        return False, "no_spins_available"
 
     async def get_eligible_submission(self, user_id: uuid.UUID) -> Submission | None:
         result = await self.db.execute(
@@ -146,11 +160,19 @@ class SpinService:
         if hash_seed(server_seed) != commitment.server_seed_hash:
             raise ValueError("Seed hash mismatch - integrity error")
 
-        # Get eligible submission
+        # Get eligible submission (if any)
+        # Even if none found, we proceed if user has spins
         submission = await self.get_eligible_submission(user_id)
-        if not submission:
-            raise ValueError("No eligible submission for spin")
+        
+        user_result = await self.db.execute(select(User).where(User.id == user_id))
+        user = user_result.scalar_one()
 
+        if user.spin_count <= 0 and not submission:
+             raise ValueError("No spins available and no eligible submission found.")
+        
+        # If user has 0 spins but HAS a submission, we auto-correct by granting + using immediately
+        # (Though ideally approval logic should have granted it)
+        
         # Compute result
         total_weight = sum(p.weight for p in prizes)
         raw_result = compute_spin_result(server_seed, commitment.nonce, total_weight)
@@ -159,7 +181,7 @@ class SpinService:
         # Create spin record
         spin = PrizeSpin(
             user_id=user_id,
-            submission_id=submission.id,
+            submission_id=submission.id if submission else None,
             prize_id=prize.id,
             server_seed=server_seed_hex,
             server_seed_hash=commitment.server_seed_hash,
@@ -168,8 +190,9 @@ class SpinService:
         )
         self.db.add(spin)
 
-        # Mark submission as spin used
-        submission.spin_granted = True
+        # Mark submission as spin used (if applicable)
+        if submission:
+            submission.spin_granted = True
 
         # Mark commitment as used
         commitment.is_used = True
@@ -190,11 +213,11 @@ class SpinService:
         self.db.add(reward)
 
         # Update user stats
-        user_result = await self.db.execute(select(User).where(User.id == user_id))
-        user = user_result.scalar_one()
         user.total_spins += 1
-        # Deduct from available spin balance (floor at 0 to guard against negatives)
-        user.spin_count = max(0, user.spin_count - 1)
+        # Deduct from available spin balance if greater than 0
+        if user.spin_count > 0:
+            user.spin_count -= 1
+        # If user had 0 spins but relied on submission auto-correction, count stays 0
 
         await self.db.flush()
 

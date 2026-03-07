@@ -224,7 +224,7 @@ class PrizeSpin(Base):
 
     id: Mapped[uuid.UUID] = mapped_column(default=uuid.uuid4, primary_key=True)
     user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"), nullable=False, index=True)
-    submission_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("submissions.id"), nullable=False, unique=True)
+    submission_id: Mapped[Optional[uuid.UUID]] = mapped_column(ForeignKey("submissions.id"), nullable=True, unique=True)
     prize_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("prizes.id"), nullable=False)
     server_seed: Mapped[str] = mapped_column(String(128), nullable=False)
     server_seed_hash: Mapped[str] = mapped_column(String(128), nullable=False)

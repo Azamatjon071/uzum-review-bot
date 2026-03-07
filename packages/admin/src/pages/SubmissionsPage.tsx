@@ -20,6 +20,7 @@ import StatusBadge from '@/components/ui/StatusBadge'
 import DataCard from '@/components/ui/DataCard'
 import EmptyState from '@/components/ui/EmptyState'
 import KanbanBoard from '@/components/ui/KanbanBoard'
+import { Lightbox } from '@/components/ui/Lightbox'
 
 // ── Constants ────────────────────────────────────────────────────────────────
 
@@ -51,85 +52,6 @@ function toImageUrls(images: any[]): string[] {
   return (images ?? []).map((img) => (typeof img === 'string' ? img : img?.url ?? '')).filter(Boolean)
 }
 
-// ── Lightbox ─────────────────────────────────────────────────────────────────
-
-function Lightbox({ images, index, onClose }: { images: string[]; index: number; onClose: () => void }) {
-  const [cur, setCur] = useState(index)
-
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose()
-      if (e.key === 'ArrowLeft') setCur((c) => Math.max(0, c - 1))
-      if (e.key === 'ArrowRight') setCur((c) => Math.min(images.length - 1, c + 1))
-    }
-    window.addEventListener('keydown', handler)
-    return () => window.removeEventListener('keydown', handler)
-  }, [images.length, onClose])
-
-  return (
-    <div className="fixed inset-0 z-50 bg-black/90 backdrop-blur-sm flex items-center justify-center animate-fade-in" onClick={onClose}>
-      {/* Close button */}
-      <button
-        onClick={onClose}
-        className="absolute top-4 right-4 p-2.5 rounded-xl bg-white/10 text-white/70 hover:text-white hover:bg-white/20 transition-colors backdrop-blur-sm"
-      >
-        <X className="w-5 h-5" />
-      </button>
-
-      {/* Counter */}
-      {images.length > 1 && (
-        <div className="absolute top-4 left-1/2 -translate-x-1/2 px-4 py-1.5 rounded-full bg-white/10 backdrop-blur-sm text-white/80 text-sm font-medium">
-          {cur + 1} / {images.length}
-        </div>
-      )}
-
-      {/* Previous */}
-      {cur > 0 && (
-        <button
-          onClick={(e) => { e.stopPropagation(); setCur((c) => c - 1) }}
-          className="absolute left-4 p-3 rounded-xl bg-white/10 text-white/70 hover:text-white hover:bg-white/20 transition-colors backdrop-blur-sm"
-        >
-          <ChevronLeft className="w-6 h-6" />
-        </button>
-      )}
-
-      {/* Image */}
-      <img
-        src={images[cur]}
-        alt={`Image ${cur + 1}`}
-        className="max-h-[85vh] max-w-[90vw] object-contain rounded-xl shadow-2xl"
-        onClick={(e) => e.stopPropagation()}
-      />
-
-      {/* Next */}
-      {cur < images.length - 1 && (
-        <button
-          onClick={(e) => { e.stopPropagation(); setCur((c) => c + 1) }}
-          className="absolute right-4 p-3 rounded-xl bg-white/10 text-white/70 hover:text-white hover:bg-white/20 transition-colors backdrop-blur-sm"
-        >
-          <ChevronRight className="w-6 h-6" />
-        </button>
-      )}
-
-      {/* Dots */}
-      {images.length > 1 && (
-        <div className="absolute bottom-6 flex gap-2">
-          {images.map((_, i) => (
-            <button
-              key={i}
-              onClick={(e) => { e.stopPropagation(); setCur(i) }}
-              className={cn(
-                'w-2 h-2 rounded-full transition-all',
-                i === cur ? 'bg-white w-6' : 'bg-white/40 hover:bg-white/60',
-              )}
-            />
-          ))}
-        </div>
-      )}
-    </div>
-  )
-}
-
 // ── Detail Drawer ────────────────────────────────────────────────────────────
 
 function DetailDrawer({ sub, onClose, onApprove, onReject }: {
@@ -147,7 +69,7 @@ function DetailDrawer({ sub, onClose, onApprove, onReject }: {
   return (
     <>
       {lightboxIndex !== null && (
-        <Lightbox images={images} index={lightboxIndex} onClose={() => setLightboxIndex(null)} />
+        <Lightbox images={images} initialIndex={lightboxIndex} onClose={() => setLightboxIndex(null)} />
       )}
 
       {/* Backdrop */}
@@ -477,7 +399,7 @@ export default function SubmissionsPage() {
 
   return (
     <>
-      {lightbox && <Lightbox images={lightbox.images} index={lightbox.index} onClose={() => setLightbox(null)} />}
+      {lightbox && <Lightbox images={lightbox.images} initialIndex={lightbox.index} onClose={() => setLightbox(null)} />}
       {drawerSub && (
         <DetailDrawer
           sub={drawerSub}

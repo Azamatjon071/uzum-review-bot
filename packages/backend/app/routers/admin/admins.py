@@ -108,7 +108,34 @@ async def update_admin(
     await audit.log("update_admin", "admin_user", str(admin_id), admin_id=admin.id,
                     ip_address=request.client.host if request.client else None,
                     after_data=payload.model_dump(exclude_unset=True))
+    await db.commit()
     return {"message": "Admin updated"}
+
+
+@router.delete("/{admin_id}")
+async def delete_admin(
+    admin_id: uuid.UUID,
+    request: Request,
+    admin=Depends(require_permission("admins.write")),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(select(AdminUser).where(AdminUser.id == admin_id))
+    target = result.scalar_one_or_none()
+    if not target:
+        raise HTTPException(status_code=404, detail="Admin not found")
+        
+    # Prevent self-deletion if needed, or handle gracefully
+    if target.id == admin.id:
+         raise HTTPException(status_code=400, detail="Cannot delete yourself")
+
+    await db.delete(target)
+    
+    audit = AuditService(db)
+    await audit.log("delete_admin", "admin_user", str(admin_id), admin_id=admin.id,
+                    ip_address=request.client.host if request.client else None)
+    
+    await db.commit()
+    return {"message": "Admin deleted"}
 
 
 @router.get("/roles")

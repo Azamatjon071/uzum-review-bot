@@ -12,6 +12,7 @@ import StatusBadge from '@/components/ui/StatusBadge'
 import EmptyState from '@/components/ui/EmptyState'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { PageTransition } from '@/components/ui/PageTransition'
+import { Lightbox } from '@/components/ui/Lightbox'
 
 type FilterType = 'all' | 'pending' | 'approved' | 'rejected'
 
@@ -58,7 +59,7 @@ const STATUS_CONFIG: Record<string, {
 }
 
 /* ── Card View (expandable) ── */
-function ReviewCard({ s, i }: { s: any; i: number }) {
+function ReviewCard({ s, i, onOpenLightbox }: { s: any; i: number; onOpenLightbox: (images: string[], index: number) => void }) {
   const [expanded, setExpanded] = useState(false)
   const status = s.status ?? 'pending'
   const sc = STATUS_CONFIG[status] ?? STATUS_CONFIG.pending
@@ -148,12 +149,10 @@ function ReviewCard({ s, i }: { s: any; i: number }) {
               {s.image_urls && s.image_urls.length > 0 && (
                 <div className="flex gap-2 flex-wrap mt-1">
                   {s.image_urls.map((url: string, idx: number) => (
-                    <a
+                    <button
                       key={idx}
-                      href={url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="block rounded-lg overflow-hidden border border-border/40 shrink-0"
+                      onClick={() => onOpenLightbox(s.image_urls, idx)}
+                      className="block rounded-lg overflow-hidden border border-border/40 shrink-0 hover:opacity-80 transition-opacity"
                       style={{ width: 72, height: 72 }}
                     >
                       <img
@@ -162,7 +161,7 @@ function ReviewCard({ s, i }: { s: any; i: number }) {
                         className="w-full h-full object-cover"
                         loading="lazy"
                       />
-                    </a>
+                    </button>
                   ))}
                 </div>
               )}
@@ -249,6 +248,16 @@ export default function ReviewsPage() {
   const [filter, setFilter] = useState<FilterType>('all')
   const view = useViewPreferences((s) => s.getView)('reviews', 'list')
   const setView = useViewPreferences((s) => s.setView)
+  
+  const [lightbox, setLightbox] = useState<{ open: boolean; images: string[]; index: number }>({
+    open: false,
+    images: [],
+    index: 0
+  })
+
+  const openLightbox = (images: string[], index: number) => {
+    setLightbox({ open: true, images, index })
+  }
 
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['my-submissions'],
@@ -522,10 +531,23 @@ export default function ReviewsPage() {
         <AnimatePresence>
           <div className="space-y-3">
             {filtered.map((s: any, i: number) => (
-              <ReviewCard key={s.id} s={s} i={i} />
+              <ReviewCard 
+                key={s.id} 
+                s={s} 
+                i={i} 
+                onOpenLightbox={openLightbox} 
+              />
             ))}
           </div>
         </AnimatePresence>
+      )}
+
+      {lightbox.open && (
+        <Lightbox
+          images={lightbox.images}
+          initialIndex={lightbox.index}
+          onClose={() => setLightbox((prev) => ({ ...prev, open: false }))}
+        />
       )}
     </PageTransition>
   )

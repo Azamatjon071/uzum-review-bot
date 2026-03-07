@@ -70,6 +70,11 @@ class GamificationService:
         )
         streak = result.scalar_one_or_none()
         if not streak:
+            # Check if it's already in session.new (added but not committed)
+            for obj in self.db.new:
+                if isinstance(obj, UserStreak) and obj.user_id == user_id:
+                    return obj
+
             streak = UserStreak(user_id=user_id)
             self.db.add(streak)
             await self.db.flush()
@@ -118,6 +123,10 @@ class GamificationService:
         )
         xp_row = result.scalar_one_or_none()
         if not xp_row:
+            for obj in self.db.new:
+                if isinstance(obj, UserXP) and obj.user_id == user_id:
+                    return obj
+
             xp_row = UserXP(user_id=user_id, total_xp=0, current_level=1, xp_history=[])
             self.db.add(xp_row)
             await self.db.flush()
@@ -347,6 +356,12 @@ class GamificationService:
             )
             prog = prog_r.scalar_one_or_none()
 
+            if prog is None:
+                for obj in self.db.new:
+                    if isinstance(obj, UserMissionProgress) and obj.user_id == user_id and obj.mission_id == mission.id:
+                        prog = obj
+                        break
+            
             if prog is None:
                 prog = UserMissionProgress(
                     user_id=user_id,
