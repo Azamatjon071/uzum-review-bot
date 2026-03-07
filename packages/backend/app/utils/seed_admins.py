@@ -18,15 +18,43 @@ def get_password_hash(password: str) -> str:
 async def seed_admins():
     async with AsyncSessionLocal() as session:
         # 1. Create Roles
+        # Define granular permissions for roles other than superadmin
+        # superadmin bypasses checks in deps.py so list can be empty or symbolic
+        all_perms = [
+            "submissions.read", "submissions.write",
+            "users.read", "users.write",
+            "reports.read",
+            "view_settings", "manage_settings",
+            "analytics.read",
+            "prizes.read", "prizes.write",
+            "charity.read", "charity.write",
+            "view_audit_log",
+            "admins.write",
+            "broadcast.write",
+        ]
+
         roles = {
-            "super_admin": {"all": True},
-            "moderator": {"reviews": True, "users": False},
-            "support": {"users": True, "reviews": False}
+            "superadmin": all_perms,  # role name must be "superadmin" to bypass checks
+            "moderator": [
+                "submissions.read", "submissions.write",
+                "users.read",
+                "reports.read",
+                "analytics.read",
+                "prizes.read",
+                "charity.read"
+            ],
+            "support": [
+                "users.read", "users.write",
+                "submissions.read",
+                "reports.read",
+                "view_audit_log"
+            ]
         }
         
         role_map = {}
         
         for name, perms in roles.items():
+            # Upsert role
             stmt = select(AdminRole).where(AdminRole.name == name)
             role = await session.scalar(stmt)
             if not role:
@@ -34,13 +62,19 @@ async def seed_admins():
                 session.add(role)
                 await session.flush()
                 print(f"Created role: {name}")
+            else:
+                # Update permissions if role exists
+                role.permissions = perms
+                session.add(role)
+                print(f"Updated permissions for role: {name}")
+            
             role_map[name] = role.id
         
         await session.commit()
 
         # 2. Create Admins
         admins = [
-            ("admin@uzum.com", "admin", "Super Admin", "super_admin"),
+            ("admin@uzum.com", "admin", "Super Admin", "superadmin"),
             ("mod@uzum.com", "mod", "Moderator User", "moderator"),
             ("support@uzum.com", "support", "Support User", "support")
         ]

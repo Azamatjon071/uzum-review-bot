@@ -91,6 +91,7 @@ MILESTONES = {
 @celery_app.task(bind=True, max_retries=3, default_retry_delay=60)
 def notify_submission_received(self, telegram_id: int, submission_id: str, lang: str = "uz"):
     """Tell the user their submission was received and is under review."""
+    lang = lang.lower()
     texts = {
         "uz": (
             f"✅ <b>Sharh qabul qilindi!</b>\n\n"
@@ -128,6 +129,7 @@ def notify_submission_approved(
     approved_total: int = 1,
 ):
     """Tell the user their submission was approved — they can now spin."""
+    lang = lang.lower()
     spin_info = {
         "uz": f"\n\n🎯 Sizda <b>{spin_count}</b> ta g'ildirak aylanishi mavjud!",
         "ru": f"\n\n🎯 У вас доступно <b>{spin_count}</b> вращений колеса!",
@@ -172,6 +174,7 @@ def notify_submission_rejected(
     lang: str = "uz",
 ):
     """Tell the user their submission was rejected with an optional reason."""
+    lang = lang.lower()
     reason_str_map = {
         "uz": f"\n\n<i>Sabab: {reason}</i>" if reason else "",
         "ru": f"\n\n<i>Причина: {reason}</i>" if reason else "",
@@ -218,6 +221,7 @@ def notify_referral_bonus(
     lang: str = "uz",
 ):
     """Notify referrer that their friend joined and they earned a bonus spin."""
+    lang = lang.lower()
     texts = {
         "uz": (
             f"🎁 <b>Taklif bonusi!</b>\n\n"
@@ -263,6 +267,7 @@ def notify_prize_won(
     prize_value: str,
     lang: str = "uz",
 ):
+    lang = lang.lower()
     texts = {
         "uz": (
             f"🏆 <b>Tabriklaymiz! Siz yutdingiz!</b>\n\n"
@@ -298,6 +303,7 @@ def notify_reward_expiring(
     days_left: int,
     lang: str = "uz",
 ):
+    lang = lang.lower()
     texts = {
         "uz": (
             f"⏰ <b>Mukofot muddati tugayapti!</b>\n\n"

@@ -153,10 +153,11 @@ class GamificationService:
         xp_row.xp_history = history[-200:]
 
         # Sync on User row
-        user = await self.db.get(User, user_id)
-        if user:
-            user.xp = xp_row.total_xp
-            user.level = xp_row.current_level
+        # User model does not have separate xp/level columns; relying on relationship.
+        # user = await self.db.get(User, user_id)
+        # if user:
+        #    user.xp = xp_row.total_xp
+        #    user.level = xp_row.current_level
 
         leveled_up = xp_row.current_level > old_level
 

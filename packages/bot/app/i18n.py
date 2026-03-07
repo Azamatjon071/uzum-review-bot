@@ -992,8 +992,10 @@ STATUS_EMOJI = {
 
 def t(key: str, lang: str = FALLBACK_LANG, **kwargs: Any) -> str:
     """Translate a key, falling back to Uzbek, then the raw key."""
+    lang = lang.lower() if lang else FALLBACK_LANG
     entry = STRINGS.get(key, {})
     text = entry.get(lang) or entry.get(FALLBACK_LANG) or key
+
     if kwargs:
         try:
             text = text.format(**kwargs)
@@ -1003,8 +1005,8 @@ def t(key: str, lang: str = FALLBACK_LANG, **kwargs: Any) -> str:
 
 
 def status_label(status: str, lang: str) -> str:
-    return STATUS_LABELS.get(status, {}).get(lang, status)
+    return STATUS_LABELS.get(status.lower(), {}).get(lang.lower(), status)
 
 
 def status_emoji(status: str) -> str:
-    return STATUS_EMOJI.get(status, "❓")
+    return STATUS_EMOJI.get(status.lower(), "❓")

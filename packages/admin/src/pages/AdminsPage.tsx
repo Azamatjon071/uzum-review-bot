@@ -19,7 +19,7 @@ import DensityToggle from '@/components/ui/DensityToggle'
 /* ── Types ──────────────────────────────────────────────────────────────── */
 
 interface Role {
-  id: number
+  id: string
   name: string
   permissions: string[]
 }
@@ -28,7 +28,7 @@ interface Admin {
   id: string
   email: string
   full_name?: string
-  role_id?: number
+  role_id?: string
   role?: Role
   is_active: boolean
   is_totp_enabled: boolean
@@ -105,7 +105,7 @@ interface AddAdminDrawerProps {
   open: boolean
   onClose: () => void
   roles: Role[]
-  onSubmit: (data: { email: string; full_name: string; password: string; role_id: number | null }) => void
+  onSubmit: (data: { email: string; full_name: string; password: string; role_id: string | null }) => void
   isPending: boolean
 }
 
@@ -121,7 +121,7 @@ function AddAdminDrawer({ open, onClose, roles, onSubmit, isPending }: AddAdminD
       email: (fd.get('email') as string).trim(),
       full_name: ((fd.get('full_name') as string) || '').trim(),
       password: fd.get('password') as string,
-      role_id: fd.get('role_id') ? Number(fd.get('role_id')) : null,
+      role_id: fd.get('role_id') ? (fd.get('role_id') as string) : null,
     })
   }
 
@@ -304,7 +304,7 @@ function EditAdminDrawer({ admin, open, onClose, roles, onSubmit, isPending }: E
     const fd = new FormData(e.currentTarget)
     const data: any = {
       full_name: (fd.get('full_name') as string).trim(),
-      role_id: fd.get('role_id') ? Number(fd.get('role_id')) : null,
+      role_id: fd.get('role_id') ? (fd.get('role_id') as string) : null,
       force_2fa_setup: fd.get('force_2fa_setup') === 'on',
     }
     const pwd = (fd.get('password') as string).trim()

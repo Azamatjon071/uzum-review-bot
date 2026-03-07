@@ -39,9 +39,9 @@ async def cmd_status(message: Message, lang: str):
 
     # Compute summary counts
     total = len(submissions)
-    approved_count = sum(1 for s in submissions if s.get("status") == "approved")
-    pending_count = sum(1 for s in submissions if s.get("status") == "pending")
-    rejected_count = sum(1 for s in submissions if s.get("status") in ("rejected", "duplicate"))
+    approved_count = sum(1 for s in submissions if s.get("status", "").lower() == "approved")
+    pending_count = sum(1 for s in submissions if s.get("status", "").lower() == "pending")
+    rejected_count = sum(1 for s in submissions if s.get("status", "").lower() in ("rejected", "duplicate"))
 
     lines: list[str] = [
         t("status.header", lang),
@@ -54,7 +54,7 @@ async def cmd_status(message: Message, lang: str):
     ]
 
     for s in submissions[:10]:
-        st = s.get("status", "pending")
+        st = s.get("status", "pending").lower()
         emoji = status_emoji(st)
         label = status_label(st, lang)
         created = (s.get("created_at") or "")[:10]
@@ -194,7 +194,7 @@ async def cmd_wallet(message: Message, lang: str):
     STATUS_ICONS = {"pending": "🎁", "claimed": "✅", "expired": "⏰", "donated": "🕌"}
     lines = [t("wallet.header", lang), ""]
     for r in rewards[:8]:
-        st = r.get("status", "pending")
+        st = r.get("status", "pending").lower()
         icon = STATUS_ICONS.get(st, "🎁")
         prize = r.get("prize", {})
         name_key = f"name_{lang}" if f"name_{lang}" in prize else "name_uz"

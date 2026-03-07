@@ -47,8 +47,8 @@ async def list_submissions(
     offset = (page - 1) * limit
     filters = []
     if status:
-        # Normalise to lowercase so "PENDING" from frontend matches enum values
-        filters.append(Submission.status == status.lower())
+        # Normalise to uppercase so "pending" from frontend matches enum values
+        filters.append(Submission.status == status.upper())
 
     query = select(Submission).order_by(desc(Submission.created_at)).offset(offset).limit(limit)
     if filters:

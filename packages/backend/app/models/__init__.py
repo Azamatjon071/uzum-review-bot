@@ -14,39 +14,39 @@ from app.database import Base
 # ─── Enums ────────────────────────────────────────────────────────────────────
 
 class Language(str, enum.Enum):
-    UZ = "uz"
-    RU = "ru"
-    EN = "en"
+    UZ = "UZ"
+    RU = "RU"
+    EN = "EN"
 
 
 class SubmissionStatus(str, enum.Enum):
-    PENDING = "pending"
-    APPROVED = "approved"
-    REJECTED = "rejected"
-    DUPLICATE = "duplicate"
+    PENDING = "PENDING"
+    APPROVED = "APPROVED"
+    REJECTED = "REJECTED"
+    DUPLICATE = "DUPLICATE"
 
 
 class PrizeType(str, enum.Enum):
-    DISCOUNT = "discount"
-    CASHBACK = "cashback"
-    GIFT = "gift"
-    FREE_PRODUCT = "free_product"
-    CHARITY_DONATION = "charity_donation"
+    DISCOUNT = "DISCOUNT"
+    CASHBACK = "CASHBACK"
+    GIFT = "GIFT"
+    FREE_PRODUCT = "FREE_PRODUCT"
+    CHARITY_DONATION = "CHARITY_DONATION"
 
 
 class RewardStatus(str, enum.Enum):
-    PENDING = "pending"
-    CLAIMED = "claimed"
-    EXPIRED = "expired"
-    DONATED = "donated"
+    PENDING = "PENDING"
+    CLAIMED = "CLAIMED"
+    EXPIRED = "EXPIRED"
+    DONATED = "DONATED"
 
 
 class NotificationType(str, enum.Enum):
-    SUBMISSION_APPROVED = "submission_approved"
-    SUBMISSION_REJECTED = "submission_rejected"
-    REWARD_EARNED = "reward_earned"
-    REWARD_EXPIRING = "reward_expiring"
-    BROADCAST = "broadcast"
+    SUBMISSION_APPROVED = "SUBMISSION_APPROVED"
+    SUBMISSION_REJECTED = "SUBMISSION_REJECTED"
+    REWARD_EARNED = "REWARD_EARNED"
+    REWARD_EXPIRING = "REWARD_EXPIRING"
+    BROADCAST = "BROADCAST"
     REFERRAL_BONUS = "referral_bonus"
     STREAK_WARNING = "streak_warning"
     ACHIEVEMENT_EARNED = "achievement_earned"
@@ -84,7 +84,7 @@ class FraudSignalType(str, enum.Enum):
     IMAGE_SIMILARITY = "image_similarity"
     VELOCITY_LIMIT = "velocity_limit"
     BOT_BEHAVIOR = "bot_behavior"
-    NEW_ACCOUNT = "new_account"
+    NEW_ACCOUNT = "NEW_ACCOUNT"
     CLUSTER_MATCH = "cluster_match"
 
 
@@ -105,7 +105,7 @@ class User(Base):
     profile_photo_file_id: Mapped[Optional[str]] = mapped_column(String(256))
     last_seen_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
     # Language & status
-    language: Mapped[Language] = mapped_column(SAEnum(Language), default=Language.UZ)
+    language: Mapped[Language] = mapped_column(SAEnum(Language, values_callable=lambda obj: [e.value for e in obj]), default=Language.UZ)
     is_banned: Mapped[bool] = mapped_column(Boolean, default=False)
     ban_reason: Mapped[Optional[str]] = mapped_column(Text)
     # Stats
@@ -154,7 +154,7 @@ class Submission(Base):
     product_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("products.id"), nullable=False)
     order_number: Mapped[Optional[str]] = mapped_column(String(64))
     review_text: Mapped[Optional[str]] = mapped_column(Text)
-    status: Mapped[SubmissionStatus] = mapped_column(SAEnum(SubmissionStatus), default=SubmissionStatus.PENDING, index=True)
+    status: Mapped[SubmissionStatus] = mapped_column(SAEnum(SubmissionStatus, values_callable=lambda obj: [e.value for e in obj]), default=SubmissionStatus.PENDING, index=True)
     rejection_reason: Mapped[Optional[str]] = mapped_column(Text)
     reviewed_by_admin_id: Mapped[Optional[uuid.UUID]] = mapped_column(ForeignKey("admin_users.id"), nullable=True)
     reviewed_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
@@ -193,7 +193,7 @@ class Prize(Base):
     description_uz: Mapped[Optional[str]] = mapped_column(Text)
     description_ru: Mapped[Optional[str]] = mapped_column(Text)
     description_en: Mapped[Optional[str]] = mapped_column(Text)
-    prize_type: Mapped[PrizeType] = mapped_column(SAEnum(PrizeType), nullable=False)
+    prize_type: Mapped[PrizeType] = mapped_column(SAEnum(PrizeType, values_callable=lambda obj: [e.value for e in obj]), nullable=False)
     value: Mapped[float] = mapped_column(Numeric(12, 2), nullable=False, default=0)
     value_currency: Mapped[str] = mapped_column(String(8), default="UZS")
     icon_url: Mapped[Optional[str]] = mapped_column(String(512))
@@ -246,7 +246,7 @@ class Reward(Base):
     user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"), nullable=False, index=True)
     spin_id: Mapped[Optional[uuid.UUID]] = mapped_column(ForeignKey("prize_spins.id"), nullable=True)
     prize_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("prizes.id"), nullable=False)
-    status: Mapped[RewardStatus] = mapped_column(SAEnum(RewardStatus), default=RewardStatus.PENDING)
+    status: Mapped[RewardStatus] = mapped_column(SAEnum(RewardStatus, values_callable=lambda obj: [e.value for e in obj]), default=RewardStatus.PENDING)
     claim_code: Mapped[Optional[str]] = mapped_column(String(32), unique=True, index=True)
     claimed_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
     expires_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
@@ -359,7 +359,7 @@ class Notification(Base):
 
     id: Mapped[uuid.UUID] = mapped_column(default=uuid.uuid4, primary_key=True)
     user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"), nullable=False, index=True)
-    notification_type: Mapped[NotificationType] = mapped_column(SAEnum(NotificationType), nullable=False)
+    notification_type: Mapped[NotificationType] = mapped_column(SAEnum(NotificationType, values_callable=lambda obj: [e.value for e in obj]), nullable=False)
     payload: Mapped[dict] = mapped_column(JSON, default=dict)
     is_sent: Mapped[bool] = mapped_column(Boolean, default=False)
     sent_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
@@ -383,7 +383,10 @@ class Achievement(Base):
     description_en: Mapped[Optional[str]] = mapped_column(Text)
     icon_emoji: Mapped[str] = mapped_column(String(8), default="🏆")
     xp_reward: Mapped[int] = mapped_column(Integer, default=50)
-    rarity: Mapped[AchievementRarity] = mapped_column(SAEnum(AchievementRarity), default=AchievementRarity.COMMON)
+    rarity: Mapped[AchievementRarity] = mapped_column(
+        SAEnum(AchievementRarity, values_callable=lambda obj: [e.value for e in obj]),
+        default=AchievementRarity.COMMON
+    )
     # Target value for progressive achievements (e.g., 10 reviews)
     target_value: Mapped[Optional[int]] = mapped_column(Integer)
     # Extra spins granted when earned
@@ -447,7 +450,7 @@ class DailyMission(Base):
     __tablename__ = "daily_missions"
 
     id: Mapped[uuid.UUID] = mapped_column(default=uuid.uuid4, primary_key=True)
-    mission_type: Mapped[MissionType] = mapped_column(SAEnum(MissionType), nullable=False)
+    mission_type: Mapped[MissionType] = mapped_column(SAEnum(MissionType, values_callable=lambda obj: [e.value for e in obj]), nullable=False)
     # {uz: "...", ru: "...", en: "..."}
     description_i18n: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
     target: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
@@ -483,7 +486,7 @@ class Leaderboard(Base):
     __tablename__ = "leaderboards"
 
     id: Mapped[uuid.UUID] = mapped_column(default=uuid.uuid4, primary_key=True)
-    leaderboard_type: Mapped[LeaderboardType] = mapped_column(SAEnum(LeaderboardType), nullable=False)
+    leaderboard_type: Mapped[LeaderboardType] = mapped_column(SAEnum(LeaderboardType, values_callable=lambda obj: [e.value for e in obj]), nullable=False)
     user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"), nullable=False)
     score: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     rank: Mapped[int] = mapped_column(Integer, nullable=False)
@@ -520,7 +523,7 @@ class FraudSignal(Base):
 
     id: Mapped[uuid.UUID] = mapped_column(default=uuid.uuid4, primary_key=True)
     user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"), nullable=False, index=True)
-    signal_type: Mapped[FraudSignalType] = mapped_column(SAEnum(FraudSignalType), nullable=False)
+    signal_type: Mapped[FraudSignalType] = mapped_column(SAEnum(FraudSignalType, values_callable=lambda obj: [e.value for e in obj]), nullable=False)
     # Score contribution (0-100 scale)
     score: Mapped[int] = mapped_column(Integer, nullable=False, default=10)
     # Evidence JSON (order numbers, image hashes, etc.)
